@@ -24,5 +24,13 @@
     "@types/node": "^26.0.1",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Reddy-py/topgrade-backend.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Reddy-py/topgrade-backend/issues"
+  },
+  "homepage": "https://github.com/Reddy-py/topgrade-backend#readme"
 }
