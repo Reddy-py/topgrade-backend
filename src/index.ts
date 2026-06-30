@@ -6,6 +6,7 @@ import scheduleRouter from "./routes/schedule.js";
 import searchRouter from "./routes/search.js";
 import studentsRouter from "./routes/students.js";
 import teachersRouter from "./routes/teachers.js";
+import coursesRouter from "./routes/courses.js";
 
 dotenv.config();
 
@@ -27,7 +28,8 @@ app.use("/api/schedules", scheduleRouter);
 app.use("/api/search", searchRouter);
 app.use("/api/students", studentsRouter);
 app.use("/api/teachers", teachersRouter);
- // 2. Mount student router to /api/students
+app.use("/api/courses", coursesRouter);
+// 2. Mount student router to /api/students
 
 // Operational System Metrics Endpoint
 app.get("/api/crm-info", (req, res) => {
