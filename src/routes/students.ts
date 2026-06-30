@@ -90,4 +90,67 @@ router.post("/add", async (req, res) => {
   }
 });
 
+// PUT: Modify an existing student registry record
+router.put("/edit/:id", async (req, res) => {
+  const { id } = req.params;
+  const s = req.body;
+
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("students")
+      .update({
+        name: s.studentName,
+        photo_url: s.photoUrl || null,
+        gender: s.gender,
+        dob: s.dateOfBirth,
+        age: parseInt(s.age) || 0,
+        school: s.school || null,
+        grade_level: s.gradeLevel,
+        blood_group: s.bloodGroup,
+        medical_notes: s.medicalNotes || null,
+        special_needs: s.specialNeeds || null,
+        status: s.status || "Active",
+
+        father_name: s.fatherName || null,
+        mother_name: s.motherName || null,
+        guardian: s.guardian || null,
+        phone: s.phone || null,
+        whatsapp: s.whatsapp || null,
+        email: s.email || null,
+        occupation: s.occupation || null,
+        emergency_contact: s.emergencyContact || null,
+        relationship: s.relationship || null,
+        address: s.address || null,
+
+        admission_date: s.admissionDate || null,
+        program: s.program || null,
+        teacher: s.teacher || null,
+        weekly_classes: parseInt(s.weeklyClasses) || null,
+        course_duration: s.courseDuration || null,
+        start_date: s.startDate || null,
+        end_date: s.endDate || null,
+        fee_plan: s.feePlan || null,
+        discount: s.discount || null,
+        scholarship: s.scholarship || null,
+        operational_notes: s.operationalNotes || null,
+
+        doc_birth_certificate: !!s.docBirthCertificate,
+        doc_photo: !!s.docPhoto,
+        doc_id_proof: !!s.docIdProof,
+        doc_school_id: !!s.docSchoolId,
+        doc_medical_certificate: !!s.docMedicalCertificate,
+        doc_agreement: !!s.docAgreement
+      })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.status(200).json({ success: true, data });
+  } catch (error: any) {
+    console.error("Update Error Matrix Fault:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 export default router;
