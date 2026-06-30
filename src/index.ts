@@ -4,7 +4,8 @@ import dotenv from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 import scheduleRouter from "./routes/schedule.js";
 import searchRouter from "./routes/search.js";
-import studentsRouter from "./routes/students.js"; // 1. Import your new student router
+import studentsRouter from "./routes/students.js";
+import teachersRouter from "./routes/teachers.js";
 
 dotenv.config();
 
@@ -24,7 +25,9 @@ export const supabaseAdmin = createClient(
 // API Routers
 app.use("/api/schedules", scheduleRouter);
 app.use("/api/search", searchRouter);
-app.use("/api/students", studentsRouter); // 2. Mount student router to /api/students
+app.use("/api/students", studentsRouter);
+app.use("/api/teachers", teachersRouter);
+ // 2. Mount student router to /api/students
 
 // Operational System Metrics Endpoint
 app.get("/api/crm-info", (req, res) => {
