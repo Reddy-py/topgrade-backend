@@ -7,6 +7,9 @@ import searchRouter from "./routes/search.js";
 import studentsRouter from "./routes/students.js";
 import teachersRouter from "./routes/teachers.js";
 import coursesRouter from "./routes/courses.js";
+import feesRouter from "./routes/fees.js";
+import attendanceRouter from "./routes/attendance.js";
+import admissionsRouter from "./routes/admissions.js";
 
 dotenv.config();
 
@@ -29,7 +32,9 @@ app.use("/api/search", searchRouter);
 app.use("/api/students", studentsRouter);
 app.use("/api/teachers", teachersRouter);
 app.use("/api/courses", coursesRouter);
-// 2. Mount student router to /api/students
+app.use("/api/fees", feesRouter);
+app.use("/api/attendance", attendanceRouter);
+app.use("/api/admissions", admissionsRouter);
 
 // Operational System Metrics Endpoint
 app.get("/api/crm-info", (req, res) => {
