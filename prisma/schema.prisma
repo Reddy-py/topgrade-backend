@@ -1,0 +1,356 @@
+// Prisma Schema for TopGrade Student Management System Backend Architecture
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum UserRole {
+  ADMIN
+  TEACHER
+  PARENT
+  STUDENT
+  ACCOUNTANT
+}
+
+enum StudentStatus {
+  LEAD_INQUIRY
+  ACTIVE
+  INACTIVE_ARCHIVED
+}
+
+enum EnrollmentStatus {
+  FORM_SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  ACTIVATED
+  DE_ENROLLED
+}
+
+enum PaymentMethod {
+  CREDIT_CARD
+  CASH
+  BANK_TRANSFER
+  CHEQUE
+}
+
+enum RescheduleStatus {
+  PENDING
+  APPROVED
+  REJECTED_NOTICE_WINDOW
+  REJECTED_CAP_EXCEEDED
+}
+
+enum MediaApprovalStatus {
+  PENDING_CLEARANCE
+  APPROVED
+  REJECTED
+}
+
+enum LedgerEntryType {
+  DEBIT
+  CREDIT
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String
+  role          UserRole  @default(STUDENT)
+  fullName      String
+  phoneNumber   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  students      Student[] @relation("ParentStudents")
+  teacher       Teacher?
+}
+
+model Student {
+  id                    String            @id @default(uuid())
+  studentCode           String            @unique
+  fullName              String
+  primaryMobile         String?
+  email                 String            @unique
+  gender                String?
+  dob                   DateTime
+  school                String?
+  grade                 String?
+  status                StudentStatus     @default(ACTIVE)
+
+  // Section B: Parent & Guardian Details
+  fatherName            String?
+  motherName            String?
+  guardianName          String?
+  studentPhones         String[]          @default([])
+  parentPhones          String[]          @default([])
+  studentWhatsapp       String?
+  parentWhatsapp        String[]          @default([])
+  studentEmails         String[]          @default([])
+  parentEmails          String[]          @default([])
+  parentOccupation      String?
+  emergencyContactName  String?
+  emergencyContactRelationship String?
+  residentialAddress    String?
+
+  // Section C: Enrollment & Course Allocation
+  admissionDate         DateTime?
+  program               String?
+  assignedTeacherId     String?
+  weeklyClasses         String?
+  courseDuration        String?
+  startDate             DateTime?
+  endDate               DateTime?
+  feePlan               String?
+  discount              String?
+
+  parentId              String?
+  enrolledTenureMonths  Int               @default(0)
+  offboardingDate       DateTime?
+  offboardingReason     String?
+  profileImageUrl       String?
+  mediaApprovalStatus   MediaApprovalStatus @default(PENDING_CLEARANCE)
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  parent                User?             @relation("ParentStudents", fields: [parentId], references: [id])
+  enrollments           Enrollment[]
+  attendanceLogs        AttendanceLog[]
+  rescheduleRequests    RescheduleRequest[]
+  invoices              Invoice[]
+
+  @@index([status])
+  @@index([email])
+}
+
+enum LeadSource {
+  WEBSITE
+  META
+  GOOGLE_ADS
+  MANUAL
+}
+
+enum LeadStatus {
+  PENDING
+  CONTACTED
+  CONVERTED
+  INACTIVE_ARCHIVED
+}
+
+enum InteractionType {
+  CALL
+  EMAIL
+  MEETING
+  NOTE
+}
+
+enum InteractionOutcome {
+  INTERESTED
+  CALLBACK_REQUESTED
+  NOT_INTERESTED
+  NO_ANSWER
+}
+
+model Lead {
+  id                 String            @id @default(uuid())
+  source             LeadSource        @default(WEBSITE)
+  fullName           String
+  studentName        String
+  parentName         String?
+  contactNumber      String
+  phone              String
+  email              String
+  academicGrade      String
+  targetGrade        String
+  message            String?
+  notes              String?
+  utmParameters      String?
+  status             LeadStatus        @default(PENDING)
+  isConverted        Boolean           @default(false)
+  convertedAt        DateTime?
+  lastInteractionAt  DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  enrollment         Enrollment?
+  interactions       LeadInteraction[]
+
+  @@index([email])
+  @@index([phone])
+  @@index([status])
+}
+
+model LeadInteraction {
+  id                   String             @id @default(uuid())
+  leadId               String
+  counselorId          String?
+  interactionType      InteractionType    @default(NOTE)
+  outcome              InteractionOutcome @default(INTERESTED)
+  notes                String
+  scheduledFollowUpAt  DateTime?
+  createdAt            DateTime           @default(now())
+
+  lead                 Lead               @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@index([scheduledFollowUpAt])
+}
+
+model Enrollment {
+  id                String           @id @default(uuid())
+  leadId            String?          @unique
+  studentId         String?
+  academicGrade     String
+  status            EnrollmentStatus @default(FORM_SUBMITTED)
+  submittedAt       DateTime         @default(now())
+  reviewedAt        DateTime?
+  approvedAt        DateTime?
+  activatedAt       DateTime?
+  reviewNotes       String?
+  financialWaiver   Boolean          @default(false)
+  transportWaiver   Boolean          @default(false)
+  mediaWaiver       Boolean          @default(false)
+
+  lead              Lead?            @relation(fields: [leadId], references: [id])
+  student           Student?         @relation(fields: [studentId], references: [id])
+
+  @@index([status])
+}
+
+model Teacher {
+  id                      String         @id @default(uuid())
+  userId                  String         @unique
+  qualification           String
+  hourlyRate              Float
+  weeklyMaxSessions       Int            @default(20)
+  weeklyAssignedSessions  Int            @default(0)
+  gdriveFolderSubmitted   Boolean        @default(false)
+  gdriveFolderUrl         String?
+  photoWaiverSigned       Boolean        @default(false)
+  photoWaiverSignedAt     DateTime?
+  createdAt               DateTime       @default(now())
+
+  user                    User           @relation(fields: [userId], references: [id])
+  classSessions           ClassSession[]
+}
+
+model Grade {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  description String?
+  subjects    Subject[]
+}
+
+model Subject {
+  id            String         @id @default(uuid())
+  gradeId       String
+  title         String
+  code          String         @unique
+  grade         Grade          @relation(fields: [gradeId], references: [id])
+  classSessions ClassSession[]
+}
+
+model ClassSession {
+  id                 String              @id @default(uuid())
+  subjectId          String
+  teacherId          String
+  sessionName        String
+  scheduledStart     DateTime
+  scheduledEnd       DateTime
+  roomNumber         String?
+  maxCapacity        Int                 @default(15)
+
+  subject            Subject             @relation(fields: [subjectId], references: [id])
+  teacher            Teacher             @relation(fields: [teacherId], references: [id])
+  attendanceLogs     AttendanceLog[]
+  rescheduleRequests RescheduleRequest[]
+}
+
+model AttendanceLog {
+  id             String       @id @default(uuid())
+  classSessionId String
+  studentId      String
+  status         String
+  timestamp      DateTime     @default(now())
+
+  classSession   ClassSession @relation(fields: [classSessionId], references: [id])
+  student        Student      @relation(fields: [studentId], references: [id])
+
+  @@unique([classSessionId, studentId])
+}
+
+model RescheduleRequest {
+  id                   String           @id @default(uuid())
+  studentId            String
+  classSessionId       String
+  requestedTimestamp   DateTime
+  newRequestedTime     String
+  reason               String
+  noticeWindowHours    Float
+  termAttemptCount     Int
+  status               RescheduleStatus @default(PENDING)
+  rejectionReason      String?
+  createdAt            DateTime         @default(now())
+
+  student              Student          @relation(fields: [studentId], references: [id])
+  classSession         ClassSession     @relation(fields: [classSessionId], references: [id])
+
+  @@index([studentId])
+}
+
+model Invoice {
+  id                String           @id @default(uuid())
+  invoiceNumber     String           @unique
+  studentId         String
+  totalAmount       Float
+  discountAmount    Float            @default(0.0)
+  netPayable        Float
+  status            String           @default("UNPAID")
+  dueDate           DateTime
+  createdAt         DateTime         @default(now())
+
+  student           Student          @relation(fields: [studentId], references: [id])
+  paymentReceipts   PaymentReceipt[]
+  ledgerEntries     LedgerEntry[]
+}
+
+model PaymentReceipt {
+  id                 String        @id @default(uuid())
+  receiptNumber      String        @unique
+  invoiceId          String
+  amountPaid         Float
+  paymentMethod      PaymentMethod
+  chequeNumber       String?
+  bankName           String?
+  clearanceRef       String?
+  chequeImageUrl     String?
+  paymentDate        DateTime      @default(now())
+
+  invoice            Invoice       @relation(fields: [invoiceId], references: [id])
+}
+
+model LedgerEntry {
+  id             String          @id @default(uuid())
+  invoiceId      String
+  entryType      LedgerEntryType
+  accountHead    String
+  amount         Float
+  balanceAfter   Float
+  description    String
+  timestamp      DateTime        @default(now())
+
+  invoice        Invoice         @relation(fields: [invoiceId], references: [id])
+}
+
+model MediaApproval {
+  id             String              @id @default(uuid())
+  studentId      String
+  mediaUrl       String
+  status         MediaApprovalStatus @default(PENDING_CLEARANCE)
+  adminNotes     String?
+  createdAt      DateTime            @default(now())
+}

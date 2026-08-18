@@ -10,6 +10,9 @@ import coursesRouter from "./routes/courses.js";
 import feesRouter from "./routes/fees.js";
 import attendanceRouter from "./routes/attendance.js";
 import admissionsRouter from "./routes/admissions.js";
+import leadsRouter from "./routes/leads.js";
+import campaignsRouter from "./routes/campaigns.js";
+import enrollmentsRouter from "./routes/enrollments.js";
 
 dotenv.config();
 
@@ -35,6 +38,17 @@ app.use("/api/courses", coursesRouter);
 app.use("/api/fees", feesRouter);
 app.use("/api/attendance", attendanceRouter);
 app.use("/api/admissions", admissionsRouter);
+app.use("/api/leads", leadsRouter);
+app.use("/api/campaigns", campaignsRouter);
+app.use("/api/enrollments", enrollmentsRouter);
+
+import { runDatabaseSeed } from "./seeds/seedData.js";
+
+// Database Seed Endpoint
+app.get("/api/seed", async (_req, res) => {
+  const result = await runDatabaseSeed();
+  res.status(200).json(result);
+});
 
 // Operational System Metrics Endpoint
 app.get("/api/crm-info", (req, res) => {
@@ -52,6 +66,8 @@ app.get("/", (req, res) => {
 });
 
 // Start listening
-app.listen(PORT, () => {
-  console.log(`🚀 Topgrade Express core layer engine running on port ${PORT}`);
-});
+if (process.env.NODE_ENV !== "test") {
+  app.listen(PORT, () => {
+    console.log(`🚀 Topgrade Express core layer engine running on port ${PORT}`);
+  });
+}
