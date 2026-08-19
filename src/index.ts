@@ -13,6 +13,7 @@ import admissionsRouter from "./routes/admissions.js";
 import leadsRouter from "./routes/leads.js";
 import campaignsRouter from "./routes/campaigns.js";
 import enrollmentsRouter from "./routes/enrollments.js";
+import paymentsRouter from "./routes/payments.js";
 
 dotenv.config();
 
@@ -41,6 +42,7 @@ app.use("/api/admissions", admissionsRouter);
 app.use("/api/leads", leadsRouter);
 app.use("/api/campaigns", campaignsRouter);
 app.use("/api/enrollments", enrollmentsRouter);
+app.use("/api/payments", paymentsRouter);
 
 import { runDatabaseSeed } from "./seeds/seedData.js";
 

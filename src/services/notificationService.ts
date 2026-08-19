@@ -15,6 +15,11 @@ export interface NotificationPayload {
   smsMessage?: string;
   eventType: "ADMISSION_INQUIRY" | "ADMISSION_APPROVED" | "PAYMENT_COMPLETED" | "DE_ENROLLMENT_REQUESTED" | "DE_ENROLLMENT_APPROVED" | "ATTENDANCE_ALERT" | "TEACHER_ASSIGNMENT";
   actionUrl?: string;
+  attachments?: Array<{
+    filename: string;
+    content: Buffer | string;
+    contentType?: string;
+  }> | undefined;
 }
 
 /**
@@ -122,6 +127,7 @@ export async function dispatchMultiChannelNotification(payload: NotificationPayl
           to: emailTarget,
           subject: payload.subject,
           html: htmlContent,
+          attachments: payload.attachments
         });
 
         const liveLog = `✅ [REAL GMAIL SENT] To: ${recipient.role} <${emailTarget}> | Subject: "${payload.subject}"`;

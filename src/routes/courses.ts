@@ -89,4 +89,51 @@ router.post("/add", authenticateJwt, authorizePermission("courses.create"), asyn
   res.status(201).json({ success: true, data: savedData });
 });
 
+// POST: Update an existing course stream (Admin & Accountant)
+router.post("/edit", authenticateJwt, authorizePermission("courses.edit"), async (req: AuthenticatedRequest, res) => {
+  const c = req.body;
+  if (!c.id) {
+    return res.status(400).json({ success: false, message: "Course ID is required for editing." });
+  }
+
+  const updatedCourse = {
+    id: c.id,
+    course_code: c.courseCode || c.course_code || `TG-CRS-${c.id}`,
+    name: c.name,
+    description: c.description || null,
+    age_group: c.ageGroup || c.age_group || null,
+    duration: c.duration || null,
+    fee: parseFloat(c.fee) || 0.00,
+    max_students: parseInt(c.maxStudents || c.max_students) || 15,
+    status: c.status || "Active"
+  };
+
+  let savedData = updatedCourse;
+
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("courses")
+      .update(updatedCourse)
+      .eq("id", c.id)
+      .select()
+      .single();
+
+    if (!error && data) {
+      savedData = data;
+    } else {
+      const idx = inMemoryCourses.findIndex(item => item.id === c.id);
+      if (idx !== -1) {
+        inMemoryCourses[idx] = { ...inMemoryCourses[idx], ...updatedCourse };
+      }
+    }
+  } catch (error: any) {
+    const idx = inMemoryCourses.findIndex(item => item.id === c.id);
+    if (idx !== -1) {
+      inMemoryCourses[idx] = { ...inMemoryCourses[idx], ...updatedCourse };
+    }
+  }
+
+  res.status(200).json({ success: true, message: "Course stream updated successfully!", data: savedData });
+});
+
 export default router;

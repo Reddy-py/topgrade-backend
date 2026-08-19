@@ -122,9 +122,74 @@ model Student {
   attendanceLogs        AttendanceLog[]
   rescheduleRequests    RescheduleRequest[]
   invoices              Invoice[]
+  courseBalances        StudentCourseBalance[]
+  paymentOrders         PaymentOrder[]
 
   @@index([status])
   @@index([email])
+}
+
+enum CoursePricingModel {
+  HOURLY_CREDIT_PACKAGE
+  FIXED_COURSE_PACKAGE
+}
+
+enum PayerClassification {
+  FATHERS_CARD
+  MOTHERS_CARD
+  SELF
+  GUARDIAN
+}
+
+model StudentCourseBalance {
+  id                    String             @id @default(uuid())
+  studentId             String
+  courseId              String
+  pricingModel          CoursePricingModel @default(HOURLY_CREDIT_PACKAGE)
+  totalPurchasedHours   Int                @default(0)
+  availableHours        Int                @default(0)
+  usedHours             Int                @default(0)
+  status                String             @default("ACTIVE")
+  quotaWarningTriggered Boolean            @default(false)
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  student               Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, courseId])
+  @@index([studentId])
+}
+
+model PaymentOrder {
+  id                   String               @id @default(uuid())
+  orderNumber          String               @unique
+  studentId            String
+  courseId             String
+  pricingModel         CoursePricingModel   @default(HOURLY_CREDIT_PACKAGE)
+  purchasedHours       Int?
+  amount               Float
+  taxAmount            Float                @default(0.0)
+  totalPayable         Float
+  paymentMethod        PaymentMethod
+  payerClassification  PayerClassification?
+  razorpayOrderId      String?
+  razorpayPaymentId    String?
+  razorpaySignature    String?
+  chequeNumber         String?
+  bankName             String?
+  clearanceRef         String?
+  chequeImageUrl       String?
+  bankUtRef            String?
+  status               String               @default("CREATED")
+  receiptNumber        String?
+  receiptPdfUrl        String?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+
+  student              Student              @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([orderNumber])
 }
 
 enum LeadSource {

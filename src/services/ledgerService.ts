@@ -10,10 +10,10 @@ export interface PaymentProcessingInput {
   invoiceId: string;
   amountPaid: number;
   paymentMethod: "CREDIT_CARD" | "CASH" | "BANK_TRANSFER" | "CHEQUE";
-  chequeNumber?: string;
-  bankName?: string;
-  clearanceRef?: string;
-  chequeImageUrl?: string;
+  chequeNumber?: string | undefined;
+  bankName?: string | undefined;
+  clearanceRef?: string | undefined;
+  chequeImageUrl?: string | undefined;
 }
 
 export class LedgerService {
