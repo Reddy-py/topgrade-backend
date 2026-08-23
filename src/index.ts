@@ -14,6 +14,8 @@ import leadsRouter from "./routes/leads.js";
 import campaignsRouter from "./routes/campaigns.js";
 import enrollmentsRouter from "./routes/enrollments.js";
 import paymentsRouter from "./routes/payments.js";
+import demoRouter from "./routes/demo.js";
+import sessionQrRouter from "./routes/sessionQr.js";
 
 dotenv.config();
 
@@ -43,6 +45,8 @@ app.use("/api/leads", leadsRouter);
 app.use("/api/campaigns", campaignsRouter);
 app.use("/api/enrollments", enrollmentsRouter);
 app.use("/api/payments", paymentsRouter);
+app.use("/api/demo", demoRouter);
+app.use("/api/session-qr", sessionQrRouter);
 
 import { runDatabaseSeed } from "./seeds/seedData.js";
 
@@ -67,9 +71,19 @@ app.get("/", (req, res) => {
   res.json({ status: "online", system: "Topgrade CRM API Engine v1.0.0" });
 });
 
+import { DemoDataService } from "./services/demoDataService.js";
+
 // Start listening
 if (process.env.NODE_ENV !== "test") {
-  app.listen(PORT, () => {
-    console.log(`🚀 Topgrade Express core layer engine running on port ${PORT}`);
+  app.listen(PORT, async () => {
+    console.log(`🚀 TopGrade Backend Engine active on port ${PORT}`);
+    try {
+      const seedStats = await DemoDataService.seedBulkDemoDataset();
+      console.log(`✅ [STARTUP SEED] ${seedStats.message}`, seedStats.stats);
+    } catch (err) {
+      console.warn("Startup seed note:", err);
+    }
   });
 }
+
+export default app;

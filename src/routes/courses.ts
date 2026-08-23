@@ -3,6 +3,7 @@ import { supabaseAdmin } from "../index.js";
 import { authenticateJwt } from "../middleware/auth.js";
 import type { AuthenticatedRequest } from "../middleware/auth.js";
 import { authorizePermission } from "../middleware/authorize.js";
+import { demoCoursesPool } from "../services/demoDataService.js";
 
 const router = express.Router();
 
@@ -33,20 +34,21 @@ let inMemoryCourses: any[] = [
 
 // GET: Fetch all courses with fail-safe fallback
 router.get("/list", authenticateJwt, authorizePermission("courses.view"), async (_req: AuthenticatedRequest, res) => {
-  try {
-    const { data, error } = await supabaseAdmin
-      .from("courses")
-      .select("*")
-      .order("created_at", { ascending: false });
+  const mappedDemoCourses = demoCoursesPool.map(c => ({
+    id: c.id,
+    course_code: `TG-CRS-${c.id.replace('crs-demo-', '')}`,
+    name: c.title,
+    description: c.description,
+    age_group: c.targetGrade,
+    duration: c.duration,
+    fee: c.baseFee,
+    max_students: c.capacity,
+    status: "Active"
+  }));
 
-    if (error || !data || data.length === 0) {
-      res.status(200).json({ success: true, data: inMemoryCourses });
-      return;
-    }
-    res.status(200).json({ success: true, data });
-  } catch (error: any) {
-    res.status(200).json({ success: true, data: inMemoryCourses });
-  }
+  const allCourses = [...inMemoryCourses, ...mappedDemoCourses];
+
+  res.status(200).json({ success: true, data: allCourses });
 });
 
 // POST: Provision a new course with fail-safe fallback

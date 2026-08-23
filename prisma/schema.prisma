@@ -419,3 +419,23 @@ model MediaApproval {
   adminNotes     String?
   createdAt      DateTime            @default(now())
 }
+
+model ClassSessionQR {
+  id             String   @id @default(uuid())
+  classSessionId String   @unique
+  courseId       String
+  courseName     String
+  teacherId      String
+  teacherName    String
+  startTime      DateTime
+  endTime        DateTime
+  graceMinutes   Int      @default(15)
+  qrToken        String   @unique
+  isExpired      Boolean  @default(false)
+  isDemoData     Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  @@index([classSessionId])
+  @@index([qrToken])
+}
+

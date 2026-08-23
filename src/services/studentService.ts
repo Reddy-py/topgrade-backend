@@ -1,4 +1,5 @@
 import { dispatchMultiChannelNotification } from "./notificationService.js";
+import { demoStudentsPool } from "./demoDataService.js";
 
 export interface CourseAllocation {
   courseName: string;
@@ -225,7 +226,29 @@ export async function getStudentsService(params: {
   const statusFilter = (params.status || "ALL").toUpperCase();
   const gradeFilter = (params.grade || "ALL");
 
-  let students = [...inMemoryStudentStore];
+  const mappedDemoStudents: StudentDossier[] = demoStudentsPool.map(s => ({
+    id: s.id,
+    studentCode: s.studentCode,
+    fullName: s.fullName,
+    gender: "Male",
+    dob: s.dob,
+    age: s.age,
+    school: "TopGrade Academy",
+    grade: s.grade,
+    status: "ACTIVE",
+    fatherName: s.fatherName,
+    motherName: s.motherName,
+    studentPhones: [s.parentPhone],
+    parentPhones: [s.parentPhone],
+    primaryMobile: s.parentPhone,
+    email: s.email,
+    parentEmails: [s.parentEmail],
+    admissionDate: "2026-01-15",
+    program: s.enrolledCourseName,
+    allocatedCourses: [{ courseName: s.enrolledCourseName, duration: "6 Months" }]
+  }));
+
+  let students = [...inMemoryStudentStore, ...mappedDemoStudents];
 
   if (statusFilter === "ACTIVE" || statusFilter === "INACTIVE") {
     students = students.filter(s => s.status.toUpperCase() === statusFilter);
