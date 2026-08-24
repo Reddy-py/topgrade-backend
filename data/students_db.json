@@ -1,61 +1,66 @@
 [
   {
-    "id": "std-1787568418962-968",
-    "studentCode": "TG-STU-2026-2238",
-    "firstName": "Riya",
-    "lastName": "Kapoor",
-    "fullName": "Riya Kapoor",
+    "id": "std-1787569238941-822",
+    "studentCode": "TG-STU-2026-4231",
+    "firstName": "rajesh",
+    "lastName": "ganta",
+    "fullName": "rajesh ganta",
     "profileImageUrl": "",
     "gender": "Male",
-    "dob": "2015-05-10",
-    "age": 11,
-    "school": "Delhi Public International School",
-    "grade": "Grade 1",
+    "dob": "2004-06-24",
+    "age": 22,
+    "school": "Narayana",
+    "grade": "Grade 8",
     "status": "ACTIVE",
     "parentFirstName": "",
     "parentLastName": "",
-    "fatherName": "Rajesh Kapoor",
-    "motherName": "Sunita Kapoor",
+    "fatherName": "srinu",
+    "motherName": "lakshmi",
     "guardianName": "",
-    "studentPhones": [],
-    "parentPhones": [],
-    "studentWhatsapp": "",
-    "parentWhatsapp": [],
-    "sameAsStudentPhone": false,
-    "sameAsParentPhone": false,
-    "studentEmails": [
-      "student.test.1787568418961@topgrade.edu"
+    "studentPhones": [
+      "+1 1234567894"
     ],
-    "parentEmails": [],
-    "primaryMobile": "",
-    "email": "student.test.1787568418961@topgrade.edu",
+    "parentPhones": [
+      "+1 9876543216"
+    ],
+    "studentWhatsapp": "+1 1234567894",
+    "parentWhatsapp": [
+      "+1 9876543216"
+    ],
+    "sameAsStudentPhone": true,
+    "sameAsParentPhone": true,
+    "studentEmails": [
+      "rajeshganta@gmail.com"
+    ],
+    "parentEmails": [
+      "ahsudifkgmjfdio@gmail.com"
+    ],
+    "primaryMobile": "+1 1234567894",
+    "email": "rajeshganta@gmail.com",
     "parentOccupation": "",
     "emergencyContactName": "",
-    "emergencyContactRelationship": "",
+    "emergencyContactRelationship": "Father",
     "residentialAddress": "",
     "officeAddress": "",
-    "password": "UpdatedSecurePass@2026",
+    "password": "Student@123",
     "admissionDate": "2026-08-24",
-    "program": "Standard Curriculum",
+    "program": "Algebra & Geometry Lab",
     "allocatedCourses": [
       {
-        "courseName": "Standard Curriculum",
-        "duration": "6 Months"
+        "courseName": "Algebra & Geometry Lab",
+        "duration": "1 Hr Session"
       }
     ],
     "assignedTeacherId": "",
     "teacher": "Assigned Faculty",
     "weeklyClasses": "2 classes/week",
-    "courseDuration": "6 Months",
+    "courseDuration": "1 Hr Session",
     "startDate": "2026-08-24",
-    "endDate": "",
+    "endDate": "2026-08-24",
     "feePlan": "Monthly",
     "discount": "TOPGRD",
-    "createdAt": "2026-08-24T10:46:58.962Z",
-    "updatedAt": "2026-08-24T10:47:05.351Z",
-    "hasChangedPassword": true,
-    "passwordChangedCount": 1,
-    "passwordUpdatedAt": "2026-08-24T10:47:05.351Z"
+    "createdAt": "2026-08-24T11:00:38.941Z",
+    "updatedAt": "2026-08-24T11:00:38.941Z"
   },
   {
     "id": "std-1787565325848-825",
