@@ -44,7 +44,10 @@ import {
 } from "./routes/students.js";
 import { inMemoryStudentStore } from "./services/studentService.js";
 
-// Top-Level Direct Student Creation, Retrieval, Edit & Delete Endpoints
+import { getCoursesHandler } from "./routes/courses.js";
+import { getTeachersHandler } from "./routes/teachers.js";
+
+// Top-Level Direct Resource Endpoints
 app.get("/api/students/list", getStudentsHandler);
 app.get("/api/students", getStudentsHandler);
 app.post("/api/students/add", createStudentHandler);
@@ -59,6 +62,10 @@ app.post("/api/students/request-password-reset", requestPasswordResetHandler);
 app.post("/api/auth/verify-login", verifyLoginRoleHandler);
 app.get("/api/auth/verify-login", verifyLoginRoleHandler);
 app.get("/api/auth/lookup-role", verifyLoginRoleHandler);
+app.get("/api/courses/list", getCoursesHandler);
+app.get("/api/courses", getCoursesHandler);
+app.get("/api/teachers/list", getTeachersHandler);
+app.get("/api/teachers", getTeachersHandler);
 
 // API Routers
 app.use("/api/schedules", scheduleRouter);

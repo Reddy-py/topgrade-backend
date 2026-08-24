@@ -448,8 +448,8 @@ export async function toggleStudentStatusService(id: string, newStatus?: string)
  * Automatically updates disk storage and notifies Admin & Accountant via email.
  */
 export async function changeStudentPasswordService(params: {
-  studentId?: string;
-  email?: string;
+  studentId?: string | undefined;
+  email?: string | undefined;
   newPassword: string;
 }) {
   const { studentId, email, newPassword } = params;
@@ -513,9 +513,9 @@ export async function changeStudentPasswordService(params: {
  * Service to request a secondary password reset from Admin.
  */
 export async function requestPasswordResetService(params: {
-  studentId?: string;
-  email?: string;
-  studentName?: string;
+  studentId?: string | undefined;
+  email?: string | undefined;
+  studentName?: string | undefined;
 }) {
   const { studentId, email, studentName } = params;
   const queryEmail = (email || "").trim().toLowerCase();

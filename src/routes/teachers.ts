@@ -64,9 +64,12 @@ let inMemoryTeachers: any[] = [
 ];
 
 // GET: List all teachers with fail-safe fallback
-router.get("/list", authenticateJwt, authorizePermission("teachers.view"), async (_req: AuthenticatedRequest, res) => {
+export const getTeachersHandler = async (_req: express.Request, res: express.Response) => {
   res.status(200).json({ success: true, data: inMemoryTeachers });
-});
+};
+
+router.get("/list", getTeachersHandler);
+router.get("/", getTeachersHandler);
 
 // POST: Add new faculty teacher profile with fail-safe fallback
 router.post("/add", authenticateJwt, authorizePermission("teachers.create"), async (req: AuthenticatedRequest, res) => {

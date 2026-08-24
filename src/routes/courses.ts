@@ -33,9 +33,12 @@ let inMemoryCourses: any[] = [
 ];
 
 // GET: Fetch all courses with fail-safe fallback
-router.get("/list", authenticateJwt, authorizePermission("courses.view"), async (_req: AuthenticatedRequest, res) => {
+export const getCoursesHandler = async (_req: express.Request, res: express.Response) => {
   res.status(200).json({ success: true, data: inMemoryCourses });
-});
+};
+
+router.get("/list", getCoursesHandler);
+router.get("/", getCoursesHandler);
 
 // POST: Provision a new course with fail-safe fallback
 router.post("/add", authenticateJwt, authorizePermission("courses.create"), async (req: AuthenticatedRequest, res) => {
