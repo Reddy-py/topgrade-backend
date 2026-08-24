@@ -65,29 +65,7 @@ let inMemoryTeachers: any[] = [
 
 // GET: List all teachers with fail-safe fallback
 router.get("/list", authenticateJwt, authorizePermission("teachers.view"), async (_req: AuthenticatedRequest, res) => {
-  const mappedDemoTeachers = demoTeachersPool.map(t => ({
-    id: t.id,
-    teacher_id_code: `TG-FAC-${t.id.replace('tchr-demo-', '')}`,
-    name: t.fullName,
-    dob: "1988-06-15",
-    age: 38,
-    qualification: t.specialization,
-    email: t.email,
-    specialization: t.specialization,
-    experience: "8 Years",
-    joining_date: "2024-01-10",
-    salary: "$65,000",
-    hourly_rate: t.hourlyRate,
-    weekly_assigned_sessions: 10,
-    weekly_max_sessions: 20,
-    document_folder_submitted: true,
-    photo_waiver_signed: true,
-    status: "Active"
-  }));
-
-  const allTeachers = [...inMemoryTeachers, ...mappedDemoTeachers];
-
-  res.status(200).json({ success: true, data: allTeachers });
+  res.status(200).json({ success: true, data: inMemoryTeachers });
 });
 
 // POST: Add new faculty teacher profile with fail-safe fallback

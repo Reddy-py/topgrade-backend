@@ -13,7 +13,7 @@ export interface NotificationPayload {
   subject: string;
   message: string;
   smsMessage?: string;
-  eventType: "ADMISSION_INQUIRY" | "ADMISSION_APPROVED" | "PAYMENT_COMPLETED" | "DE_ENROLLMENT_REQUESTED" | "DE_ENROLLMENT_APPROVED" | "ATTENDANCE_ALERT" | "TEACHER_ASSIGNMENT";
+  eventType: "ADMISSION_INQUIRY" | "ADMISSION_APPROVED" | "PAYMENT_COMPLETED" | "DE_ENROLLMENT_REQUESTED" | "DE_ENROLLMENT_APPROVED" | "ATTENDANCE_ALERT" | "TEACHER_ASSIGNMENT" | "PASSWORD_CHANGE_ALERT" | "PASSWORD_RESET_REQUEST";
   actionUrl?: string;
   attachments?: Array<{
     filename: string;
@@ -108,7 +108,7 @@ export async function dispatchMultiChannelNotification(payload: NotificationPayl
       emailTarget = gmailUser;
     }
 
-    const phoneTarget = recipient.phone || "+1-555-TOP-GRADE";
+    const phoneTarget = recipient.phone || "+1 555 019 9999";
     const recipientName = recipient.name || recipient.role;
 
     // Real Gmail Send if Transporter configured

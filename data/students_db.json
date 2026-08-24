@@ -1,0 +1,123 @@
+[
+  {
+    "id": "std-1787568418962-968",
+    "studentCode": "TG-STU-2026-2238",
+    "firstName": "Riya",
+    "lastName": "Kapoor",
+    "fullName": "Riya Kapoor",
+    "profileImageUrl": "",
+    "gender": "Male",
+    "dob": "2015-05-10",
+    "age": 11,
+    "school": "Delhi Public International School",
+    "grade": "Grade 1",
+    "status": "ACTIVE",
+    "parentFirstName": "",
+    "parentLastName": "",
+    "fatherName": "Rajesh Kapoor",
+    "motherName": "Sunita Kapoor",
+    "guardianName": "",
+    "studentPhones": [],
+    "parentPhones": [],
+    "studentWhatsapp": "",
+    "parentWhatsapp": [],
+    "sameAsStudentPhone": false,
+    "sameAsParentPhone": false,
+    "studentEmails": [
+      "student.test.1787568418961@topgrade.edu"
+    ],
+    "parentEmails": [],
+    "primaryMobile": "",
+    "email": "student.test.1787568418961@topgrade.edu",
+    "parentOccupation": "",
+    "emergencyContactName": "",
+    "emergencyContactRelationship": "",
+    "residentialAddress": "",
+    "officeAddress": "",
+    "password": "UpdatedSecurePass@2026",
+    "admissionDate": "2026-08-24",
+    "program": "Standard Curriculum",
+    "allocatedCourses": [
+      {
+        "courseName": "Standard Curriculum",
+        "duration": "6 Months"
+      }
+    ],
+    "assignedTeacherId": "",
+    "teacher": "Assigned Faculty",
+    "weeklyClasses": "2 classes/week",
+    "courseDuration": "6 Months",
+    "startDate": "2026-08-24",
+    "endDate": "",
+    "feePlan": "Monthly",
+    "discount": "TOPGRD",
+    "createdAt": "2026-08-24T10:46:58.962Z",
+    "updatedAt": "2026-08-24T10:47:05.351Z",
+    "hasChangedPassword": true,
+    "passwordChangedCount": 1,
+    "passwordUpdatedAt": "2026-08-24T10:47:05.351Z"
+  },
+  {
+    "id": "std-1787565325848-825",
+    "studentCode": "TG-STU-2026-3632",
+    "firstName": "Siva",
+    "lastName": "Reddy",
+    "fullName": "Siva Reddy",
+    "profileImageUrl": "",
+    "gender": "Male",
+    "dob": "2003-04-08",
+    "age": 23,
+    "school": "Bhashyam",
+    "grade": "Grade 9",
+    "status": "ACTIVE",
+    "parentFirstName": "",
+    "parentLastName": "",
+    "fatherName": "Venakat",
+    "motherName": "Lakshmi",
+    "guardianName": "",
+    "studentPhones": [
+      "+1 7780648562"
+    ],
+    "parentPhones": [
+      "+1 9492602259"
+    ],
+    "studentWhatsapp": "+1 7780648562",
+    "parentWhatsapp": [
+      "+1 9492602259"
+    ],
+    "sameAsStudentPhone": true,
+    "sameAsParentPhone": true,
+    "studentEmails": [
+      "sivareddy683970@gmail.com"
+    ],
+    "parentEmails": [
+      "sivareddy683970@gmail.com"
+    ],
+    "primaryMobile": "+1 7780648562",
+    "email": "sivareddy683970@gmail.com",
+    "parentOccupation": "",
+    "emergencyContactName": "",
+    "emergencyContactRelationship": "Father",
+    "residentialAddress": "",
+    "officeAddress": "",
+    "password": "Student@123",
+    "admissionDate": "2026-08-24",
+    "program": "AI & Machine Learning Intro",
+    "allocatedCourses": [
+      {
+        "courseName": "AI & Machine Learning Intro",
+        "duration": "3 Months"
+      }
+    ],
+    "assignedTeacherId": "",
+    "teacher": "Assigned Faculty",
+    "weeklyClasses": "2 classes/week",
+    "courseDuration": "3 Months",
+    "startDate": "2026-08-24",
+    "endDate": "2026-11-30",
+    "feePlan": "Monthly",
+    "discount": "TOPGRD",
+    "createdAt": "2026-08-24T09:55:25.848Z",
+    "updatedAt": "2026-08-24T09:55:25.849Z"
+  }
+]

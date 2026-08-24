@@ -166,7 +166,7 @@ export class SessionAttendanceService {
         studentCode: "TG-2026-9081",
         email: "rahul.k@student.topgrade.edu",
         parentEmail: "parent@topgrade.edu",
-        parentPhone: "+1-555-TOP-GRADE",
+        parentPhone: "",
         fatherName: "Rajesh Kumar",
         availableHours: 34
       },
@@ -176,7 +176,7 @@ export class SessionAttendanceService {
         studentCode: "TG-2026-9082",
         email: "ananya.s@student.topgrade.edu",
         parentEmail: "parent@topgrade.edu",
-        parentPhone: "+1-555-TOP-GRADE",
+        parentPhone: "",
         fatherName: "Suresh Sharma",
         availableHours: 20
       }
@@ -343,7 +343,7 @@ export class SessionAttendanceService {
       email: "aarav.sharma@student.topgrade.edu",
       fatherName: "Rajesh Sharma",
       parentEmail: "parent@topgrade.edu",
-      parentPhone: "+1-555-TOP-GRADE"
+      parentPhone: ""
     };
 
     const existingLog = attendanceStore.find(

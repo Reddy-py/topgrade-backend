@@ -34,21 +34,7 @@ let inMemoryCourses: any[] = [
 
 // GET: Fetch all courses with fail-safe fallback
 router.get("/list", authenticateJwt, authorizePermission("courses.view"), async (_req: AuthenticatedRequest, res) => {
-  const mappedDemoCourses = demoCoursesPool.map(c => ({
-    id: c.id,
-    course_code: `TG-CRS-${c.id.replace('crs-demo-', '')}`,
-    name: c.title,
-    description: c.description,
-    age_group: c.targetGrade,
-    duration: c.duration,
-    fee: c.baseFee,
-    max_students: c.capacity,
-    status: "Active"
-  }));
-
-  const allCourses = [...inMemoryCourses, ...mappedDemoCourses];
-
-  res.status(200).json({ success: true, data: allCourses });
+  res.status(200).json({ success: true, data: inMemoryCourses });
 });
 
 // POST: Provision a new course with fail-safe fallback

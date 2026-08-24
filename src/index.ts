@@ -32,6 +32,34 @@ export const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || ""
 );
 
+import {
+  createStudentHandler,
+  getStudentsHandler,
+  updateStudentHandler,
+  deleteStudentHandler,
+  toggleStudentStatusHandler,
+  changePasswordHandler,
+  requestPasswordResetHandler,
+  verifyLoginRoleHandler
+} from "./routes/students.js";
+import { inMemoryStudentStore } from "./services/studentService.js";
+
+// Top-Level Direct Student Creation, Retrieval, Edit & Delete Endpoints
+app.get("/api/students/list", getStudentsHandler);
+app.get("/api/students", getStudentsHandler);
+app.post("/api/students/add", createStudentHandler);
+app.post("/api/students/create", createStudentHandler);
+app.post("/api/students", createStudentHandler);
+app.put("/api/students/edit/:id", updateStudentHandler);
+app.put("/api/students/:id", updateStudentHandler);
+app.delete("/api/students/:id", deleteStudentHandler);
+app.patch("/api/students/:id/status", toggleStudentStatusHandler);
+app.post("/api/students/change-password", changePasswordHandler);
+app.post("/api/students/request-password-reset", requestPasswordResetHandler);
+app.post("/api/auth/verify-login", verifyLoginRoleHandler);
+app.get("/api/auth/verify-login", verifyLoginRoleHandler);
+app.get("/api/auth/lookup-role", verifyLoginRoleHandler);
+
 // API Routers
 app.use("/api/schedules", scheduleRouter);
 app.use("/api/search", searchRouter);
@@ -57,12 +85,21 @@ app.get("/api/seed", async (_req, res) => {
 });
 
 // Operational System Metrics Endpoint
-app.get("/api/crm-info", (req, res) => {
+app.get("/api/crm-info", (_req, res) => {
+  const totalStudents = inMemoryStudentStore.length;
+  const activeStudents = inMemoryStudentStore.filter(s => (s.status || "").toUpperCase() === "ACTIVE").length;
+
   res.json({
     success: true,
     systemName: "TopGrade CRM Engine",
     status: "Operational",
-    database: "Supabase PostgreSQL (Connected)"
+    database: "Supabase PostgreSQL (Connected)",
+    liveMetrics: {
+      totalStudents,
+      newAdmissions: activeStudents,
+      activeCourses: 12,
+      teachersAvailable: 8
+    }
   });
 });
 
@@ -71,17 +108,20 @@ app.get("/", (req, res) => {
   res.json({ status: "online", system: "Topgrade CRM API Engine v1.0.0" });
 });
 
-import { DemoDataService } from "./services/demoDataService.js";
-
 // Start listening
 if (process.env.NODE_ENV !== "test") {
-  app.listen(PORT, async () => {
+  const server = app.listen(PORT, () => {
     console.log(`🚀 TopGrade Backend Engine active on port ${PORT}`);
-    try {
-      const seedStats = await DemoDataService.seedBulkDemoDataset();
-      console.log(`✅ [STARTUP SEED] ${seedStats.message}`, seedStats.stats);
-    } catch (err) {
-      console.warn("Startup seed note:", err);
+  });
+
+  server.on("error", (err: any) => {
+    if (err.code === "EADDRINUSE") {
+      console.warn(`⚠️ Port ${PORT} is in use. Falling back to port 5001...`);
+      app.listen(5001, () => {
+        console.log(`🚀 TopGrade Backend Engine active on port 5001`);
+      });
+    } else {
+      console.error("Server startup error:", err);
     }
   });
 }

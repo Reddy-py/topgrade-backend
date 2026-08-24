@@ -48,7 +48,7 @@ export const studentProfilesMap: Record<string, any> = {
     studentCode: "TG-2026-9081",
     studentEmail: "rahul.k@topgrade.edu",
     parentEmail: "parent@topgrade.edu",
-    parentPhone: "+1-555-TOP-GRADE",
+    parentPhone: "",
     parentName: "Rajesh Kumar",
     courseId: "crs-sec-103",
     courseName: "Full-Stack Coding & Web Dev"
@@ -59,7 +59,7 @@ export const studentProfilesMap: Record<string, any> = {
     studentCode: "TG-2026-9081",
     studentEmail: "rahul.k@topgrade.edu",
     parentEmail: "parent@topgrade.edu",
-    parentPhone: "+1-555-TOP-GRADE",
+    parentPhone: "",
     parentName: "Rajesh Kumar",
     courseId: "crs-sec-103",
     courseName: "Full-Stack Coding & Web Dev"
@@ -70,7 +70,7 @@ export const studentProfilesMap: Record<string, any> = {
     studentCode: "TG-2026-9082",
     studentEmail: "ananya.s@topgrade.edu",
     parentEmail: "parent@topgrade.edu",
-    parentPhone: "+1-555-TOP-GRADE",
+    parentPhone: "",
     parentName: "Suresh Sharma",
     courseId: "crs-elem-102",
     courseName: "Primary Math & Logic Track"
@@ -81,7 +81,7 @@ export const studentProfilesMap: Record<string, any> = {
     studentCode: "TG-2026-9082",
     studentEmail: "ananya.s@topgrade.edu",
     parentEmail: "parent@topgrade.edu",
-    parentPhone: "+1-555-TOP-GRADE",
+    parentPhone: "",
     parentName: "Suresh Sharma",
     courseId: "crs-elem-102",
     courseName: "Primary Math & Logic Track"
