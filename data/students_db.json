@@ -12,7 +12,7 @@
     "school": "Narayana",
     "grade": "Grade 8",
     "status": "ACTIVE",
-    "parentFirstName": "",
+    "parentFirstName": "srinu",
     "parentLastName": "",
     "fatherName": "srinu",
     "motherName": "lakshmi",
@@ -60,7 +60,7 @@
     "feePlan": "Monthly",
     "discount": "TOPGRD",
     "createdAt": "2026-08-24T11:00:38.941Z",
-    "updatedAt": "2026-08-24T11:00:38.941Z"
+    "updatedAt": "2026-08-27T05:05:51.982Z"
   },
   {
     "id": "std-1787565325848-825",
@@ -75,7 +75,7 @@
     "school": "Bhashyam",
     "grade": "Grade 9",
     "status": "ACTIVE",
-    "parentFirstName": "",
+    "parentFirstName": "Venakat",
     "parentLastName": "",
     "fatherName": "Venakat",
     "motherName": "Lakshmi",
@@ -123,6 +123,6 @@
     "feePlan": "Monthly",
     "discount": "TOPGRD",
     "createdAt": "2026-08-24T09:55:25.848Z",
-    "updatedAt": "2026-08-24T09:55:25.849Z"
+    "updatedAt": "2026-08-27T05:05:41.623Z"
   }
 ]
