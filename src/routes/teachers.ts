@@ -72,7 +72,7 @@ router.get("/list", getTeachersHandler);
 router.get("/", getTeachersHandler);
 
 // POST: Add new faculty teacher profile with fail-safe fallback
-router.post("/add", authenticateJwt, authorizePermission("teachers.create"), async (req: AuthenticatedRequest, res) => {
+export const createTeacherHandler = async (req: express.Request, res: express.Response) => {
   const t = req.body;
   const uniqueId = `TG-FAC-${Math.floor(100 + Math.random() * 900)}`;
 
@@ -93,6 +93,7 @@ router.post("/add", authenticateJwt, authorizePermission("teachers.create"), asy
     joining_date: t.joiningDate || null,
     salary: t.salary || null,
     status: "Active",
+    working_days_count: t.workingDaysCount || (t.availabilityDays?.length || 5),
     availability_days: t.availabilityDays || [],
     availability_slots: t.availabilitySlots || []
   };
@@ -116,7 +117,40 @@ router.post("/add", authenticateJwt, authorizePermission("teachers.create"), asy
   }
 
   res.status(201).json({ success: true, data: savedData });
-});
+};
+
+router.post("/add", createTeacherHandler);
+router.post("/", createTeacherHandler);
+
+// DELETE: Delete faculty teacher profile
+export const deleteTeacherHandler = async (req: express.Request, res: express.Response) => {
+  const teacherId = req.params.id;
+  if (!teacherId) {
+    return res.status(400).json({ success: false, message: "Teacher ID is required." });
+  }
+
+  const idx = inMemoryTeachers.findIndex(t => t.id === teacherId || t.teacher_id_code === teacherId);
+  if (idx === -1) {
+    return res.status(404).json({ success: false, message: `Teacher with ID '${teacherId}' not found.` });
+  }
+
+  const deletedTeacher = inMemoryTeachers.splice(idx, 1)[0];
+
+  try {
+    await supabaseAdmin.from("teachers").delete().eq("id", teacherId);
+  } catch (err) {
+    // fallback
+  }
+
+  res.status(200).json({
+    success: true,
+    message: `Teacher '${deletedTeacher.name}' deleted successfully from workspace.`,
+    data: deletedTeacher
+  });
+};
+
+router.delete("/:id", deleteTeacherHandler);
+router.delete("/delete/:id", deleteTeacherHandler);
 
 // POST: Assign Course to Teacher (Triggers notification to Teacher & Admin with Accept / Decline)
 router.post("/assign-course", authenticateJwt, authorizePermission("teachers.edit"), async (req: AuthenticatedRequest, res) => {

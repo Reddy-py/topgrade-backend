@@ -1,6 +1,6 @@
 import express from "express";
 import { AttendanceService, attendanceStore, studentProfilesMap } from "../services/attendanceService.js";
-import { SessionAttendanceService } from "../services/sessionAttendanceService.js";
+import { SessionAttendanceService, classSessionQrStore, type ClassSessionQRRecord } from "../services/sessionAttendanceService.js";
 
 const router = express.Router();
 
@@ -182,6 +182,89 @@ router.get("/list", (req, res) => {
     count: filtered.length,
     data: filtered
   });
+});
+
+// 8. GET ALL SCHEDULED COURSE ATTENDANCE SESSIONS BY DAY & SLOT (GET /api/attendance/sessions)
+router.get("/sessions", (req, res) => {
+  try {
+    const { courseId, day, slot } = req.query;
+    let list = classSessionQrStore.map(s => {
+      const timeGate = SessionAttendanceService.checkSessionQrTimeGate(s);
+      return {
+        ...s,
+        isUnlocked: timeGate.isUnlocked,
+        statusBadgeText: timeGate.statusBadgeText,
+        qrMockUrl: `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(s.qrToken)}`
+      };
+    });
+
+    if (courseId) {
+      list = list.filter(s => s.courseId === String(courseId));
+    }
+    if (day && day !== "ALL") {
+      list = list.filter(s => (s as any).dayOfWeek === String(day) || s.courseName.toLowerCase().includes(String(day).toLowerCase()));
+    }
+    if (slot && slot !== "ALL") {
+      list = list.filter(s => (s as any).slotName === String(slot) || (s as any).slotName?.toLowerCase().includes(String(slot).toLowerCase()));
+    }
+
+    res.status(200).json({
+      success: true,
+      count: list.length,
+      data: list
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to retrieve attendance sessions.",
+      error: err.message
+    });
+  }
+});
+
+// 9. SCHEDULE DYNAMIC ATTENDANCE SESSION FOR ANY COURSE (POST /api/attendance/sessions/create)
+router.post("/sessions/create", (req, res) => {
+  try {
+    const { courseId, courseName, teacherId, teacherName, dayOfWeek, slotName, startTimeIso, endTimeIso, graceMinutes } = req.body;
+
+    if (!courseName) {
+      return res.status(400).json({ success: false, message: "Course Name is required." });
+    }
+
+    const sessionId = `sess-${(courseId || 'crs').toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Date.now().toString().slice(-4)}`;
+    const nowIso = new Date().toISOString();
+    const start = startTimeIso || nowIso;
+    const end = endTimeIso || new Date(Date.now() + 7200000).toISOString();
+
+    const newSession = SessionAttendanceService.generateSessionQrToken({
+      classSessionId: sessionId,
+      courseId: courseId || `crs-${Date.now()}`,
+      courseName: courseName,
+      teacherId: teacherId || "tchr-gen-1",
+      teacherName: teacherName || "Assigned Faculty",
+      startTimeIso: start,
+      endTimeIso: end,
+      graceMinutes: parseInt(graceMinutes) || 15
+    });
+
+    (newSession as any).dayOfWeek = dayOfWeek || "Today";
+    (newSession as any).slotName = slotName || "Standard Class Slot";
+
+    res.status(201).json({
+      success: true,
+      message: `Live Attendance Session for '${courseName}' scheduled for ${dayOfWeek || 'Today'} (${slotName || 'Active Slot'}) with QR Code!`,
+      data: {
+        ...newSession,
+        qrMockUrl: `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(newSession.qrToken)}`
+      }
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to schedule course attendance session.",
+      error: err.message
+    });
+  }
 });
 
 export default router;

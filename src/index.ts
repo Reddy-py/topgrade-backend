@@ -45,8 +45,8 @@ import {
 } from "./routes/students.js";
 import { inMemoryStudentStore } from "./services/studentService.js";
 
-import { getCoursesHandler } from "./routes/courses.js";
-import { getTeachersHandler } from "./routes/teachers.js";
+import { getCoursesHandler, createCourseHandler, editCourseHandler, deleteCourseHandler } from "./routes/courses.js";
+import { getTeachersHandler, createTeacherHandler, deleteTeacherHandler } from "./routes/teachers.js";
 
 // Top-Level Direct Resource Endpoints
 app.get("/api/students/list", getStudentsHandler);
@@ -63,10 +63,22 @@ app.post("/api/students/request-password-reset", requestPasswordResetHandler);
 app.post("/api/auth/verify-login", verifyLoginRoleHandler);
 app.get("/api/auth/verify-login", verifyLoginRoleHandler);
 app.get("/api/auth/lookup-role", verifyLoginRoleHandler);
+
 app.get("/api/courses/list", getCoursesHandler);
 app.get("/api/courses", getCoursesHandler);
+app.post("/api/courses/add", createCourseHandler);
+app.post("/api/courses/create", createCourseHandler);
+app.post("/api/courses", createCourseHandler);
+app.put("/api/courses/edit/:id", editCourseHandler);
+app.put("/api/courses/:id", editCourseHandler);
+app.delete("/api/courses/:id", deleteCourseHandler);
+
 app.get("/api/teachers/list", getTeachersHandler);
 app.get("/api/teachers", getTeachersHandler);
+app.post("/api/teachers/add", createTeacherHandler);
+app.post("/api/teachers/create", createTeacherHandler);
+app.post("/api/teachers", createTeacherHandler);
+app.delete("/api/teachers/:id", deleteTeacherHandler);
 
 // API Routers
 app.use("/api/schedules", scheduleRouter);
