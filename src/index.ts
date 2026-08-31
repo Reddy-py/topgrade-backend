@@ -16,6 +16,7 @@ import enrollmentsRouter from "./routes/enrollments.js";
 import paymentsRouter from "./routes/payments.js";
 import demoRouter from "./routes/demo.js";
 import sessionQrRouter from "./routes/sessionQr.js";
+import reportsRouter from "./routes/reports.js";
 
 dotenv.config();
 
@@ -44,9 +45,9 @@ import {
   verifyLoginRoleHandler
 } from "./routes/students.js";
 import { inMemoryStudentStore } from "./services/studentService.js";
-
-import { getCoursesHandler, createCourseHandler, editCourseHandler, deleteCourseHandler } from "./routes/courses.js";
-import { getTeachersHandler, createTeacherHandler, deleteTeacherHandler } from "./routes/teachers.js";
+import { inMemoryCourses, getCoursesHandler, createCourseHandler, editCourseHandler, deleteCourseHandler } from "./routes/courses.js";
+import { inMemoryTeachers, getTeachersHandler, createTeacherHandler, updateTeacherHandler, deleteTeacherHandler } from "./routes/teachers.js";
+import { classSessionQrStore } from "./services/sessionAttendanceService.js";
 
 // Top-Level Direct Resource Endpoints
 app.get("/api/students/list", getStudentsHandler);
@@ -78,6 +79,8 @@ app.get("/api/teachers", getTeachersHandler);
 app.post("/api/teachers/add", createTeacherHandler);
 app.post("/api/teachers/create", createTeacherHandler);
 app.post("/api/teachers", createTeacherHandler);
+app.put("/api/teachers/edit/:id", updateTeacherHandler);
+app.put("/api/teachers/:id", updateTeacherHandler);
 app.delete("/api/teachers/:id", deleteTeacherHandler);
 
 // API Routers
@@ -95,6 +98,7 @@ app.use("/api/enrollments", enrollmentsRouter);
 app.use("/api/payments", paymentsRouter);
 app.use("/api/demo", demoRouter);
 app.use("/api/session-qr", sessionQrRouter);
+app.use("/api/reports", reportsRouter);
 
 import { runDatabaseSeed } from "./seeds/seedData.js";
 
@@ -108,6 +112,9 @@ app.get("/api/seed", async (_req, res) => {
 app.get("/api/crm-info", (_req, res) => {
   const totalStudents = inMemoryStudentStore.length;
   const activeStudents = inMemoryStudentStore.filter(s => (s.status || "").toUpperCase() === "ACTIVE").length;
+  const activeCourses = inMemoryCourses.length;
+  const teachersAvailable = inMemoryTeachers.length;
+  const todayClasses = classSessionQrStore.length;
 
   res.json({
     success: true,
@@ -117,8 +124,9 @@ app.get("/api/crm-info", (_req, res) => {
     liveMetrics: {
       totalStudents,
       newAdmissions: activeStudents,
-      activeCourses: 12,
-      teachersAvailable: 8
+      activeCourses,
+      teachersAvailable,
+      todayClasses
     }
   });
 });

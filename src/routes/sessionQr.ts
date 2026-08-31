@@ -77,7 +77,7 @@ router.post("/student-scan", async (req, res) => {
 router.get("/live-roster/:sessionId", (req, res) => {
   try {
     const { sessionId } = req.params;
-    const roster = SessionAttendanceService.getLiveSessionRoster(sessionId);
+    const roster = SessionAttendanceService.getSessionRoster(sessionId);
 
     res.status(200).json({
       success: true,

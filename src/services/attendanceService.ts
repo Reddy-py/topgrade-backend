@@ -1,5 +1,6 @@
 import { dispatchMultiChannelNotification } from "./notificationService.js";
 import { studentCourseBalancesStore } from "./courseHoursService.js";
+import { inMemoryStudentStore } from "./studentService.js";
 
 export type AttendanceStatusEnum = "PRESENT" | "ABSENT" | "LATE" | "EXCUSED";
 export type ScanMethodEnum = "QR_CODE_SCANNER" | "MANUAL_MARKING" | "TEACHER_BATCH" | "STUDENT_SELF_QR";
@@ -24,7 +25,7 @@ export interface AttendanceRecord {
 }
 
 export interface QrScanInput {
-  studentQrCode: string; // e.g. "std-qr-rahul" or "TG-2026-9081"
+  studentQrCode: string; // e.g. "TG-STU-2026-3632"
   courseId?: string | undefined;
   scanMethod?: ScanMethodEnum | undefined;
 }
@@ -40,118 +41,8 @@ export interface BatchAttendanceInput {
   }>;
 }
 
-// Default Seed Students for QR Mapping
-export const studentProfilesMap: Record<string, any> = {
-  "TG-2026-9081": {
-    studentId: "std-demo-1",
-    studentName: "Rahul Kumar",
-    studentCode: "TG-2026-9081",
-    studentEmail: "rahul.k@topgrade.edu",
-    parentEmail: "parent@topgrade.edu",
-    parentPhone: "",
-    parentName: "Rajesh Kumar",
-    courseId: "crs-sec-103",
-    courseName: "Full-Stack Coding & Web Dev"
-  },
-  "std-qr-rahul": {
-    studentId: "std-demo-1",
-    studentName: "Rahul Kumar",
-    studentCode: "TG-2026-9081",
-    studentEmail: "rahul.k@topgrade.edu",
-    parentEmail: "parent@topgrade.edu",
-    parentPhone: "",
-    parentName: "Rajesh Kumar",
-    courseId: "crs-sec-103",
-    courseName: "Full-Stack Coding & Web Dev"
-  },
-  "TG-2026-9082": {
-    studentId: "std-demo-2",
-    studentName: "Ananya Sharma",
-    studentCode: "TG-2026-9082",
-    studentEmail: "ananya.s@topgrade.edu",
-    parentEmail: "parent@topgrade.edu",
-    parentPhone: "",
-    parentName: "Suresh Sharma",
-    courseId: "crs-elem-102",
-    courseName: "Primary Math & Logic Track"
-  },
-  "std-qr-ananya": {
-    studentId: "std-demo-2",
-    studentName: "Ananya Sharma",
-    studentCode: "TG-2026-9082",
-    studentEmail: "ananya.s@topgrade.edu",
-    parentEmail: "parent@topgrade.edu",
-    parentPhone: "",
-    parentName: "Suresh Sharma",
-    courseId: "crs-elem-102",
-    courseName: "Primary Math & Logic Track"
-  }
-};
-
-// In-Memory store for fast execution & fallback
-export const attendanceStore: AttendanceRecord[] = [
-  {
-    id: "att-101",
-    studentId: "std-demo-1",
-    studentName: "Rahul Kumar",
-    studentCode: "TG-2026-9081",
-    courseId: "crs-sec-103",
-    courseName: "Full-Stack Coding & Web Dev",
-    parentEmail: "parent@topgrade.edu",
-    parentName: "Rajesh Kumar",
-    checkInTime: new Date(Date.now() - 86400000).toISOString(),
-    checkOutTime: new Date(Date.now() - 79200000).toISOString(),
-    status: "PRESENT",
-    scanMethod: "QR_CODE_SCANNER",
-    date: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
-    createdAt: new Date(Date.now() - 86400000).toISOString()
-  },
-  {
-    id: "att-102",
-    studentId: "std-demo-2",
-    studentName: "Ananya Sharma",
-    studentCode: "TG-2026-9082",
-    courseId: "crs-elem-102",
-    courseName: "Primary Math & Logic Track",
-    parentEmail: "parent@topgrade.edu",
-    parentName: "Suresh Sharma",
-    checkInTime: new Date(Date.now() - 172800000).toISOString(),
-    status: "ABSENT",
-    scanMethod: "TEACHER_BATCH",
-    date: new Date(Date.now() - 172800000).toISOString().slice(0, 10),
-    createdAt: new Date(Date.now() - 172800000).toISOString()
-  },
-  {
-    id: "att-103",
-    studentId: "std-demo-2",
-    studentName: "Ananya Sharma",
-    studentCode: "TG-2026-9082",
-    courseId: "crs-elem-102",
-    courseName: "Primary Math & Logic Track",
-    parentEmail: "parent@topgrade.edu",
-    parentName: "Suresh Sharma",
-    checkInTime: new Date(Date.now() - 259200000).toISOString(),
-    status: "ABSENT",
-    scanMethod: "TEACHER_BATCH",
-    date: new Date(Date.now() - 259200000).toISOString().slice(0, 10),
-    createdAt: new Date(Date.now() - 259200000).toISOString()
-  },
-  {
-    id: "att-104",
-    studentId: "std-demo-2",
-    studentName: "Ananya Sharma",
-    studentCode: "TG-2026-9082",
-    courseId: "crs-elem-102",
-    courseName: "Primary Math & Logic Track",
-    parentEmail: "parent@topgrade.edu",
-    parentName: "Suresh Sharma",
-    checkInTime: new Date(Date.now() - 345600000).toISOString(),
-    status: "PRESENT",
-    scanMethod: "QR_CODE_SCANNER",
-    date: new Date(Date.now() - 345600000).toISOString().slice(0, 10),
-    createdAt: new Date(Date.now() - 345600000).toISOString()
-  }
-];
+// Live in-memory attendance ledger (0 demo records initially)
+export const attendanceStore: AttendanceRecord[] = [];
 
 export class AttendanceService {
   /**
@@ -159,7 +50,30 @@ export class AttendanceService {
    */
   public static async scanQrCodeCheckInCheckOut(input: QrScanInput) {
     const rawQr = (input.studentQrCode || "").trim();
-    const studentInfo = studentProfilesMap[rawQr] || studentProfilesMap["TG-2026-9081"];
+    
+    // Dynamically lookup from inMemoryStudentStore
+    const matchedStudent = inMemoryStudentStore.find(
+      s => s.studentCode === rawQr || s.id === rawQr || s.fullName.toLowerCase().includes(rawQr.toLowerCase())
+    ) || inMemoryStudentStore[0] || {
+      id: "std-temp",
+      fullName: "Student",
+      studentCode: rawQr || "TG-STU-2026",
+      parentEmails: ["parent@topgrade.edu"],
+      parentPhones: [""],
+      fatherName: "Parent",
+      email: "student@topgrade.edu"
+    };
+
+    const studentInfo = {
+      studentId: matchedStudent.id || "std-temp",
+      studentName: matchedStudent.fullName,
+      studentCode: matchedStudent.studentCode || `TG-STU-${matchedStudent.id}`,
+      parentEmail: (matchedStudent as any).parentEmails?.[0] || matchedStudent.email || "parent@topgrade.edu",
+      parentPhone: (matchedStudent as any).parentPhones?.[0] || (matchedStudent as any).primaryMobile || "",
+      parentName: (matchedStudent as any).fatherName || (matchedStudent as any).parentFirstName || "Parent",
+      courseId: input.courseId || "crs-active",
+      courseName: "Academic Course Stream"
+    };
 
     const todayStr = new Date().toISOString().slice(0, 10);
     const nowIso = new Date().toISOString();
@@ -180,9 +94,9 @@ export class AttendanceService {
       dispatchMultiChannelNotification({
         eventType: "ATTENDANCE_ALERT",
         subject: `🔔 TopGrade Attendance Alert — Check-OUT Confirmed (${studentInfo.studentName})`,
-        message: `Dear ${studentInfo.parentName || "Parent"},\n\nThis is an automated notification confirming that ${studentInfo.studentName} has checked OUT at ${new Date(nowIso).toLocaleTimeString()}.\n\nCourse: ${studentInfo.courseName}\nDate: ${todayStr}\n\nBest Regards,\nTopGrade Learning Administration`,
+        message: `Dear ${studentInfo.parentName},\n\nThis is an automated notification confirming that ${studentInfo.studentName} has checked OUT at ${new Date(nowIso).toLocaleTimeString()}.\n\nCourse: ${studentInfo.courseName}\nDate: ${todayStr}\n\nBest Regards,\nTopGrade Learning Administration`,
         recipients: [
-          { role: "PARENT", email: parentEmail, name: studentInfo.parentName || "Parent" },
+          { role: "PARENT", email: parentEmail, name: studentInfo.parentName },
           { role: "ADMIN", email: adminEmail, name: "Administrator" }
         ]
       }).catch(err => console.warn("Check-out parent notification note:", err));
@@ -219,67 +133,72 @@ export class AttendanceService {
     const balanceObj = studentCourseBalancesStore.find(
       b => b.studentId === studentInfo.studentId
     );
+
+    let remainingHours = 20;
     if (balanceObj) {
       balanceObj.usedHours += 1;
       balanceObj.availableHours = Math.max(0, balanceObj.availableHours - 1);
       balanceObj.updatedAt = nowIso;
-      if (balanceObj.availableHours <= 2) {
-        balanceObj.quotaWarningTriggered = true;
-        balanceObj.teacherWarningMessage = `⚠️ Quota Warning: Student '${studentInfo.studentName}' has only ${balanceObj.availableHours} session(s) remaining!`;
-      }
+      remainingHours = balanceObj.availableHours;
     }
 
     // Dispatch Arrival Parent Alert
     dispatchMultiChannelNotification({
       eventType: "ATTENDANCE_ALERT",
       subject: `🔔 TopGrade Attendance Alert — Check-IN Confirmed (${studentInfo.studentName})`,
-      message: `Dear ${studentInfo.parentName || "Parent"},\n\nThis is an automated notification confirming that ${studentInfo.studentName} has checked IN at ${new Date(nowIso).toLocaleTimeString()}.\n\nCourse: ${studentInfo.courseName}\nPaid Sessions Remaining: ${balanceObj ? balanceObj.availableHours : "Active"}\nDate: ${todayStr}\n\nBest Regards,\nTopGrade Learning Administration`,
+      message: `Dear ${studentInfo.parentName},\n\nThis is an automated notification confirming that ${studentInfo.studentName} has arrived and checked IN for '${studentInfo.courseName}' at ${new Date(nowIso).toLocaleTimeString()}.\n\nRemaining Prepaid Hours: ${remainingHours}\nDate: ${todayStr}\n\nBest Regards,\nTopGrade Learning Administration`,
       recipients: [
-        { role: "PARENT", email: parentEmail, name: studentInfo.parentName || "Parent" },
+        { role: "PARENT", email: parentEmail, name: studentInfo.parentName },
         { role: "ADMIN", email: adminEmail, name: "Administrator" }
       ]
     }).catch(err => console.warn("Check-in parent notification note:", err));
 
     return {
       action: "CHECK_IN",
-      message: `Check-IN logged for '${studentInfo.studentName}' at ${new Date(nowIso).toLocaleTimeString()}`,
+      message: `Check-IN verified for '${studentInfo.studentName}'. Parent notification dispatched.`,
       record: newRecord,
-      remainingHours: balanceObj ? balanceObj.availableHours : undefined,
+      remainingHours,
       parentNotificationSent: true
     };
   }
 
   /**
-   * 2. Batch Attendance Marking by Teacher Roster
+   * 2. Process Batch Teacher Attendance Marking
    */
   public static async markBatchAttendance(input: BatchAttendanceInput) {
+    const { courseId, date, entries } = input;
     const nowIso = new Date().toISOString();
-    const createdRecords: AttendanceRecord[] = [];
 
-    for (const entry of input.entries) {
-      const studentInfo = Object.values(studentProfilesMap).find(s => s.studentId === entry.studentId) || {
-        studentId: entry.studentId,
-        studentName: entry.studentName,
-        studentCode: `TG-${Date.now()}`,
-        parentEmail: "parent@topgrade.edu",
-        parentName: "Parent",
-        courseId: input.courseId,
-        courseName: "Academic Class"
+    const createdRecords: AttendanceRecord[] = [];
+    let presentCount = 0;
+    let absentCount = 0;
+
+    for (const entry of entries) {
+      const isAttended = entry.status === "PRESENT" || entry.status === "LATE";
+      if (isAttended) presentCount++;
+      else absentCount++;
+
+      const studentMeta = inMemoryStudentStore.find(s => s.id === entry.studentId) || {
+        studentCode: `TG-STU-${entry.studentId}`,
+        parentEmails: ["parent@topgrade.edu"],
+        parentPhones: [""],
+        fatherName: "Parent"
       };
 
       const record: AttendanceRecord = {
-        id: `att-batch-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        id: `att-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
         studentId: entry.studentId,
         studentName: entry.studentName,
-        studentCode: studentInfo.studentCode,
-        courseId: input.courseId,
-        courseName: studentInfo.courseName,
-        parentEmail: studentInfo.parentEmail,
-        parentName: studentInfo.parentName,
-        checkInTime: entry.status === "PRESENT" || entry.status === "LATE" ? nowIso : undefined,
+        studentCode: studentMeta.studentCode || `TG-STU-${entry.studentId}`,
+        courseId,
+        courseName: "Scheduled Academic Course",
+        parentEmail: studentMeta.parentEmails?.[0] || "parent@topgrade.edu",
+        parentPhone: studentMeta.parentPhones?.[0] || "",
+        parentName: studentMeta.fatherName || "Parent",
+        checkInTime: isAttended ? nowIso : undefined,
         status: entry.status,
         scanMethod: "TEACHER_BATCH",
-        date: input.date || nowIso.slice(0, 10),
+        date: date || nowIso.slice(0, 10),
         notes: entry.notes,
         createdAt: nowIso
       };
@@ -287,71 +206,82 @@ export class AttendanceService {
       attendanceStore.unshift(record);
       createdRecords.push(record);
 
-      // Decrement prepaid hours if PRESENT or LATE
-      if (entry.status === "PRESENT" || entry.status === "LATE") {
-        const balanceObj = studentCourseBalancesStore.find(b => b.studentId === entry.studentId);
-        if (balanceObj) {
-          balanceObj.usedHours += 1;
-          balanceObj.availableHours = Math.max(0, balanceObj.availableHours - 1);
-          balanceObj.updatedAt = nowIso;
+      if (isAttended) {
+        const balObj = studentCourseBalancesStore.find(b => b.studentId === entry.studentId);
+        if (balObj) {
+          balObj.usedHours += 1;
+          balObj.availableHours = Math.max(0, balObj.availableHours - 1);
+          balObj.updatedAt = nowIso;
         }
       }
     }
 
     return {
       success: true,
-      count: createdRecords.length,
-      records: createdRecords
+      message: `Batch attendance processed for ${entries.length} students (${presentCount} Present, ${absentCount} Absent).`,
+      records: createdRecords,
+      presentCount,
+      absentCount
     };
   }
 
   /**
-   * 3. Calculate Attendance Stats & Low Attendance Analytics (< 75% Risk Trigger)
+   * 3. Calculate Real-Time Attendance Statistics for a Student
    */
-  public static getStudentAttendanceStats(studentId: string, thresholdPercent = 75) {
-    const logs = attendanceStore.filter(r => r.studentId === studentId);
-    const totalSessions = logs.length;
+  public static getStudentAttendanceStats(studentId: string, alertThresholdPercentage: number = 75) {
+    const studentRecords = attendanceStore.filter(r => r.studentId === studentId);
+    const totalSessions = studentRecords.length;
 
     if (totalSessions === 0) {
       return {
         studentId,
         totalSessions: 0,
-        presentCount: 0,
-        absentCount: 0,
-        lateCount: 0,
-        excusedCount: 0,
-        attendancePercent: 100,
-        lowAttendanceWarning: false,
-        warningMessage: undefined,
-        logs: []
+        presentSessions: 0,
+        absentSessions: 0,
+        lateSessions: 0,
+        attendancePercentage: 100,
+        isBelowThreshold: false,
+        warningAlert: "No recorded class sessions yet.",
+        records: []
       };
     }
 
-    const presentCount = logs.filter(r => r.status === "PRESENT").length;
-    const lateCount = logs.filter(r => r.status === "LATE").length;
-    const absentCount = logs.filter(r => r.status === "ABSENT").length;
-    const excusedCount = logs.filter(r => r.status === "EXCUSED").length;
+    const presentSessions = studentRecords.filter(r => r.status === "PRESENT" || r.status === "LATE").length;
+    const absentSessions = studentRecords.filter(r => r.status === "ABSENT").length;
+    const lateSessions = studentRecords.filter(r => r.status === "LATE").length;
 
-    // Weight: Present & Late count as attended
-    const attendedCount = presentCount + lateCount;
-    const attendancePercent = Math.round((attendedCount / totalSessions) * 100);
-
-    const isLowAttendance = attendancePercent < thresholdPercent;
+    const attendancePercentage = Math.round((presentSessions / totalSessions) * 100);
+    const isBelowThreshold = attendancePercentage < alertThresholdPercentage;
 
     return {
       studentId,
-      studentName: logs[0]?.studentName || "Student",
       totalSessions,
-      presentCount,
-      absentCount,
-      lateCount,
-      excusedCount,
-      attendancePercent,
-      lowAttendanceWarning: isLowAttendance,
-      warningMessage: isLowAttendance
-        ? `⚠️ Low Attendance Risk Warning: Student attendance is ${attendancePercent}% (Below ${thresholdPercent}% threshold).`
-        : undefined,
-      logs
+      presentSessions,
+      absentSessions,
+      lateSessions,
+      attendancePercentage,
+      isBelowThreshold,
+      warningAlert: isBelowThreshold 
+        ? `⚠️ Attendance (${attendancePercentage}%) is below required ${alertThresholdPercentage}% threshold!`
+        : "Attendance in good standing.",
+      records: studentRecords
     };
+  }
+
+  /**
+   * 4. Retrieve Full Attendance History
+   */
+  public static getAllAttendance(filters?: { courseId?: string; date?: string; studentId?: string }) {
+    let list = attendanceStore;
+    if (filters?.courseId) {
+      list = list.filter(r => r.courseId === filters.courseId);
+    }
+    if (filters?.date) {
+      list = list.filter(r => r.date === filters.date);
+    }
+    if (filters?.studentId) {
+      list = list.filter(r => r.studentId === filters.studentId);
+    }
+    return list;
   }
 }

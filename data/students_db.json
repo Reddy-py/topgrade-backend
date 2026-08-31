@@ -1,68 +1,5 @@
 [
   {
-    "id": "std-1787569238941-822",
-    "studentCode": "TG-STU-2026-4231",
-    "firstName": "rajesh",
-    "lastName": "ganta",
-    "fullName": "rajesh ganta",
-    "profileImageUrl": "",
-    "gender": "Male",
-    "dob": "2004-06-24",
-    "age": 22,
-    "school": "Narayana",
-    "grade": "Grade 8",
-    "status": "ACTIVE",
-    "parentFirstName": "srinu",
-    "parentLastName": "",
-    "fatherName": "srinu",
-    "motherName": "lakshmi",
-    "guardianName": "",
-    "studentPhones": [
-      "+1 1234567894"
-    ],
-    "parentPhones": [
-      "+1 9876543216"
-    ],
-    "studentWhatsapp": "+1 1234567894",
-    "parentWhatsapp": [
-      "+1 9876543216"
-    ],
-    "sameAsStudentPhone": true,
-    "sameAsParentPhone": true,
-    "studentEmails": [
-      "rajeshganta@gmail.com"
-    ],
-    "parentEmails": [
-      "ahsudifkgmjfdio@gmail.com"
-    ],
-    "primaryMobile": "+1 1234567894",
-    "email": "rajeshganta@gmail.com",
-    "parentOccupation": "",
-    "emergencyContactName": "",
-    "emergencyContactRelationship": "Father",
-    "residentialAddress": "",
-    "officeAddress": "",
-    "password": "Student@123",
-    "admissionDate": "2026-08-24",
-    "program": "Algebra & Geometry Lab",
-    "allocatedCourses": [
-      {
-        "courseName": "Algebra & Geometry Lab",
-        "duration": "1 Hr Session"
-      }
-    ],
-    "assignedTeacherId": "",
-    "teacher": "Assigned Faculty",
-    "weeklyClasses": "2 classes/week",
-    "courseDuration": "1 Hr Session",
-    "startDate": "2026-08-24",
-    "endDate": "2026-08-24",
-    "feePlan": "Monthly",
-    "discount": "TOPGRD",
-    "createdAt": "2026-08-24T11:00:38.941Z",
-    "updatedAt": "2026-08-27T05:05:51.982Z"
-  },
-  {
     "id": "std-1787565325848-825",
     "studentCode": "TG-STU-2026-3632",
     "firstName": "Siva",
@@ -107,22 +44,75 @@
     "officeAddress": "",
     "password": "Student@123",
     "admissionDate": "2026-08-24",
-    "program": "AI & Machine Learning Intro",
-    "allocatedCourses": [
-      {
-        "courseName": "AI & Machine Learning Intro",
-        "duration": "3 Months"
-      }
-    ],
+    "program": "General Academic Track",
+    "allocatedCourses": [],
     "assignedTeacherId": "",
-    "teacher": "Assigned Faculty",
-    "weeklyClasses": "2 classes/week",
-    "courseDuration": "3 Months",
+    "teacher": "Unassigned",
+    "weeklyClasses": "0 classes/week",
+    "courseDuration": "N/A",
     "startDate": "2026-08-24",
     "endDate": "2026-11-30",
     "feePlan": "Monthly",
     "discount": "TOPGRD",
     "createdAt": "2026-08-24T09:55:25.848Z",
-    "updatedAt": "2026-08-27T05:05:41.623Z"
+    "updatedAt": "2026-08-31T11:00:00.000Z"
+  },
+  {
+    "id": "std-1787569238941-822",
+    "studentCode": "TG-STU-2026-4231",
+    "firstName": "rajesh",
+    "lastName": "ganta",
+    "fullName": "rajesh ganta",
+    "profileImageUrl": "",
+    "gender": "Male",
+    "dob": "2004-06-24",
+    "age": 22,
+    "school": "Narayana",
+    "grade": "Grade 8",
+    "status": "ACTIVE",
+    "parentFirstName": "srinu",
+    "parentLastName": "",
+    "fatherName": "srinu",
+    "motherName": "lakshmi",
+    "guardianName": "",
+    "studentPhones": [
+      "+1 1234567894"
+    ],
+    "parentPhones": [
+      "+1 9876543216"
+    ],
+    "studentWhatsapp": "+1 1234567894",
+    "parentWhatsapp": [
+      "+1 9876543216"
+    ],
+    "sameAsStudentPhone": true,
+    "sameAsParentPhone": true,
+    "studentEmails": [
+      "rajeshganta@gmail.com"
+    ],
+    "parentEmails": [
+      "ahsudifkgmjfdio@gmail.com"
+    ],
+    "primaryMobile": "+1 1234567894",
+    "email": "rajeshganta@gmail.com",
+    "parentOccupation": "",
+    "emergencyContactName": "",
+    "emergencyContactRelationship": "Father",
+    "residentialAddress": "",
+    "officeAddress": "",
+    "password": "Student@123",
+    "admissionDate": "2026-08-24",
+    "program": "General Academic Track",
+    "allocatedCourses": [],
+    "assignedTeacherId": "",
+    "teacher": "Unassigned",
+    "weeklyClasses": "0 classes/week",
+    "courseDuration": "N/A",
+    "startDate": "2026-08-24",
+    "endDate": "2026-08-24",
+    "feePlan": "Monthly",
+    "discount": "TOPGRD",
+    "createdAt": "2026-08-24T11:00:38.941Z",
+    "updatedAt": "2026-08-31T11:00:00.000Z"
   }
 ]

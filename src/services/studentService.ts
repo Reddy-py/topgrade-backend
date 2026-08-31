@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { dispatchMultiChannelNotification } from "./notificationService.js";
+import { inMemoryTeachers } from "../routes/teachers.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -559,7 +560,33 @@ export async function verifyLoginRoleService(emailOrCode: string) {
 
   const query = emailOrCode.trim().toLowerCase();
 
-  // 1. Exact match in Students Database (s.email, studentEmails, studentCode)
+  // 1. Exact match in Teachers Database (teacher.email, teacher.teacher_id_code, teacher.id)
+  const matchingTeacher = inMemoryTeachers.find(
+    t => t.email?.toLowerCase() === query ||
+         t.teacher_id_code?.toLowerCase() === query ||
+         t.id?.toLowerCase() === query
+  );
+
+  if (matchingTeacher) {
+    return {
+      success: true,
+      role: "TEACHER",
+      teacher: {
+        id: matchingTeacher.id,
+        teacher_id_code: matchingTeacher.teacher_id_code,
+        fullName: matchingTeacher.name,
+        name: matchingTeacher.name,
+        email: matchingTeacher.email,
+        phone: matchingTeacher.phone,
+        qualification: matchingTeacher.qualification,
+        specialization: matchingTeacher.specialization,
+        availability_days: matchingTeacher.availability_days,
+        availability_slots: matchingTeacher.availability_slots
+      }
+    };
+  }
+
+  // 2. Exact match in Students Database (s.email, studentEmails, studentCode)
   const matchingStudent = inMemoryStudentStore.find(
     s => s.email?.toLowerCase() === query ||
          s.studentCode?.toLowerCase() === query ||
@@ -583,7 +610,7 @@ export async function verifyLoginRoleService(emailOrCode: string) {
     };
   }
 
-  // 2. Parent match
+  // 3. Parent match
   const matchingParent = inMemoryStudentStore.find(
     s => (s.parentEmails || []).some(e => e.toLowerCase() === query)
   );
@@ -595,7 +622,7 @@ export async function verifyLoginRoleService(emailOrCode: string) {
     };
   }
 
-  // 3. System Roles
+  // 4. System Roles
   if (query.includes("teacher")) return { success: true, role: "TEACHER" };
   if (query.includes("accountant")) return { success: true, role: "ACCOUNTANT" };
   if (query === "admin@topgrade.edu" || query.startsWith("admin@") || query.includes("admin_") || query === "admin") {

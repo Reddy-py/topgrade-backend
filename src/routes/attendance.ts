@@ -1,6 +1,7 @@
 import express from "express";
-import { AttendanceService, attendanceStore, studentProfilesMap } from "../services/attendanceService.js";
+import { AttendanceService, attendanceStore } from "../services/attendanceService.js";
 import { SessionAttendanceService, classSessionQrStore, type ClassSessionQRRecord } from "../services/sessionAttendanceService.js";
+import { inMemoryStudentStore } from "../services/studentService.js";
 
 const router = express.Router();
 
@@ -107,7 +108,7 @@ router.post("/mark-batch", async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: `Batch attendance logged for ${result.count} students successfully.`,
+      message: `Batch attendance logged for ${result.records.length} students successfully.`,
       data: result
     });
   } catch (err: any) {
@@ -142,11 +143,12 @@ router.get("/student-stats/:studentId", (req, res) => {
 // 6. GET STUDENT QR CODE PASS (GET /api/attendance/qr-code/:studentId)
 router.get("/qr-code/:studentId", (req, res) => {
   const { studentId } = req.params;
-  const match = Object.values(studentProfilesMap).find(s => s.studentId === studentId) || {
-    studentId,
-    studentName: "Rahul Kumar",
-    studentCode: "TG-2026-9081",
-    courseName: "Full-Stack Coding & Web Dev"
+  const sMatch = inMemoryStudentStore.find(s => s.id === studentId || s.studentCode === studentId);
+  const match = {
+    studentId: sMatch?.id || studentId,
+    studentName: sMatch?.fullName || "Student",
+    studentCode: sMatch?.studentCode || `TG-STU-${studentId}`,
+    courseName: "Enrolled Course"
   };
 
   const qrCodeData = `TG-QR-${match.studentCode}`;
