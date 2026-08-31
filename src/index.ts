@@ -17,6 +17,8 @@ import paymentsRouter from "./routes/payments.js";
 import demoRouter from "./routes/demo.js";
 import sessionQrRouter from "./routes/sessionQr.js";
 import reportsRouter from "./routes/reports.js";
+import historyRouter from "./routes/history.js";
+import alertsRouter from "./routes/alerts.js";
 
 dotenv.config();
 
@@ -99,6 +101,8 @@ app.use("/api/payments", paymentsRouter);
 app.use("/api/demo", demoRouter);
 app.use("/api/session-qr", sessionQrRouter);
 app.use("/api/reports", reportsRouter);
+app.use("/api/history", historyRouter);
+app.use("/api/alerts", alertsRouter);
 
 import { runDatabaseSeed } from "./seeds/seedData.js";
 
