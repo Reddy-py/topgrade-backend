@@ -312,7 +312,7 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
     studentEmails: cleanStudentEmails,
     parentEmails: cleanParentEmails,
     primaryMobile: cleanStudentPhones[0] || payload.primaryMobile || "",
-    email: cleanStudentEmails[0] || payload.email || `${studentCode.toLowerCase()}@topgrade.edu`,
+    email: (cleanStudentEmails[0] || payload.email || "").trim() || undefined,
     parentOccupation: payload.parentOccupation || "",
     emergencyContactName: payload.emergencyContactName || "",
     emergencyContactRelationship: payload.emergencyContactRelationship || "",
@@ -353,7 +353,17 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
             student_code: newStudent.studentCode
           }
         });
-        if (authCreated?.user) authUserId = authCreated.user.id;
+        if (authCreated?.user) {
+          authUserId = authCreated.user.id;
+          // Also record in profiles table
+          await supabaseAdmin.from("profiles").upsert({
+            id: authUserId,
+            email: newStudent.email,
+            full_name: newStudent.fullName,
+            role: "STUDENT",
+            status: "Active"
+          }, { onConflict: "id" });
+        }
       }
 
       const studentRow: any = {
