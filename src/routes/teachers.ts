@@ -75,22 +75,42 @@ export const createTeacherHandler = async (req: express.Request, res: express.Re
     availability_slots: t.availabilitySlots || ["Morning (09:00 AM - 12:00 PM)", "Afternoon (01:00 PM - 04:00 PM)"]
   };
 
-  let savedData = newTeacher;
+  inMemoryTeachers.unshift(newTeacher);
 
+  // Real-time Supabase Database & Auth sync
   try {
-    const { data, error } = await supabaseAdmin
-      .from("teachers")
-      .insert([newTeacher])
-      .select()
-      .single();
-
-    if (!error && data) {
-      savedData = { ...newTeacher, ...data };
-    } else {
-      inMemoryTeachers.unshift(newTeacher);
+    let teacherAuthId: string | null = null;
+    if (newTeacher.email) {
+      const { data: tAuth } = await supabaseAdmin.auth.admin.createUser({
+        email: newTeacher.email,
+        password: defaultPassword,
+        email_confirm: true,
+        user_metadata: {
+          full_name: newTeacher.name,
+          role: "TEACHER",
+          teacher_id_code: uniqueId
+        }
+      });
+      if (tAuth?.user) teacherAuthId = tAuth.user.id;
     }
+
+    const teacherRow: any = {
+      name: newTeacher.name,
+      teacher_id_code: uniqueId,
+      dob: newTeacher.dob || null,
+      age: newTeacher.age || 0,
+      qualification: newTeacher.qualification || null,
+      phone: newTeacher.phone || null,
+      email: newTeacher.email || null,
+      specialization: newTeacher.specialization || null,
+      experience: newTeacher.experience || null,
+      status: newTeacher.status || "Active"
+    };
+    if (teacherAuthId) teacherRow.user_id = teacherAuthId;
+
+    await supabaseAdmin.from("teachers").upsert(teacherRow, { onConflict: "teacher_id_code" });
   } catch (error: any) {
-    inMemoryTeachers.unshift(newTeacher);
+    console.warn("Supabase teacher creation notice:", error?.message);
   }
 
   // Automatic Email Dispatch to Teacher, Admin, and Accountant
@@ -108,29 +128,29 @@ export const createTeacherHandler = async (req: express.Request, res: express.Re
       recipients: recipients as any,
       subject: `🎉 Welcome to TopGrade Faculty: ${newTeacher.name} [ID: ${uniqueId}]`,
       message: `A new faculty instructor profile has been registered in the TopGrade CRM system.\n\n` +
-        `👨‍🏫 Faculty Member: ${newTeacher.name}\n` +
-        `🆔 Unique Faculty ID: ${uniqueId}\n` +
-        `📧 Registered Login Email: ${newTeacher.email || "N/A"}\n` +
-        `🔑 Temporary Portal Password: ${defaultPassword}\n` +
-        `🎓 Qualification: ${newTeacher.qualification || "Faculty Instructor"}\n` +
-        `📅 Working Days: ${newTeacher.availability_days.join(", ")}\n` +
-        `🕒 Shift Slots: ${newTeacher.availability_slots.join(" • ")}\n` +
-        `🌐 Login Portal: http://localhost:5173/login\n\n` +
-        `Please retain these credentials for portal access.`,
-      eventType: "TEACHER_ASSIGNMENT",
-      actionUrl: "http://localhost:5173/login"
+               `Faculty Details:\n` +
+               `• Teacher Name: ${newTeacher.name}\n` +
+               `• Teacher ID: ${uniqueId}\n` +
+               `• Specialization: ${newTeacher.specialization || "General"}\n` +
+               `• Official Email: ${newTeacher.email || "N/A"}\n` +
+               `• Initial Password: ${defaultPassword}\n` +
+               `• Status: Active\n\n` +
+               `Please sign in at the TopGrade CRM Faculty Portal to manage your course schedules and attendance rosters.\n\n` +
+               `TopGrade Administration Center`,
+      eventType: "TEACHER_ASSIGNMENT"
     });
-  } catch (noticeErr) {
-    console.warn("Notice sending teacher onboarding email:", noticeErr);
+  } catch (notifyErr) {
+    console.warn("Notice: Failed to dispatch automated teacher email:", notifyErr);
   }
 
   res.status(201).json({
     success: true,
-    message: `Teacher '${newTeacher.name}' added with Faculty ID ${uniqueId}. Credentials emailed to Teacher, Admin & Accountant.`,
-    data: savedData
+    message: `Teacher '${newTeacher.name}' added successfully! Email notification dispatched to teacher, admin, and accountant.`,
+    data: newTeacher
   });
 };
 
+router.post("/create", createTeacherHandler);
 router.post("/add", createTeacherHandler);
 router.post("/", createTeacherHandler);
 
@@ -173,12 +193,23 @@ export const updateTeacherHandler = async (req: express.Request, res: express.Re
   inMemoryTeachers[idx] = updatedTeacher;
 
   try {
+    const updateRow: any = {
+      name: updatedTeacher.name,
+      dob: updatedTeacher.dob || null,
+      age: updatedTeacher.age || 0,
+      qualification: updatedTeacher.qualification || null,
+      phone: updatedTeacher.phone || null,
+      email: updatedTeacher.email || null,
+      specialization: updatedTeacher.specialization || null,
+      experience: updatedTeacher.experience || null,
+      status: updatedTeacher.status || "Active"
+    };
     await supabaseAdmin
       .from("teachers")
-      .update(updatedTeacher)
-      .eq("id", teacherId);
-  } catch (err) {
-    // fallback
+      .update(updateRow)
+      .eq("teacher_id_code", currentTeacher.teacher_id_code || teacherId);
+  } catch (err: any) {
+    console.warn("Supabase teacher update notice:", err?.message);
   }
 
   res.status(200).json({
@@ -206,9 +237,12 @@ export const deleteTeacherHandler = async (req: express.Request, res: express.Re
   const deletedTeacher = inMemoryTeachers.splice(idx, 1)[0];
 
   try {
-    await supabaseAdmin.from("teachers").delete().eq("id", teacherId);
-  } catch (err) {
-    // fallback
+    await supabaseAdmin
+      .from("teachers")
+      .delete()
+      .eq("teacher_id_code", deletedTeacher.teacher_id_code || teacherId);
+  } catch (err: any) {
+    console.warn("Supabase teacher delete notice:", err?.message);
   }
 
   res.status(200).json({

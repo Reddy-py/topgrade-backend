@@ -3,6 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { dispatchMultiChannelNotification } from "./notificationService.js";
 import { inMemoryTeachers } from "../routes/teachers.js";
+import { supabaseAdmin } from "../index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -337,6 +338,47 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
   inMemoryStudentStore.unshift(newStudent);
   saveStudentsToDisk();
 
+  // ─── Real-time Supabase Database & Auth Sync ───
+  (async () => {
+    try {
+      let authUserId: string | null = null;
+      if (newStudent.email) {
+        const { data: authCreated } = await supabaseAdmin.auth.admin.createUser({
+          email: newStudent.email,
+          password: newStudent.password || "Student@123",
+          email_confirm: true,
+          user_metadata: {
+            full_name: newStudent.fullName,
+            role: "STUDENT",
+            student_code: newStudent.studentCode
+          }
+        });
+        if (authCreated?.user) authUserId = authCreated.user.id;
+      }
+
+      const studentRow: any = {
+        name: newStudent.fullName,
+        student_id_code: newStudent.studentCode,
+        gender: newStudent.gender || "Male",
+        dob: newStudent.dob || null,
+        age: newStudent.age || 0,
+        phone: newStudent.primaryMobile || null,
+        email: newStudent.email || null,
+        father_name: newStudent.fatherName || null,
+        mother_name: newStudent.motherName || null,
+        guardian: newStudent.guardianName || null,
+        program: newStudent.program || "General Academic Track",
+        teacher: newStudent.teacher || "Unassigned",
+        status: newStudent.status || "Active"
+      };
+      if (authUserId) studentRow.user_id = authUserId;
+
+      await supabaseAdmin.from("students").upsert(studentRow, { onConflict: "student_id_code" });
+    } catch (sbErr: any) {
+      console.warn("Supabase student sync notice:", sbErr?.message);
+    }
+  })();
+
   // Multi-Email Dispatch Notification to Respected Student & Parent Email Addresses
   try {
     const recipients: Array<{ role: "STUDENT" | "PARENT" | "TEACHER" | "ACCOUNTANT" | "ADMIN"; email: string; name: string; phone: string }> = [];
@@ -403,6 +445,30 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
 
   inMemoryStudentStore[index] = updated;
   saveStudentsToDisk();
+
+  // Real-time Supabase Update Sync
+  (async () => {
+    try {
+      const updateFields: any = {
+        name: updated.fullName,
+        gender: updated.gender || "Male",
+        dob: updated.dob || null,
+        age: updated.age || 0,
+        phone: updated.primaryMobile || null,
+        email: updated.email || null,
+        father_name: updated.fatherName || null,
+        mother_name: updated.motherName || null,
+        guardian: updated.guardianName || null,
+        program: updated.program || "General Academic Track",
+        teacher: updated.teacher || "Unassigned",
+        status: updated.status || "Active"
+      };
+      await supabaseAdmin.from("students").update(updateFields).eq("student_id_code", updated.studentCode);
+    } catch (e: any) {
+      console.warn("Supabase student update notice:", e?.message);
+    }
+  })();
+
   return updated;
 }
 
@@ -415,8 +481,20 @@ export async function deleteStudentService(id: string): Promise<boolean> {
     throw new Error(`Student with ID '${id}' not found.`);
   }
 
-  inMemoryStudentStore.splice(index, 1);
+  const removed = inMemoryStudentStore.splice(index, 1)[0];
   saveStudentsToDisk();
+
+  // Real-time Supabase Delete Sync
+  (async () => {
+    try {
+      if (removed?.studentCode) {
+        await supabaseAdmin.from("students").delete().eq("student_id_code", removed.studentCode);
+      }
+    } catch (e: any) {
+      console.warn("Supabase student delete notice:", e?.message);
+    }
+  })();
+
   return true;
 }
 
@@ -441,6 +519,16 @@ export async function toggleStudentStatusService(id: string, newStatus?: string)
   current.updatedAt = new Date().toISOString();
   inMemoryStudentStore[index] = current;
   saveStudentsToDisk();
+
+  // Real-time Supabase Status Toggle Sync
+  (async () => {
+    try {
+      await supabaseAdmin.from("students").update({ status: targetStatus }).eq("student_id_code", current.studentCode);
+    } catch (e: any) {
+      console.warn("Supabase student status toggle notice:", e?.message);
+    }
+  })();
+
   return current;
 }
 
@@ -480,6 +568,21 @@ export async function changeStudentPasswordService(params: {
   student.updatedAt = new Date().toISOString();
 
   saveStudentsToDisk();
+
+  // Real-time Supabase Auth Password Update
+  (async () => {
+    try {
+      if (student.email) {
+        const { data: userList } = await supabaseAdmin.auth.admin.listUsers();
+        const user = userList?.users?.find(u => u.email?.toLowerCase() === student.email.toLowerCase());
+        if (user) {
+          await supabaseAdmin.auth.admin.updateUserById(user.id, { password: newPassword.trim() });
+        }
+      }
+    } catch (e: any) {
+      console.warn("Supabase student password update notice:", e?.message);
+    }
+  })();
 
   // Automatic email notification to Admin & Accountant
   try {

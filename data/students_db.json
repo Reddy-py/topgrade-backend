@@ -1,5 +1,66 @@
 [
   {
+    "id": "std-1788241892680-157",
+    "studentCode": "TG-STU-2026-9717",
+    "firstName": "harshith",
+    "lastName": "pabisetty",
+    "fullName": "harshith pabisetty",
+    "profileImageUrl": "",
+    "gender": "Male",
+    "dob": "2004-07-13",
+    "age": 22,
+    "school": "cds",
+    "grade": "Grade 6",
+    "status": "ACTIVE",
+    "parentFirstName": "",
+    "parentLastName": "",
+    "fatherName": "sathish",
+    "motherName": "lakshmi",
+    "guardianName": "",
+    "studentPhones": [
+      "+1 5818585656"
+    ],
+    "parentPhones": [
+      "+1 556458214"
+    ],
+    "studentWhatsapp": "+1 5818585656",
+    "parentWhatsapp": [
+      "+1 556458214"
+    ],
+    "sameAsStudentPhone": true,
+    "sameAsParentPhone": true,
+    "studentEmails": [
+      "std-1788241892654@topgrade.edu"
+    ],
+    "parentEmails": [],
+    "primaryMobile": "+1 5818585656",
+    "email": "std-1788241892654@topgrade.edu",
+    "parentOccupation": "",
+    "emergencyContactName": "",
+    "emergencyContactRelationship": "Father",
+    "residentialAddress": "",
+    "officeAddress": "",
+    "password": "Student@123",
+    "admissionDate": "2026-09-01",
+    "program": "Python Beginners & Logic",
+    "allocatedCourses": [
+      {
+        "courseName": "Python Beginners & Logic",
+        "duration": "3 Months"
+      }
+    ],
+    "assignedTeacherId": "tch-1",
+    "teacher": "manikanta",
+    "weeklyClasses": "2 classes/week",
+    "courseDuration": "3 Months",
+    "startDate": "2026-09-01",
+    "endDate": "",
+    "feePlan": "Monthly",
+    "discount": "TOPGRD",
+    "createdAt": "2026-09-01T05:51:32.681Z",
+    "updatedAt": "2026-09-01T05:51:32.681Z"
+  },
+  {
     "id": "std-1787565325848-825",
     "studentCode": "TG-STU-2026-3632",
     "firstName": "Siva",
