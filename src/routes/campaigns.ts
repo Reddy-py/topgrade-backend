@@ -1,5 +1,5 @@
 import express from "express";
-import { supabaseAdmin } from "../index.js";
+import { supabaseAdmin } from "../supabase.js";
 import { authenticateJwt } from "../middleware/auth.js";
 import type { AuthenticatedRequest } from "../middleware/auth.js";
 import { authorizePermission } from "../middleware/authorize.js";

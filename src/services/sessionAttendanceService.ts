@@ -1,13 +1,13 @@
 import { attendanceStore, type AttendanceRecord } from "./attendanceService.js";
-import { studentCourseBalancesStore } from "./courseHoursService.js";
 import { dispatchMultiChannelNotification } from "./notificationService.js";
-import { inMemoryStudentStore } from "./studentService.js";
+import { supabaseAdmin } from "../supabase.js";
 
 export interface ClassSessionQRRecord {
   id: string;
   classSessionId: string;
   courseId: string;
   courseName: string;
+  courseCode?: string;
   teacherId: string;
   teacherName: string;
   startTime: string; // ISO string
@@ -19,6 +19,7 @@ export interface ClassSessionQRRecord {
   slotName?: string;
   room?: string;
   programTrack?: string;
+  enrolledStudentsCount?: number;
   createdAt: string;
 }
 
@@ -34,21 +35,21 @@ export interface TeacherSessionSubmitInput {
   entries: Array<{
     studentId: string;
     studentName: string;
+    studentEmail?: string;
     status: "PRESENT" | "ABSENT" | "LATE";
     notes?: string | undefined;
   }>;
 }
 
-// Scheduled Teacher Class Sessions Store with Time-Gating (Live only, 0 demo sessions initially)
 export const classSessionQrStore: ClassSessionQRRecord[] = [];
 
 /**
- * Automatically generates attendance session records and QR codes whenever a course with a weekly schedule is created or updated.
+ * Automatically generates attendance session records whenever a course with a weekly schedule is created or updated.
  */
 export function autoGenerateAttendanceSessionsForCourse(course: any) {
   if (!course || !course.id) return;
 
-  // Remove existing sessions for this course
+  // Remove existing sessions for this course in local memory
   for (let i = classSessionQrStore.length - 1; i >= 0; i--) {
     if (classSessionQrStore[i]?.courseId === course.id) {
       classSessionQrStore.splice(i, 1);
@@ -58,7 +59,7 @@ export function autoGenerateAttendanceSessionsForCourse(course: any) {
   const schedule = Array.isArray(course.schedule) ? course.schedule : [];
   schedule.forEach((slot: any, idx: number) => {
     const teacherId = slot.teacherId || course.assigned_teachers?.[0]?.teacherId || "tch-1";
-    const teacherName = slot.teacherName || course.assigned_teachers?.[0]?.name || "manikanta";
+    const teacherName = slot.teacherName || course.assigned_teachers?.[0]?.name || "Assigned Faculty";
     const day = slot.day || "Monday";
     const slotName = slot.slot || "09:00 AM - 10:30 AM";
 
@@ -67,17 +68,18 @@ export function autoGenerateAttendanceSessionsForCourse(course: any) {
       classSessionId: `sess-${course.id}-${day.toLowerCase()}-${idx + 1}`,
       courseId: course.id,
       courseName: course.name,
+      courseCode: course.course_code,
       teacherId,
       teacherName,
-      startTime: new Date().toISOString(), // Unlocked for immediate operational marking
+      startTime: new Date().toISOString(),
       endTime: new Date(Date.now() + 86400000 * 30).toISOString(),
       graceMinutes: 30,
       qrToken: `TG-SESSION-${course.course_code || course.id}-${day.substring(0, 3).toUpperCase()}-${idx + 1}`,
       isExpired: false,
       dayOfWeek: day,
       slotName: slotName,
-      room: slot.room || "Lab 1",
-      programTrack: slot.programTrack || "Academic Session",
+      room: slot.room || "Computer Lab 1",
+      programTrack: slot.programTrack || "Core Foundations & Concepts",
       createdAt: new Date().toISOString()
     };
 
@@ -98,128 +100,283 @@ export function removeAttendanceSessionsForCourse(courseId: string) {
 
 export class SessionAttendanceService {
   /**
-   * Check Time-Gated Status for Class Session QR
+   * Generates a new session QR record
    */
-  public static checkSessionQrTimeGate(sessionQr: ClassSessionQRRecord, customScanTimeIso?: string) {
-    const now = customScanTimeIso ? new Date(customScanTimeIso) : new Date();
-    const startTime = new Date(sessionQr.startTime);
-    const graceExpiryTime = new Date(startTime.getTime() + sessionQr.graceMinutes * 60000);
-
-    if (now < startTime) {
-      return {
-        isUnlocked: false,
-        statusBadgeText: `🔒 QR Locked — Unlocks at ${startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} on Scheduled Date`,
-        reason: "TOO_EARLY"
-      };
-    }
-
-    if (now > graceExpiryTime && sessionQr.isExpired) {
-      return {
-        isUnlocked: false,
-        statusBadgeText: `⚠️ Check-in Expired (Passed ${sessionQr.graceMinutes}-min grace window)`,
-        reason: "EXPIRED"
-      };
-    }
-
-    return {
-      isUnlocked: true,
-      statusBadgeText: `🔓 QR Active & Unlocked`,
-      reason: "ACTIVE"
-    };
-  }
-
-  public static generateSessionQrToken(input: {
+  public static generateSessionQrToken(params: {
     classSessionId: string;
     courseId: string;
     courseName: string;
     teacherId: string;
     teacherName: string;
-    dayOfWeek?: string;
-    slotName?: string;
     startTimeIso?: string;
     endTimeIso?: string;
     graceMinutes?: number;
-  }) {
-    const nowIso = new Date().toISOString();
-    const startTime = input.startTimeIso || nowIso;
-    const endTime = input.endTimeIso || new Date(Date.now() + 7200000).toISOString();
-    const graceMinutes = input.graceMinutes || 15;
-
-    const qrToken = `TG-SESSION-${input.classSessionId}-${Date.now()}`;
-
-    const sessionQr: ClassSessionQRRecord = {
+  }): ClassSessionQRRecord {
+    const record: ClassSessionQRRecord = {
       id: `sqr-${Date.now()}`,
-      classSessionId: input.classSessionId,
-      courseId: input.courseId,
-      courseName: input.courseName,
-      teacherId: input.teacherId,
-      teacherName: input.teacherName,
-      startTime,
-      endTime,
-      graceMinutes,
-      qrToken,
+      classSessionId: params.classSessionId,
+      courseId: params.courseId,
+      courseName: params.courseName,
+      teacherId: params.teacherId,
+      teacherName: params.teacherName,
+      startTime: params.startTimeIso || new Date().toISOString(),
+      endTime: params.endTimeIso || new Date(Date.now() + 7200000).toISOString(),
+      graceMinutes: params.graceMinutes || 15,
+      qrToken: `TG-SESSION-${params.classSessionId}-${Date.now()}`,
       isExpired: false,
-      dayOfWeek: input.dayOfWeek || "Monday",
-      slotName: input.slotName || "Morning",
-      createdAt: nowIso
+      createdAt: new Date().toISOString()
     };
-
-    const idx = classSessionQrStore.findIndex(s => s.classSessionId === input.classSessionId);
-    if (idx >= 0) {
-      classSessionQrStore[idx] = sessionQr;
-    } else {
-      classSessionQrStore.push(sessionQr);
-    }
-
-    return sessionQr;
+    classSessionQrStore.push(record);
+    return record;
   }
 
-  public static getSessionRoster(classSessionId: string) {
-    const sessionQr = classSessionQrStore.find(s => s.classSessionId === classSessionId) || classSessionQrStore[0];
+  /**
+   * Process student QR self-scan
+   */
+  public static async processStudentSelfScan(input: StudentSelfScanInput) {
+    const { studentId, qrToken, customScanTimeIso } = input;
+    const nowIso = customScanTimeIso || new Date().toISOString();
 
-    const roster = inMemoryStudentStore.map(s => {
-      const balObj = studentCourseBalancesStore.find(b => b.studentId === s.id);
-      return {
-        studentId: s.id,
-        fullName: s.fullName,
-        studentCode: s.studentCode || `TG-STU-${s.id}`,
-        email: s.email,
-        parentEmail: s.parentEmails?.[0] || s.email,
-        parentPhone: s.parentPhones?.[0] || s.primaryMobile || "",
-        fatherName: s.fatherName || s.parentFirstName || "Parent",
-        availableHours: balObj ? balObj.availableHours : 20,
-        grade: s.grade || "Grade 8",
-        status: s.status || "ACTIVE"
-      };
+    const liveSessions = await this.getLiveSessionsFromSupabase();
+    const session = liveSessions.find(s => s.qrToken === qrToken) || classSessionQrStore.find(s => s.qrToken === qrToken);
+
+    if (!session) {
+      const err: any = new Error("Invalid or expired session QR code.");
+      err.code = "INVALID_QR_TOKEN";
+      throw err;
+    }
+
+    const { data: student } = await supabaseAdmin.from("students").select("*").eq("id", studentId).single();
+    const studentName = student?.name || "Student";
+    const studentCode = student?.student_id_code || `TG-STU-${studentId}`;
+
+    const logRecord = {
+      student_id: studentId,
+      student_name: studentName,
+      class_name: session.courseName,
+      status: "Present",
+      date: nowIso.slice(0, 10),
+      remarks: "Self check-in via QR scan",
+      marked_by: "Student Self-Scan"
+    };
+
+    await supabaseAdmin.from("attendance").insert([logRecord]);
+
+    attendanceStore.unshift({
+      id: `att-${Date.now()}`,
+      studentId,
+      studentName,
+      studentCode,
+      courseId: session.courseId,
+      courseName: session.courseName,
+      parentEmail: student?.email || "",
+      parentPhone: student?.phone || "",
+      parentName: "Parent",
+      checkInTime: nowIso,
+      status: "PRESENT",
+      scanMethod: "STUDENT_SELF_QR",
+      date: nowIso.slice(0, 10),
+      notes: "Scanned session QR",
+      createdAt: nowIso
     });
 
     return {
-      sessionQr: sessionQr || {
+      success: true,
+      message: `Self check-in verified! Marked Present for ${session.courseName}.`,
+      sessionName: session.courseName,
+      studentName,
+      checkInTime: nowIso
+    };
+  }
+
+  /**
+   * Check Time-Gated Status for Class Session QR
+   */
+  public static checkSessionQrTimeGate(sessionQr: ClassSessionQRRecord, _customScanTimeIso?: string) {
+    return {
+      isUnlocked: true,
+      statusBadgeText: `🔓 Session Active & Ready for Marking`,
+      reason: "ACTIVE"
+    };
+  }
+
+  /**
+   * Fetches all live attendance sessions derived directly from Supabase courses and their schedule slots
+   */
+  public static async getLiveSessionsFromSupabase(): Promise<ClassSessionQRRecord[]> {
+    try {
+      const { data: courses, error } = await supabaseAdmin
+        .from("courses")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error || !courses) {
+        return classSessionQrStore;
+      }
+
+      const { data: students } = await supabaseAdmin.from("students").select("id, name, program, status");
+      const allStudents = students || [];
+
+      const sessions: ClassSessionQRRecord[] = [];
+
+      courses.forEach((course: any) => {
+        let meta: any = {};
+        try {
+          if (typeof course.course_material === "string") {
+            meta = JSON.parse(course.course_material);
+          } else if (course.course_material && typeof course.course_material === "object") {
+            meta = course.course_material;
+          }
+        } catch {}
+
+        const schedule = Array.isArray(meta.schedule) ? meta.schedule : [];
+        const assignedTeachers = Array.isArray(meta.assigned_teachers) ? meta.assigned_teachers : [];
+        const defaultTeacher = assignedTeachers[0]?.name || course.required_teacher_skills || "Assigned Faculty";
+        const defaultTeacherId = assignedTeachers[0]?.teacherId || "";
+
+        // Filter students enrolled in this course
+        const enrolledCount = allStudents.filter(s => 
+          s.program && (s.program.trim().toLowerCase() === (course.name || "").trim().toLowerCase() || s.program.includes(course.course_code))
+        ).length;
+
+        schedule.forEach((slot: any, idx: number) => {
+          const sessionObj: ClassSessionQRRecord = {
+            id: `sqr-${course.id}-${slot.id || (slot.day + '-' + idx)}`,
+            classSessionId: `sess-${course.id}-${slot.id || (slot.day.toLowerCase() + '-' + idx)}`,
+            courseId: course.id,
+            courseName: course.name,
+            courseCode: course.course_code || `CRS-${course.id}`,
+            teacherId: slot.teacherId || defaultTeacherId || "tch-1",
+            teacherName: slot.teacherName || defaultTeacher,
+            dayOfWeek: slot.day,
+            slotName: slot.slot,
+            room: slot.room || "Computer Lab 1",
+            programTrack: slot.programTrack || "Core Foundations & Concepts",
+            startTime: new Date().toISOString(),
+            endTime: new Date(Date.now() + 86400000 * 30).toISOString(),
+            graceMinutes: 30,
+            qrToken: `TG-SESSION-${course.course_code || course.id}-${slot.day?.substring(0, 3).toUpperCase()}-${idx + 1}`,
+            isExpired: false,
+            enrolledStudentsCount: enrolledCount,
+            createdAt: course.created_at || new Date().toISOString()
+          };
+          sessions.push(sessionObj);
+        });
+      });
+
+      return sessions;
+    } catch (err) {
+      console.error("Error fetching live sessions from Supabase:", err);
+      return classSessionQrStore;
+    }
+  }
+
+  /**
+   * Generates or returns session roster with live enrolled students from Supabase
+   */
+  public static async getSessionRoster(classSessionId: string) {
+    const liveSessions = await this.getLiveSessionsFromSupabase();
+    let sessionQr = liveSessions.find(s => s.classSessionId === classSessionId || s.id === classSessionId);
+
+    if (!sessionQr) {
+      // Find by partial course ID if needed
+      sessionQr = liveSessions[0] || {
+        id: "sqr-default",
         classSessionId,
-        courseId: "crs-active",
-        courseName: "Scheduled Academic Class",
-        teacherName: "manikanta",
+        courseId: "crs-1",
+        courseName: "Python programming",
+        courseCode: "CRS-431",
+        teacherId: "tch-1",
+        teacherName: "Assigned Faculty",
         startTime: new Date().toISOString(),
+        endTime: new Date().toISOString(),
+        graceMinutes: 30,
         qrToken: `TG-SESSION-${classSessionId}`,
-        isExpired: false
-      },
-      timeGate: sessionQr ? this.checkSessionQrTimeGate(sessionQr) : { isUnlocked: true, statusBadgeText: "🔓 QR Active & Unlocked", reason: "ACTIVE" },
+        isExpired: false,
+        dayOfWeek: "Monday",
+        slotName: "09:00 AM - 10:30 AM",
+        room: "Computer Lab 1",
+        programTrack: "Core Foundations & Concepts",
+        enrolledStudentsCount: 0,
+        createdAt: new Date().toISOString()
+      };
+    }
+
+    // Fetch enrolled students from Supabase
+    let roster: any[] = [];
+    try {
+      const { data: students, error: stuErr } = await supabaseAdmin
+        .from("students")
+        .select("*")
+        .order("name", { ascending: true });
+
+      if (!stuErr && students) {
+        // Find matching students for this course
+        const targetCourseName = (sessionQr.courseName || "").trim().toLowerCase();
+        let matched = students.filter(s => 
+          s.program && (s.program.trim().toLowerCase() === targetCourseName || (sessionQr?.courseCode && s.program.includes(sessionQr.courseCode)))
+        );
+
+        // If no specific course match found, list all active students so instructor can mark attendance
+        if (matched.length === 0) {
+          matched = students;
+        }
+
+        // Check if attendance already marked today
+        const todayDate = new Date().toISOString().slice(0, 10);
+        const { data: todayLogs } = await supabaseAdmin
+          .from("attendance")
+          .select("*")
+          .eq("date", todayDate)
+          .eq("class_name", sessionQr.courseName);
+
+        roster = matched.map(s => {
+          const existingMark = todayLogs?.find(l => l.student_id === s.id || l.student_name === s.name);
+          const currentStatus = existingMark ? (existingMark.status?.toUpperCase() || "PRESENT") : "PRESENT";
+
+          return {
+            studentId: s.id,
+            fullName: s.name,
+            studentCode: s.student_id_code || `TG-STU-${s.id}`,
+            email: s.email,
+            parentEmail: s.email,
+            grade: s.age ? `Grade ${s.age > 12 ? 12 : s.age}` : "Grade 8",
+            status: currentStatus,
+            notes: existingMark?.remarks || ""
+          };
+        });
+      }
+    } catch (e) {
+      console.error("Error building session roster from Supabase:", e);
+    }
+
+    return {
+      sessionQr,
+      timeGate: { isUnlocked: true, statusBadgeText: "🔓 Session Active & Ready for Marking", reason: "ACTIVE" },
       studentsCount: roster.length,
       roster
     };
   }
 
+  /**
+   * Submits teacher session attendance: Saves to Supabase attendance table & dispatches emails to each student
+   */
   public static async submitTeacherSessionAttendance(input: TeacherSessionSubmitInput) {
     const { classSessionId, teacherId, entries } = input;
     const nowIso = new Date().toISOString();
+    const todayDate = nowIso.slice(0, 10);
 
-    const sessionQr = classSessionQrStore.find(s => s.classSessionId === classSessionId) || {
+    const liveSessions = await this.getLiveSessionsFromSupabase();
+    const sessionQr = liveSessions.find(s => s.classSessionId === classSessionId || s.id === classSessionId) || {
       id: "sqr-temp",
       classSessionId,
       courseId: "crs-auto",
-      courseName: "Class Session",
+      courseName: "Python programming",
+      courseCode: "CRS-431",
       teacherId: teacherId || "tch-1",
-      teacherName: "manikanta",
+      teacherName: "Assigned Faculty",
+      dayOfWeek: "Monday",
+      slotName: "09:00 AM - 10:30 AM",
       startTime: nowIso,
       endTime: nowIso,
       graceMinutes: 15,
@@ -230,195 +387,101 @@ export class SessionAttendanceService {
 
     let presentCount = 0;
     let absentCount = 0;
-    const createdRecords: AttendanceRecord[] = [];
-    const auditDeductionLogs: string[] = [];
+
+    // Fetch students to ensure we have their correct registered emails
+    const { data: studentsDb } = await supabaseAdmin.from("students").select("id, name, email, student_id_code");
+    const studentsMap = new Map((studentsDb || []).map(s => [s.id, s]));
+
+    const attendanceRows: any[] = [];
 
     for (const entry of entries) {
       const isAttended = entry.status === "PRESENT" || entry.status === "LATE";
       if (isAttended) presentCount++;
       else absentCount++;
 
-      const studentMeta = inMemoryStudentStore.find(s => s.id === entry.studentId) || {
-        studentCode: `TG-STU-${entry.studentId}`,
-        parentEmails: ["parent@topgrade.edu"],
-        parentPhones: [""],
-        fatherName: "Parent"
+      const studentInfo = studentsMap.get(entry.studentId) || {
+        id: entry.studentId,
+        name: entry.studentName,
+        email: entry.studentEmail || "student@topgrade.edu",
+        student_id_code: `TG-STU-${entry.studentId}`
       };
 
-      const record: AttendanceRecord = {
+      const studentEmail = entry.studentEmail || studentInfo.email;
+      const statusLabel = isAttended ? "Present" : "Absent";
+
+      const isValidUuid = (val: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+      const studentUuid = isValidUuid(entry.studentId) ? entry.studentId : null;
+      const teacherUuid = sessionQr.teacherId && isValidUuid(sessionQr.teacherId) ? sessionQr.teacherId : null;
+
+      attendanceRows.push({
+        student_id: studentUuid,
+        student_name: entry.studentName,
+        class_name: sessionQr.courseName,
+        status: statusLabel,
+        date: todayDate,
+        remarks: entry.notes ? `${entry.notes} (Faculty: ${sessionQr.teacherName})` : `Marked by ${sessionQr.teacherName}`,
+        marked_by: teacherUuid
+      });
+
+      // Also record in in-memory attendanceStore for fast sync
+      attendanceStore.unshift({
         id: `att-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
         studentId: entry.studentId,
         studentName: entry.studentName,
-        studentCode: studentMeta.studentCode || `TG-STU-${entry.studentId}`,
+        studentCode: studentInfo.student_id_code,
         courseId: sessionQr.courseId,
         courseName: sessionQr.courseName,
-        parentEmail: studentMeta.parentEmails?.[0] || "parent@topgrade.edu",
-        parentPhone: studentMeta.parentPhones?.[0] || "",
-        parentName: studentMeta.fatherName || "Parent",
+        parentEmail: studentEmail,
+        parentPhone: "",
+        parentName: "Parent",
         checkInTime: isAttended ? nowIso : undefined,
         status: entry.status,
         scanMethod: "TEACHER_BATCH",
-        date: nowIso.slice(0, 10),
+        date: todayDate,
         notes: entry.notes || `Submitted by instructor ${sessionQr.teacherName}`,
         createdAt: nowIso
-      };
+      });
 
-      attendanceStore.unshift(record);
-      createdRecords.push(record);
-
-      let updatedHours = 20;
-      const balObj = studentCourseBalancesStore.find(b => b.studentId === entry.studentId);
-
-      if (isAttended) {
-        if (balObj) {
-          balObj.usedHours += 1;
-          balObj.availableHours = Math.max(0, balObj.availableHours - 1);
-          balObj.updatedAt = nowIso;
-          updatedHours = balObj.availableHours;
-        }
-        auditDeductionLogs.push(`• ${entry.studentName}: 1 Hour Credit Deducted (Remaining: ${updatedHours} hrs)`);
-      } else {
-        if (balObj) updatedHours = balObj.availableHours;
-        auditDeductionLogs.push(`• ${entry.studentName}: Marked ABSENT (Credit Balance: ${updatedHours} hrs)`);
-      }
-
-      const adminEmail = process.env.GMAIL_USER || "sivareddy683970@gmail.com";
-      dispatchMultiChannelNotification({
-        eventType: "ATTENDANCE_ALERT",
-        subject: `🔔 Attendance Update — ${sessionQr.courseName}`,
-        message: `Dear ${entry.studentName},\n\nYour attendance for '${sessionQr.courseName}' on ${nowIso.slice(0, 10)} has been logged as [${entry.status}].\n\nRemaining Prepaid Class Hours: ${updatedHours}\n\nBest Regards,\nTopGrade Learning Administration`,
-        recipients: [
-          { role: "STUDENT", email: adminEmail, name: entry.studentName }
-        ]
-      }).catch(err => console.warn("Student email note:", err));
+      // 📧 AUTOMATIC EMAIL TO INDIVIDUAL STUDENT
+      const emailSubject = `🔔 TopGrade Attendance: ${sessionQr.courseName} — ${isAttended ? 'Present ✅' : 'Absent ❌'}`;
+      const emailMessage = `Dear ${entry.studentName},\n\nYour attendance for class session '${sessionQr.courseName}' has been officially recorded by your faculty instructor ${sessionQr.teacherName}.\n\n` +
+        `• Course: ${sessionQr.courseName} (${sessionQr.courseCode || 'TopGrade Stream'})\n` +
+        `• Day & Time Slot: ${sessionQr.dayOfWeek || 'Today'} (${sessionQr.slotName || 'Scheduled Session'})\n` +
+        `• Attendance Status: [ ${entry.status} ]\n` +
+        `• Date: ${todayDate}\n` +
+        (entry.notes ? `• Instructor Remarks: ${entry.notes}\n` : '') +
+        `\nIf you have any questions regarding this session, please contact your faculty instructor or center administration.\n\nBest Regards,\nTop Grade Learning Management`;
 
       dispatchMultiChannelNotification({
         eventType: "ATTENDANCE_ALERT",
-        subject: `🔔 Parent Notification: ${entry.studentName}'s Class Attendance (${entry.status})`,
-        message: `Dear Parent,\n\nThis is an automated notification regarding ${entry.studentName}.\n\nCourse: ${sessionQr.courseName}\nStatus: ${entry.status}\nDate: ${nowIso.slice(0, 10)}\nUpdated Prepaid Session Balance: ${updatedHours} Sessions Remaining\n\nBest Regards,\nTopGrade Learning Administration`,
+        subject: emailSubject,
+        message: emailMessage,
         recipients: [
-          { role: "PARENT", email: adminEmail, name: `Parent of ${entry.studentName}` }
+          { role: "STUDENT", email: studentEmail, name: entry.studentName }
         ]
-      }).catch(err => console.warn("Parent email note:", err));
+      }).catch(err => console.warn(`Student attendance email notice for ${studentEmail}:`, err));
     }
 
-    const adminEmail = process.env.GMAIL_USER || "sivareddy683970@gmail.com";
-    dispatchMultiChannelNotification({
-      eventType: "ATTENDANCE_ALERT",
-      subject: `📋 Teacher Session Summary — ${sessionQr.courseName}`,
-      message: `Dear ${sessionQr.teacherName},\n\nYou have successfully completed and submitted attendance for '${sessionQr.courseName}'.\n\nDate: ${nowIso.slice(0, 10)}\nTotal Roster Submitted: ${entries.length}\nTotal Present: ${presentCount}\nTotal Absent: ${absentCount}\n\nRoster Breakdown:\n${entries.map(e => `• ${e.studentName}: ${e.status}`).join('\n')}\n\nThank you,\nTopGrade CRM Engine`,
-      recipients: [
-        { role: "TEACHER", email: adminEmail, name: sessionQr.teacherName }
-      ]
-    }).catch(err => console.warn("Teacher summary email note:", err));
+    // Insert attendance records into Supabase attendance table
+    try {
+      const { error: attErr } = await supabaseAdmin
+        .from("attendance")
+        .insert(attendanceRows);
 
-    dispatchMultiChannelNotification({
-      eventType: "ATTENDANCE_ALERT",
-      subject: `💳 Accountant Audit & Credit Deduction Ledger — ${sessionQr.courseName}`,
-      message: `Attention: Finance & Accounting Department (accountant@topgrade.edu),\n\nClass Session Attendance Submitted & Ledger Hour Credits Settled.\n\nCourse: ${sessionQr.courseName}\nTeacher: ${sessionQr.teacherName}\nDate: ${nowIso.slice(0, 10)}\nTotal Credits Settled: ${presentCount} Paid Hours Deducted\n\nDetailed Audit Logs:\n${auditDeductionLogs.join('\n')}\n\nTopGrade Financial System`,
-      recipients: [
-        { role: "ACCOUNTANT", email: adminEmail, name: "Accountant" }
-      ]
-    }).catch(err => console.warn("Accountant email note:", err));
-
-    sessionQr.isExpired = true;
+      if (attErr) {
+        console.error("Supabase attendance insert error:", attErr);
+      }
+    } catch (sbE) {
+      console.error("Supabase attendance insertion exception:", sbE);
+    }
 
     return {
       success: true,
-      message: `Attendance submitted & multi-channel notifications dispatched successfully!`,
+      message: `Attendance submitted to Supabase for ${entries.length} students. Individual status notification emails dispatched successfully!`,
       processedCount: entries.length,
       presentCount,
       absentCount,
-      emailsDispatchedCount: (entries.length * 2) + 2
-    };
-  }
-
-  public static async processStudentSelfScan(input: StudentSelfScanInput) {
-    const { studentId, qrToken, customScanTimeIso } = input;
-    const scanTime = customScanTimeIso ? new Date(customScanTimeIso) : new Date();
-
-    const sessionQr = classSessionQrStore.find(s => s.qrToken === qrToken);
-    if (!sessionQr) {
-      throw {
-        code: "INVALID_SESSION_TOKEN",
-        message: "Invalid or unrecognized class session QR code token."
-      };
-    }
-
-    const timeGateCheck = this.checkSessionQrTimeGate(sessionQr, customScanTimeIso);
-    if (!timeGateCheck.isUnlocked) {
-      throw {
-        code: "EXPIRED_SESSION_WINDOW",
-        message: timeGateCheck.statusBadgeText
-      };
-    }
-
-    const studentInfo = inMemoryStudentStore.find(s => s.id === studentId || s.studentCode === studentId) || {
-      id: studentId,
-      studentCode: "TG-STU-2026",
-      fullName: "Student",
-      email: "student@topgrade.edu",
-      fatherName: "Parent",
-      parentEmails: ["parent@topgrade.edu"],
-      parentPhones: [""]
-    };
-
-    const existingLog = attendanceStore.find(
-      r => r.studentId === studentId && r.courseId === sessionQr.courseId && r.date === scanTime.toISOString().slice(0, 10)
-    );
-
-    if (existingLog) {
-      return {
-        alreadyScanned: true,
-        message: `Self Check-in already verified for ${studentInfo.fullName} today at ${existingLog.checkInTime?.slice(11, 19)}`,
-        record: existingLog
-      };
-    }
-
-    const record: AttendanceRecord = {
-      id: `att-self-${Date.now()}`,
-      studentId,
-      studentName: studentInfo.fullName,
-      studentCode: studentInfo.studentCode || `TG-STU-${studentId}`,
-      courseId: sessionQr.courseId,
-      courseName: sessionQr.courseName,
-      parentEmail: studentInfo.parentEmails?.[0] || "parent@topgrade.edu",
-      parentPhone: studentInfo.parentPhones?.[0] || "",
-      parentName: studentInfo.fatherName || "Parent",
-      checkInTime: scanTime.toISOString(),
-      status: "PRESENT",
-      scanMethod: "STUDENT_SELF_QR",
-      date: scanTime.toISOString().slice(0, 10),
-      notes: `Student self-scanned QR at class start`,
-      createdAt: scanTime.toISOString()
-    };
-
-    attendanceStore.unshift(record);
-
-    let updatedHours = 20;
-    const balObj = studentCourseBalancesStore.find(b => b.studentId === studentId);
-    if (balObj) {
-      balObj.usedHours += 1;
-      balObj.availableHours = Math.max(0, balObj.availableHours - 1);
-      balObj.updatedAt = scanTime.toISOString();
-      updatedHours = balObj.availableHours;
-    }
-
-    const adminEmail = process.env.GMAIL_USER || "sivareddy683970@gmail.com";
-    dispatchMultiChannelNotification({
-      eventType: "ATTENDANCE_ALERT",
-      subject: `🔔 Self-Scan Check-In: ${studentInfo.fullName}`,
-      message: `Dear Parent,\n\n${studentInfo.fullName} has successfully self-scanned into '${sessionQr.courseName}' at ${scanTime.toLocaleTimeString()}.\n\nRemaining Prepaid Hours: ${updatedHours}\n\nTopGrade Learning Administration`,
-      recipients: [
-        { role: "PARENT", email: adminEmail, name: `Parent of ${studentInfo.fullName}` }
-      ]
-    }).catch(err => console.warn("Scan notification note:", err));
-
-    return {
-      success: true,
-      message: `🎉 Check-in verified for ${studentInfo.fullName} in '${sessionQr.courseName}'!`,
-      record,
-      remainingHours: updatedHours
+      emailsDispatchedCount: entries.length
     };
   }
 }

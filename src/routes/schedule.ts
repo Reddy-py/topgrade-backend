@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { supabaseAdmin } from "../index.js";
+import { supabaseAdmin } from "../supabase.js";
 import { dispatchMultiChannelNotification } from "../services/notificationService.js";
 
 const router = Router();

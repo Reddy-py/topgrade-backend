@@ -6,10 +6,10 @@ import { inMemoryStudentStore } from "../services/studentService.js";
 const router = express.Router();
 
 // 1. TEACHER SESSION ROSTER UNLOCK (GET /api/attendance/session/:sessionId/roster)
-router.get("/session/:sessionId/roster", (req, res) => {
+router.get("/session/:sessionId/roster", async (req, res) => {
   try {
     const { sessionId } = req.params;
-    const rosterData = SessionAttendanceService.getSessionRoster(sessionId);
+    const rosterData = await SessionAttendanceService.getSessionRoster(sessionId);
     res.status(200).json({
       success: true,
       data: rosterData
@@ -187,10 +187,12 @@ router.get("/list", (req, res) => {
 });
 
 // 8. GET ALL SCHEDULED COURSE ATTENDANCE SESSIONS BY DAY & SLOT (GET /api/attendance/sessions)
-router.get("/sessions", (req, res) => {
+router.get("/sessions", async (req, res) => {
   try {
     const { courseId, day, slot } = req.query;
-    let list = classSessionQrStore.map(s => {
+    const liveSessions = await SessionAttendanceService.getLiveSessionsFromSupabase();
+
+    let list = liveSessions.map(s => {
       const timeGate = SessionAttendanceService.checkSessionQrTimeGate(s);
       return {
         ...s,

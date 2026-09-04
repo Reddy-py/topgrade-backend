@@ -31,10 +31,8 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 // Establish connection to Supabase instance
-export const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL || "",
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
-);
+import { supabaseAdmin } from "./supabase.js";
+export { supabaseAdmin };
 
 import {
   createStudentHandler,

@@ -3,7 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { dispatchMultiChannelNotification } from "./notificationService.js";
 import { inMemoryTeachers } from "../routes/teachers.js";
-import { supabaseAdmin } from "../index.js";
+import { supabaseAdmin } from "../supabase.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

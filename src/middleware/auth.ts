@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-import { supabaseAdmin } from "../index.js";
+import { supabaseAdmin } from "../supabase.js";
 import type { UserRole } from "../constants/rolePermissions.js";
 
 export interface AuthenticatedUser {

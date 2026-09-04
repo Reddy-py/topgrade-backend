@@ -1,5 +1,5 @@
 import express from "express";
-import { supabaseAdmin } from "../index.js";
+import { supabaseAdmin } from "../supabase.js";
 import { inMemoryTeachers } from "./teachers.js";
 import { inMemoryStudentStore } from "../services/studentService.js";
 import { autoGenerateAttendanceSessionsForCourse, removeAttendanceSessionsForCourse } from "../services/sessionAttendanceService.js";

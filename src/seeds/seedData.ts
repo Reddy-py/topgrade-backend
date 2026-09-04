@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "../index.js";
+import { supabaseAdmin } from "../supabase.js";
 
 export const seedRoleAccounts = [
   {
