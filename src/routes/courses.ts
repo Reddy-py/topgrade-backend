@@ -57,6 +57,36 @@ export const getCoursesHandler = async (req: express.Request, res: express.Respo
   const { grade, category, gradeCategory } = req.query;
   let list = inMemoryCourses;
 
+  try {
+    const { data: sbCourses, error } = await supabaseAdmin
+      .from("courses")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (!error && sbCourses) {
+      list = sbCourses.map((c: any) => ({
+        id: c.id,
+        course_code: c.course_code || "",
+        name: c.name || "",
+        description: c.description || "",
+        category: c.required_teacher_skills || "STEM & Technology",
+        grade_category: c.age_group || "All Grades",
+        age_group: c.age_group || "All Grades",
+        grade_eligibility: [],
+        duration: c.duration || "6 Months",
+        fee: Number(c.fee) || 0,
+        max_students: Number(c.max_students) || 20,
+        enrolled_students: 0,
+        status: c.status || "Active",
+        assigned_teachers: [],
+        mapped_students: [],
+        schedule: []
+      }));
+    }
+  } catch (err) {
+    console.warn("Backend getCoursesHandler Supabase query notice:", err);
+  }
+
   if (grade && grade !== "ALL" && grade !== "All Grades") {
     list = list.filter(c => {
       if (!c.grade_eligibility || c.grade_eligibility.length === 0) return true;
@@ -110,9 +140,21 @@ export const createCourseHandler = async (req: express.Request, res: express.Res
   let savedData = newCourse;
 
   try {
+    const courseRow: any = {
+      course_code: newCourse.course_code,
+      name: newCourse.name,
+      description: newCourse.description,
+      age_group: newCourse.age_group,
+      duration: newCourse.duration,
+      fee: newCourse.fee,
+      max_students: newCourse.max_students,
+      required_teacher_skills: newCourse.category,
+      status: newCourse.status
+    };
+
     const { data, error } = await supabaseAdmin
       .from("courses")
-      .insert([newCourse])
+      .insert([courseRow])
       .select()
       .single();
 
@@ -175,9 +217,19 @@ export const editCourseHandler = async (req: express.Request, res: express.Respo
   inMemoryCourses[idx] = updatedCourse;
 
   try {
+    const updateRow: any = {};
+    if (c.name !== undefined) updateRow.name = c.name;
+    if (c.description !== undefined) updateRow.description = c.description;
+    if (c.ageGroup || c.gradeCategory) updateRow.age_group = c.ageGroup || c.gradeCategory;
+    if (c.duration !== undefined) updateRow.duration = c.duration;
+    if (c.fee !== undefined) updateRow.fee = Number(c.fee);
+    if (c.maxStudents !== undefined) updateRow.max_students = Number(c.maxStudents);
+    if (c.category !== undefined) updateRow.required_teacher_skills = c.category;
+    if (c.status !== undefined) updateRow.status = c.status;
+
     await supabaseAdmin
       .from("courses")
-      .update(updatedCourse)
+      .update(updateRow)
       .eq("id", courseId);
   } catch {
     // fallback
