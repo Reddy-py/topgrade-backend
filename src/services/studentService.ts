@@ -312,7 +312,7 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
     studentEmails: cleanStudentEmails,
     parentEmails: cleanParentEmails,
     primaryMobile: cleanStudentPhones[0] || payload.primaryMobile || "",
-    email: (cleanStudentEmails[0] || payload.email || "").trim() || undefined,
+    email: (cleanStudentEmails[0] || payload.email || "").trim(),
     parentOccupation: payload.parentOccupation || "",
     emergencyContactName: payload.emergencyContactName || "",
     emergencyContactRelationship: payload.emergencyContactRelationship || "",
@@ -343,9 +343,11 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
     try {
       let authUserId: string | null = null;
       if (newStudent.email) {
+        const studentEmail = newStudent.email.trim().toLowerCase();
+        const studentPassword = (newStudent.password || "Student@123").slice(0, 16);
         const { data: authCreated } = await supabaseAdmin.auth.admin.createUser({
-          email: newStudent.email,
-          password: newStudent.password || "Student@123",
+          email: studentEmail,
+          password: studentPassword,
           email_confirm: true,
           user_metadata: {
             full_name: newStudent.fullName,
@@ -355,14 +357,51 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
         });
         if (authCreated?.user) {
           authUserId = authCreated.user.id;
-          // Also record in profiles table
+        }
+        // Also record student in profiles table
+        await supabaseAdmin.from("profiles").upsert({
+          ...(authUserId ? { id: authUserId } : {}),
+          email: studentEmail,
+          full_name: newStudent.fullName,
+          role: "STUDENT",
+          status: "Active",
+          updated_at: new Date().toISOString()
+        }, { onConflict: "email" });
+      }
+
+      // Parent Auth & Profile in Supabase
+      if (cleanParentEmails[0]) {
+        const parentEmail = cleanParentEmails[0].trim().toLowerCase();
+        const parentPassword = (newStudent.password || "Parent@123").slice(0, 16);
+        let parentAuthId: string | null = null;
+        try {
+          const { data: pAuthCreated } = await supabaseAdmin.auth.admin.createUser({
+            email: parentEmail,
+            password: parentPassword,
+            email_confirm: true,
+            user_metadata: {
+              full_name: newStudent.fatherName || newStudent.motherName || "Parent",
+              role: "PARENT",
+              student_code: newStudent.studentCode,
+              student_name: newStudent.fullName
+            }
+          });
+          if (pAuthCreated?.user) parentAuthId = pAuthCreated.user.id;
+        } catch (pe: any) {
+          console.warn("Parent admin.createUser notice:", pe?.message);
+        }
+
+        try {
           await supabaseAdmin.from("profiles").upsert({
-            id: authUserId,
-            email: newStudent.email,
-            full_name: newStudent.fullName,
-            role: "STUDENT",
-            status: "Active"
-          }, { onConflict: "id" });
+            ...(parentAuthId ? { id: parentAuthId } : {}),
+            email: parentEmail,
+            full_name: newStudent.fatherName || newStudent.motherName || "Parent",
+            role: "PARENT",
+            status: "Active",
+            updated_at: new Date().toISOString()
+          }, { onConflict: "email" });
+        } catch (pe: any) {
+          console.warn("Parent profile upsert notice:", pe?.message);
         }
       }
 
@@ -377,6 +416,8 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
         father_name: newStudent.fatherName || null,
         mother_name: newStudent.motherName || null,
         guardian: newStudent.guardianName || null,
+        father_phone: cleanParentPhones[0] || null,
+        address: newStudent.residentialAddress || "",
         program: newStudent.program || "General Academic Track",
         teacher: newStudent.teacher || "Unassigned",
         status: newStudent.status || "Active"

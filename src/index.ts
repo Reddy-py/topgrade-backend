@@ -67,6 +67,60 @@ app.post("/api/auth/verify-login", verifyLoginRoleHandler);
 app.get("/api/auth/verify-login", verifyLoginRoleHandler);
 app.get("/api/auth/lookup-role", verifyLoginRoleHandler);
 
+// Direct Auth & Profile Credential Provisioning for Student, Parent, and Teacher
+app.post("/api/auth/provision-credentials", async (req, res) => {
+  try {
+    const { email, password, role, fullName, metadata } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, message: "Email is required" });
+    }
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = (password || "Topgrade@123").slice(0, 16);
+    const assignedRole = (role || "STUDENT").toUpperCase();
+
+    let authUserId: string | null = null;
+    try {
+      const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
+        email: cleanEmail,
+        password: cleanPassword,
+        email_confirm: true,
+        user_metadata: {
+          full_name: fullName || "",
+          role: assignedRole,
+          ...(metadata || {})
+        }
+      });
+      if (created?.user) {
+        authUserId = created.user.id;
+      } else if (createErr) {
+        console.warn("Notice admin.createUser:", createErr.message);
+      }
+    } catch (e: any) {
+      console.warn("admin.createUser exception:", e?.message);
+    }
+
+    // Upsert into Supabase public.profiles table
+    try {
+      const profileRow: any = {
+        email: cleanEmail,
+        full_name: fullName || cleanEmail.split("@")[0],
+        role: assignedRole,
+        status: "Active",
+        updated_at: new Date().toISOString()
+      };
+      if (authUserId) profileRow.id = authUserId;
+
+      await supabaseAdmin.from("profiles").upsert(profileRow, { onConflict: "email" });
+    } catch (pErr: any) {
+      console.warn("Profiles upsert notice:", pErr?.message);
+    }
+
+    return res.status(200).json({ success: true, email: cleanEmail, role: assignedRole, authUserId });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err?.message || "Provisioning error" });
+  }
+});
+
 app.get("/api/courses/list", getCoursesHandler);
 app.get("/api/courses", getCoursesHandler);
 app.post("/api/courses/add", createCourseHandler);

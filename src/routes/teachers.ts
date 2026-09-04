@@ -49,7 +49,11 @@ router.get("/", getTeachersHandler);
 export const createTeacherHandler = async (req: express.Request, res: express.Response) => {
   const t = req.body;
   const uniqueId = t.teacher_id_code || `TG-FAC-${Math.floor(100 + Math.random() * 900)}`;
-  const defaultPassword = t.password || "Teacher@123";
+  const defaultPassword = (t.password || "Teacher@123").slice(0, 16);
+
+  const cleanSlots = (t.availabilitySlots || ["Morning - 09:00 AM - 12:00 PM", "Afternoon - 01:00 PM - 04:00 PM"])
+    .map((s: string) => s.replace(/\(|\)/g, "").replace(/\s*-\s*/, " - ").trim())
+    .filter((s: string) => !s.toLowerCase().includes("night"));
 
   const newTeacher = {
     id: `tch-${Date.now()}`,
@@ -62,7 +66,7 @@ export const createTeacherHandler = async (req: express.Request, res: express.Re
     resume_url: t.resumeUrl || null,
     photo_url: t.photoUrl || null,
     phone: t.phone || null,
-    email: t.email || null,
+    email: t.email ? t.email.trim().toLowerCase() : null,
     password: defaultPassword,
     role: "TEACHER",
     specialization: t.specialization || null,
@@ -72,7 +76,7 @@ export const createTeacherHandler = async (req: express.Request, res: express.Re
     status: "Active",
     working_days_count: t.workingDaysCount || (t.availabilityDays?.length || 5),
     availability_days: t.availabilityDays || ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
-    availability_slots: t.availabilitySlots || ["Morning (09:00 AM - 12:00 PM)", "Afternoon (01:00 PM - 04:00 PM)"]
+    availability_slots: cleanSlots
   };
 
   inMemoryTeachers.unshift(newTeacher);
@@ -92,6 +96,16 @@ export const createTeacherHandler = async (req: express.Request, res: express.Re
         }
       });
       if (tAuth?.user) teacherAuthId = tAuth.user.id;
+
+      // Upsert into Supabase profiles
+      await supabaseAdmin.from("profiles").upsert({
+        ...(teacherAuthId ? { id: teacherAuthId } : {}),
+        email: newTeacher.email,
+        full_name: newTeacher.name,
+        role: "TEACHER",
+        status: "Active",
+        updated_at: new Date().toISOString()
+      }, { onConflict: "email" });
     }
 
     const teacherRow: any = {
