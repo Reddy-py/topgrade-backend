@@ -1,179 +1,2555 @@
 [
   {
-    "id": "std-1788241892680-157",
+    "id": "4457858c-594e-4b96-9df6-eb66753cfe3c",
     "studentCode": "TG-STU-2026-9717",
+    "fullName": "harshith pabisetty",
     "firstName": "harshith",
     "lastName": "pabisetty",
-    "fullName": "harshith pabisetty",
-    "profileImageUrl": "",
-    "gender": "Male",
+    "email": "std-1788241892654@topgrade.edu",
     "dob": "2004-07-13",
     "age": 22,
-    "school": "cds",
-    "grade": "Grade 6",
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
     "status": "ACTIVE",
-    "parentFirstName": "",
-    "parentLastName": "",
-    "fatherName": "sathish",
-    "motherName": "lakshmi",
-    "guardianName": "",
+    "primaryMobile": "+1 5818585656",
     "studentPhones": [
       "+1 5818585656"
     ],
     "parentPhones": [
-      "+1 556458214"
+      "+1 5818585656"
     ],
-    "studentWhatsapp": "+1 5818585656",
-    "parentWhatsapp": [
-      "+1 556458214"
-    ],
-    "sameAsStudentPhone": true,
-    "sameAsParentPhone": true,
     "studentEmails": [
       "std-1788241892654@topgrade.edu"
     ],
-    "parentEmails": [],
-    "primaryMobile": "+1 5818585656",
-    "email": "std-1788241892654@topgrade.edu",
-    "parentOccupation": "",
-    "emergencyContactName": "",
-    "emergencyContactRelationship": "Father",
-    "residentialAddress": "",
-    "officeAddress": "",
-    "password": "Student@123",
-    "admissionDate": "2026-09-01",
+    "parentEmails": [
+      "std-1788241892654@topgrade.edu"
+    ],
+    "fatherName": "sathish",
+    "motherName": "lakshmi",
+    "guardianName": "",
     "program": "Python Beginners & Logic",
+    "teacher": "manikanta",
     "allocatedCourses": [
       {
         "courseName": "Python Beginners & Logic",
         "duration": "3 Months"
       }
-    ],
-    "assignedTeacherId": "tch-1",
-    "teacher": "manikanta",
-    "weeklyClasses": "2 classes/week",
-    "courseDuration": "3 Months",
-    "startDate": "2026-09-01",
-    "endDate": "",
-    "feePlan": "Monthly",
-    "discount": "TOPGRD",
-    "createdAt": "2026-09-01T05:51:32.681Z",
-    "updatedAt": "2026-09-01T05:51:32.681Z"
+    ]
   },
   {
-    "id": "std-1787565325848-825",
+    "id": "ec40d0c0-c9b4-436a-9e73-f3e34d424fab",
     "studentCode": "TG-STU-2026-3632",
+    "fullName": "Siva Reddy",
     "firstName": "Siva",
     "lastName": "Reddy",
-    "fullName": "Siva Reddy",
-    "profileImageUrl": "",
-    "gender": "Male",
+    "email": "sivareddy683970@gmail.com",
     "dob": "2003-04-08",
     "age": 23,
-    "school": "Bhashyam",
-    "grade": "Grade 9",
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
     "status": "ACTIVE",
-    "parentFirstName": "Venakat",
-    "parentLastName": "",
-    "fatherName": "Venakat",
-    "motherName": "Lakshmi",
-    "guardianName": "",
+    "primaryMobile": "+1 7780648562",
     "studentPhones": [
       "+1 7780648562"
     ],
     "parentPhones": [
-      "+1 9492602259"
+      "+1 7780648562"
     ],
-    "studentWhatsapp": "+1 7780648562",
-    "parentWhatsapp": [
-      "+1 9492602259"
-    ],
-    "sameAsStudentPhone": true,
-    "sameAsParentPhone": true,
     "studentEmails": [
       "sivareddy683970@gmail.com"
     ],
     "parentEmails": [
       "sivareddy683970@gmail.com"
     ],
-    "primaryMobile": "+1 7780648562",
-    "email": "sivareddy683970@gmail.com",
-    "parentOccupation": "",
-    "emergencyContactName": "",
-    "emergencyContactRelationship": "Father",
-    "residentialAddress": "",
-    "officeAddress": "",
-    "password": "Student@123",
-    "admissionDate": "2026-08-24",
+    "fatherName": "Venakat",
+    "motherName": "Lakshmi",
+    "guardianName": "",
     "program": "General Academic Track",
-    "allocatedCourses": [],
-    "assignedTeacherId": "",
     "teacher": "Unassigned",
-    "weeklyClasses": "0 classes/week",
-    "courseDuration": "N/A",
-    "startDate": "2026-08-24",
-    "endDate": "2026-11-30",
-    "feePlan": "Monthly",
-    "discount": "TOPGRD",
-    "createdAt": "2026-08-24T09:55:25.848Z",
-    "updatedAt": "2026-08-31T11:00:00.000Z"
+    "allocatedCourses": [
+      {
+        "courseName": "General Academic Track",
+        "duration": "3 Months"
+      }
+    ]
   },
   {
-    "id": "std-1787569238941-822",
+    "id": "f4ca7a7b-c64a-4e18-86ab-a0a48e342be2",
     "studentCode": "TG-STU-2026-4231",
+    "fullName": "rajesh ganta",
     "firstName": "rajesh",
     "lastName": "ganta",
-    "fullName": "rajesh ganta",
-    "profileImageUrl": "",
-    "gender": "Male",
+    "email": "rajeshganta@gmail.com",
     "dob": "2004-06-24",
     "age": 22,
-    "school": "Narayana",
-    "grade": "Grade 8",
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
     "status": "ACTIVE",
-    "parentFirstName": "srinu",
-    "parentLastName": "",
-    "fatherName": "srinu",
-    "motherName": "lakshmi",
-    "guardianName": "",
+    "primaryMobile": "+1 1234567894",
     "studentPhones": [
       "+1 1234567894"
     ],
     "parentPhones": [
-      "+1 9876543216"
+      "+1 1234567894"
     ],
-    "studentWhatsapp": "+1 1234567894",
-    "parentWhatsapp": [
-      "+1 9876543216"
-    ],
-    "sameAsStudentPhone": true,
-    "sameAsParentPhone": true,
     "studentEmails": [
       "rajeshganta@gmail.com"
     ],
     "parentEmails": [
-      "ahsudifkgmjfdio@gmail.com"
+      "rajeshganta@gmail.com"
     ],
-    "primaryMobile": "+1 1234567894",
-    "email": "rajeshganta@gmail.com",
-    "parentOccupation": "",
-    "emergencyContactName": "",
-    "emergencyContactRelationship": "Father",
-    "residentialAddress": "",
-    "officeAddress": "",
-    "password": "Student@123",
-    "admissionDate": "2026-08-24",
+    "fatherName": "srinu",
+    "motherName": "lakshmi",
+    "guardianName": "",
     "program": "General Academic Track",
-    "allocatedCourses": [],
-    "assignedTeacherId": "",
     "teacher": "Unassigned",
-    "weeklyClasses": "0 classes/week",
-    "courseDuration": "N/A",
-    "startDate": "2026-08-24",
-    "endDate": "2026-08-24",
-    "feePlan": "Monthly",
-    "discount": "TOPGRD",
-    "createdAt": "2026-08-24T11:00:38.941Z",
-    "updatedAt": "2026-08-31T11:00:00.000Z"
+    "allocatedCourses": [
+      {
+        "courseName": "General Academic Track",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "4bc5b282-bedd-4d26-a871-aec99e21abc5",
+    "studentCode": "TG-STU-2026-5003",
+    "fullName": "Tierra Perry",
+    "firstName": "Tierra",
+    "lastName": "Perry",
+    "email": "tierra.perry@student.topgrade.edu",
+    "dob": "2005-01-01",
+    "age": 12,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 832 888 8512",
+    "studentPhones": [
+      "+1 832 888 8512"
+    ],
+    "parentPhones": [
+      "+1 832 888 8512"
+    ],
+    "studentEmails": [
+      "tierra.perry@student.topgrade.edu"
+    ],
+    "parentEmails": [
+      "tierra.perry@student.topgrade.edu"
+    ],
+    "fatherName": "",
+    "motherName": "",
+    "guardianName": "",
+    "program": "",
+    "teacher": "",
+    "allocatedCourses": []
+  },
+  {
+    "id": "a1165403-134a-4354-bff1-45f3e671aeda",
+    "studentCode": "TG-STU-2026-5004",
+    "fullName": "DULCE Eduardo Garcia",
+    "firstName": "DULCE",
+    "lastName": "Eduardo Garcia",
+    "email": "gdulce955@gmail.com",
+    "dob": "2005-01-01",
+    "age": 8,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 832 276 2098",
+    "studentPhones": [
+      "+1 832 276 2098"
+    ],
+    "parentPhones": [
+      "+1 832 276 2098"
+    ],
+    "studentEmails": [
+      "gdulce955@gmail.com"
+    ],
+    "parentEmails": [
+      "gdulce955@gmail.com"
+    ],
+    "fatherName": "Camila",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Reading",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "Reading",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "9cc422f4-59f2-4ca6-8087-507b16eaad79",
+    "studentCode": "TG-STU-2026-5005",
+    "fullName": "Elizabeth Guillory",
+    "firstName": "Elizabeth",
+    "lastName": "Guillory",
+    "email": "guilloryea@gmail.com",
+    "dob": "2005-01-01",
+    "age": 9,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 832 589 3676",
+    "studentPhones": [
+      "+1 832 589 3676"
+    ],
+    "parentPhones": [
+      "+1 832 589 3676"
+    ],
+    "studentEmails": [
+      "guilloryea@gmail.com"
+    ],
+    "parentEmails": [
+      "guilloryea@gmail.com"
+    ],
+    "fatherName": "Giselle",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Afterschool",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "Afterschool",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "a8484377-6a04-4980-90f1-037a8cb3dd58",
+    "studentCode": "TG-STU-2026-5006",
+    "fullName": "Esperanza garcia",
+    "firstName": "Esperanza",
+    "lastName": "garcia",
+    "email": "esperanzagarciaovalle@gmail.com",
+    "dob": "2005-01-01",
+    "age": 9,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 832 431 1633",
+    "studentPhones": [
+      "+1 832 431 1633"
+    ],
+    "parentPhones": [
+      "+1 832 431 1633"
+    ],
+    "studentEmails": [
+      "esperanzagarciaovalle@gmail.com"
+    ],
+    "parentEmails": [
+      "esperanzagarciaovalle@gmail.com"
+    ],
+    "fatherName": "Leandro",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Afterschool",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "Afterschool",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "3ac44fbb-f6bc-4d28-9251-afdbef215ddc",
+    "studentCode": "TG-STU-2026-5007",
+    "fullName": "Lani Mercado",
+    "firstName": "Lani",
+    "lastName": "Mercado",
+    "email": "lani.garrido@gmail.com",
+    "dob": "2005-01-01",
+    "age": 7,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 713 319 8985",
+    "studentPhones": [
+      "+1 713 319 8985"
+    ],
+    "parentPhones": [
+      "+1 713 319 8985"
+    ],
+    "studentEmails": [
+      "lani.garrido@gmail.com"
+    ],
+    "parentEmails": [
+      "lani.garrido@gmail.com"
+    ],
+    "fatherName": "Kiron & Cara",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Afterschool",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "Afterschool",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "84e4e3c1-237c-4375-a734-5c18103ed5e5",
+    "studentCode": "TG-STU-2026-5008",
+    "fullName": "Anna Jan",
+    "firstName": "Anna",
+    "lastName": "Jan",
+    "email": "annasjan@gmail.com",
+    "dob": "2005-01-01",
+    "age": 5,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 626 808 2351",
+    "studentPhones": [
+      "+1 626 808 2351"
+    ],
+    "parentPhones": [
+      "+1 626 808 2351"
+    ],
+    "studentEmails": [
+      "annasjan@gmail.com"
+    ],
+    "parentEmails": [
+      "annasjan@gmail.com"
+    ],
+    "fatherName": "Evelyn",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Afterschool",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "Afterschool",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "027ba3f8-fa50-4cab-afc8-70765bf7b6f0",
+    "studentCode": "TG-STU-2026-5009",
+    "fullName": "Chad Williams",
+    "firstName": "Chad",
+    "lastName": "Williams",
+    "email": "Chad8404@gmail.com",
+    "dob": "2005-01-01",
+    "age": 8,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 904 226 8065",
+    "studentPhones": [
+      "+1 904 226 8065"
+    ],
+    "parentPhones": [
+      "+1 904 226 8065"
+    ],
+    "studentEmails": [
+      "Chad8404@gmail.com"
+    ],
+    "parentEmails": [
+      "Chad8404@gmail.com"
+    ],
+    "fatherName": "CJ",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Reading",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "Reading",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "417e3e9d-f6a9-4574-97d1-8e73ca91dc71",
+    "studentCode": "TG-STU-2026-5010",
+    "fullName": "Yoselin Kuzniar",
+    "firstName": "Yoselin",
+    "lastName": "Kuzniar",
+    "email": "yosyaranda18@gmail.com",
+    "dob": "2005-01-01",
+    "age": 9,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 832 344 7553",
+    "studentPhones": [
+      "+1 832 344 7553"
+    ],
+    "parentPhones": [
+      "+1 832 344 7553"
+    ],
+    "studentEmails": [
+      "yosyaranda18@gmail.com"
+    ],
+    "parentEmails": [
+      "yosyaranda18@gmail.com"
+    ],
+    "fatherName": "Ethan Kuzniar",
+    "motherName": "",
+    "guardianName": "",
+    "program": "STAAR",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "STAAR",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "79efe451-df07-4149-ab98-086824109712",
+    "studentCode": "TG-STU-2026-5011",
+    "fullName": "Conner Kuzniar",
+    "firstName": "Conner",
+    "lastName": "Kuzniar",
+    "email": "conner.skuzniar@gmail.com",
+    "dob": "2005-01-01",
+    "age": 12,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 713 208 0947",
+    "studentPhones": [
+      "+1 713 208 0947"
+    ],
+    "parentPhones": [
+      "+1 713 208 0947"
+    ],
+    "studentEmails": [
+      "conner.skuzniar@gmail.com"
+    ],
+    "parentEmails": [
+      "conner.skuzniar@gmail.com"
+    ],
+    "fatherName": "",
+    "motherName": "",
+    "guardianName": "",
+    "program": "",
+    "teacher": "",
+    "allocatedCourses": []
+  },
+  {
+    "id": "06a555c1-0263-4ec9-a0e0-fb6bc7272f11",
+    "studentCode": "TG-STU-2026-5012",
+    "fullName": "Loan Nguyen",
+    "firstName": "Loan",
+    "lastName": "Nguyen",
+    "email": "nloan969@gmail.com",
+    "dob": "2005-01-01",
+    "age": 5,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 281 617 9583",
+    "studentPhones": [
+      "+1 281 617 9583"
+    ],
+    "parentPhones": [
+      "+1 281 617 9583"
+    ],
+    "studentEmails": [
+      "nloan969@gmail.com"
+    ],
+    "parentEmails": [
+      "nloan969@gmail.com"
+    ],
+    "fatherName": "Minh",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Afterschool",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "Afterschool",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "69660262-8625-4fc9-80bd-b601cee9d8a0",
+    "studentCode": "TG-STU-2026-5013",
+    "fullName": "Tu Hyunh",
+    "firstName": "Tu",
+    "lastName": "Hyunh",
+    "email": "tuhuynh0046@gmail.com",
+    "dob": "2005-01-01",
+    "age": 12,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 714 261 6170",
+    "studentPhones": [
+      "+1 714 261 6170"
+    ],
+    "parentPhones": [
+      "+1 714 261 6170"
+    ],
+    "studentEmails": [
+      "tuhuynh0046@gmail.com"
+    ],
+    "parentEmails": [
+      "tuhuynh0046@gmail.com"
+    ],
+    "fatherName": "",
+    "motherName": "",
+    "guardianName": "",
+    "program": "",
+    "teacher": "",
+    "allocatedCourses": []
+  },
+  {
+    "id": "cf15f3f5-d859-492d-b1dd-5ef3e61c1202",
+    "studentCode": "TG-STU-2026-5014",
+    "fullName": "Alexis Merritt",
+    "firstName": "Alexis",
+    "lastName": "Merritt",
+    "email": "megul41@gmail.com",
+    "dob": "2005-01-01",
+    "age": 10,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 334 372 5625",
+    "studentPhones": [
+      "+1 334 372 5625"
+    ],
+    "parentPhones": [
+      "+1 334 372 5625"
+    ],
+    "studentEmails": [
+      "megul41@gmail.com"
+    ],
+    "parentEmails": [
+      "megul41@gmail.com"
+    ],
+    "fatherName": "Peyton",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Afterschool",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "Afterschool",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "33f23d67-7c8b-472c-b30f-6b63944442f1",
+    "studentCode": "TG-STU-2026-5015",
+    "fullName": "Claudette Fonndikum",
+    "firstName": "Claudette",
+    "lastName": "Fonndikum",
+    "email": "claudette.fonndikum@student.topgrade.edu",
+    "dob": "2005-01-01",
+    "age": 12,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 713 382 5195",
+    "studentPhones": [
+      "+1 713 382 5195"
+    ],
+    "parentPhones": [
+      "+1 713 382 5195"
+    ],
+    "studentEmails": [
+      "claudette.fonndikum@student.topgrade.edu"
+    ],
+    "parentEmails": [
+      "claudette.fonndikum@student.topgrade.edu"
+    ],
+    "fatherName": "Uriel",
+    "motherName": "",
+    "guardianName": "",
+    "program": "STAAR prep",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "STAAR prep",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "daeb9ca1-9dbe-4d17-9701-e6912455607c",
+    "studentCode": "TG-STU-2026-5016",
+    "fullName": "Selena Miller",
+    "firstName": "Selena",
+    "lastName": "Miller",
+    "email": "selenademps@hotmail.com",
+    "dob": "2005-01-01",
+    "age": 5,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 713 820 0880",
+    "studentPhones": [
+      "+1 713 820 0880"
+    ],
+    "parentPhones": [
+      "+1 713 820 0880"
+    ],
+    "studentEmails": [
+      "selenademps@hotmail.com"
+    ],
+    "parentEmails": [
+      "selenademps@hotmail.com"
+    ],
+    "fatherName": "Samson Miller",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Afterschool",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "Afterschool",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "ebd54605-b67c-4fed-9dce-e6c0559c0bba",
+    "studentCode": "TG-STU-2026-5017",
+    "fullName": "Quinisha Starks",
+    "firstName": "Quinisha",
+    "lastName": "Starks",
+    "email": "qunisha.starks1@gmail.com",
+    "dob": "2005-01-01",
+    "age": 11,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 229 854 1224",
+    "studentPhones": [
+      "+1 229 854 1224"
+    ],
+    "parentPhones": [
+      "+1 229 854 1224"
+    ],
+    "studentEmails": [
+      "qunisha.starks1@gmail.com"
+    ],
+    "parentEmails": [
+      "qunisha.starks1@gmail.com"
+    ],
+    "fatherName": "Logan Starks",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Math & Reading",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "Math & Reading",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "36cf49e7-9878-48a6-b705-3b2fcd550de1",
+    "studentCode": "TG-STU-2026-5018",
+    "fullName": "Janice Perkins",
+    "firstName": "Janice",
+    "lastName": "Perkins",
+    "email": "deeutley@gmail.com",
+    "dob": "2005-01-01",
+    "age": 6,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 919 215 3437",
+    "studentPhones": [
+      "+1 919 215 3437"
+    ],
+    "parentPhones": [
+      "+1 919 215 3437"
+    ],
+    "studentEmails": [
+      "deeutley@gmail.com"
+    ],
+    "parentEmails": [
+      "deeutley@gmail.com"
+    ],
+    "fatherName": "Joseph",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Summer camp & Math, writing, reading tutoring",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "Summer camp & Math, writing, reading tutoring",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "d77b4589-6273-4b94-aff0-7c9158c7c164",
+    "studentCode": "TG-STU-2026-5019",
+    "fullName": "Minny Bhatty",
+    "firstName": "Minny",
+    "lastName": "Bhatty",
+    "email": "minnybhatty@gmail.com",
+    "dob": "2005-01-01",
+    "age": 12,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 662 617 9073",
+    "studentPhones": [
+      "+1 662 617 9073"
+    ],
+    "parentPhones": [
+      "+1 662 617 9073"
+    ],
+    "studentEmails": [
+      "minnybhatty@gmail.com"
+    ],
+    "parentEmails": [
+      "minnybhatty@gmail.com"
+    ],
+    "fatherName": "Sumay",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Writing skills",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "Writing skills",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "ba921124-6bbd-4859-9376-054adc40f828",
+    "studentCode": "TG-STU-2026-5020",
+    "fullName": "Prakash Motwani",
+    "firstName": "Prakash",
+    "lastName": "Motwani",
+    "email": "pmots@yahoo.com",
+    "dob": "2005-01-01",
+    "age": 6,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 304 419 5289",
+    "studentPhones": [
+      "+1 304 419 5289"
+    ],
+    "parentPhones": [
+      "+1 304 419 5289"
+    ],
+    "studentEmails": [
+      "pmots@yahoo.com"
+    ],
+    "parentEmails": [
+      "pmots@yahoo.com"
+    ],
+    "fatherName": "Chirag",
+    "motherName": "",
+    "guardianName": "",
+    "program": "AP Physics",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "AP Physics",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "e6820bf9-15b1-4158-b847-aec0879109e3",
+    "studentCode": "TG-STU-2026-5021",
+    "fullName": "Chirag Motwani",
+    "firstName": "Chirag",
+    "lastName": "Motwani",
+    "email": "cmotwani10@gmail.com",
+    "dob": "2005-01-01",
+    "age": 12,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 304 767 2676",
+    "studentPhones": [
+      "+1 304 767 2676"
+    ],
+    "parentPhones": [
+      "+1 304 767 2676"
+    ],
+    "studentEmails": [
+      "cmotwani10@gmail.com"
+    ],
+    "parentEmails": [
+      "cmotwani10@gmail.com"
+    ],
+    "fatherName": "",
+    "motherName": "",
+    "guardianName": "",
+    "program": "",
+    "teacher": "",
+    "allocatedCourses": []
+  },
+  {
+    "id": "8ffc70b7-ab49-4d9b-8fba-07f96fcd3877",
+    "studentCode": "TG-STU-2026-5022",
+    "fullName": "Rekha Nair",
+    "firstName": "Rekha",
+    "lastName": "Nair",
+    "email": "nair.rekha11@gmail.com",
+    "dob": "2005-01-01",
+    "age": 14,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 346 391 0006",
+    "studentPhones": [
+      "+1 346 391 0006"
+    ],
+    "parentPhones": [
+      "+1 346 391 0006"
+    ],
+    "studentEmails": [
+      "nair.rekha11@gmail.com"
+    ],
+    "parentEmails": [
+      "nair.rekha11@gmail.com"
+    ],
+    "fatherName": "Kris",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Geometry",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "Geometry",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "866f9cdc-86af-42a9-b29e-b028f3db7705",
+    "studentCode": "TG-STU-2026-5023",
+    "fullName": "Natalie Chaiban",
+    "firstName": "Natalie",
+    "lastName": "Chaiban",
+    "email": "n_pilotte@yahoo.com",
+    "dob": "2005-01-01",
+    "age": 5,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 504 495 3594",
+    "studentPhones": [
+      "+1 504 495 3594"
+    ],
+    "parentPhones": [
+      "+1 504 495 3594"
+    ],
+    "studentEmails": [
+      "n_pilotte@yahoo.com"
+    ],
+    "parentEmails": [
+      "n_pilotte@yahoo.com"
+    ],
+    "fatherName": "Lydia, Elias",
+    "motherName": "",
+    "guardianName": "",
+    "program": "summer camp",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "summer camp",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "2b068cfa-fe0c-40bd-8285-86e262704339",
+    "studentCode": "TG-STU-2026-5024",
+    "fullName": "Uma Narula",
+    "firstName": "Uma",
+    "lastName": "Narula",
+    "email": "umanutritionist@gmail.com",
+    "dob": "2005-01-01",
+    "age": 6,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 346 546 9546",
+    "studentPhones": [
+      "+1 346 546 9546"
+    ],
+    "parentPhones": [
+      "+1 346 546 9546"
+    ],
+    "studentEmails": [
+      "umanutritionist@gmail.com"
+    ],
+    "parentEmails": [
+      "umanutritionist@gmail.com"
+    ],
+    "fatherName": "Saanvi Narula",
+    "motherName": "",
+    "guardianName": "",
+    "program": "College Essay workshop",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "College Essay workshop",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "04ba0962-0dad-4b63-803b-9985df8c7e8b",
+    "studentCode": "TG-STU-2026-5001",
+    "fullName": "Tanyea Fowls",
+    "firstName": "Tanyea",
+    "lastName": "Fowls",
+    "email": "tanyeafowls@yahoo.com",
+    "dob": "2005-01-01",
+    "age": 10,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 832 209 9729",
+    "studentPhones": [
+      "+1 832 209 9729"
+    ],
+    "parentPhones": [
+      "+1 832 209 9729"
+    ],
+    "studentEmails": [
+      "tanyeafowls@yahoo.com"
+    ],
+    "parentEmails": [
+      "tanyeafowls@yahoo.com"
+    ],
+    "fatherName": "Jacob",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Reading Comp",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "Reading Comp",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "449005f7-b25a-49e6-8449-a1421abf6ee0",
+    "studentCode": "TG-STU-2026-5002",
+    "fullName": "Angel Lewis",
+    "firstName": "Angel",
+    "lastName": "Lewis",
+    "email": "missyou1970@yahoo.com",
+    "dob": "2005-01-01",
+    "age": 5,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 832 322 2239",
+    "studentPhones": [
+      "+1 832 322 2239"
+    ],
+    "parentPhones": [
+      "+1 832 322 2239"
+    ],
+    "studentEmails": [
+      "missyou1970@yahoo.com"
+    ],
+    "parentEmails": [
+      "missyou1970@yahoo.com"
+    ],
+    "fatherName": "Kamauri Hunter",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Reading",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "Reading",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "34433d55-2899-4037-a43f-29c00a489147",
+    "studentCode": "TG-STU-2026-5028",
+    "fullName": "Mili Chavez",
+    "firstName": "Mili",
+    "lastName": "Chavez",
+    "email": "pabloymili2023@gmail.com",
+    "dob": "2005-01-01",
+    "age": 9,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 346 313 5879",
+    "studentPhones": [
+      "+1 346 313 5879"
+    ],
+    "parentPhones": [
+      "+1 346 313 5879"
+    ],
+    "studentEmails": [
+      "pabloymili2023@gmail.com"
+    ],
+    "parentEmails": [
+      "pabloymili2023@gmail.com"
+    ],
+    "fatherName": "Faith",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Afterschool",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "Afterschool",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "2b43adca-cfe0-4434-a543-940297baee0c",
+    "studentCode": "TG-STU-2026-5029",
+    "fullName": "Chantha",
+    "firstName": "Chantha",
+    "lastName": "",
+    "email": "chanthavorng@icloud.com",
+    "dob": "2005-01-01",
+    "age": 13,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 346 574 4701",
+    "studentPhones": [
+      "+1 346 574 4701"
+    ],
+    "parentPhones": [
+      "+1 346 574 4701"
+    ],
+    "studentEmails": [
+      "chanthavorng@icloud.com"
+    ],
+    "parentEmails": [
+      "chanthavorng@icloud.com"
+    ],
+    "fatherName": "Amir Douhdouh",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Afterschool",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "Afterschool",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "05ea6e62-0b51-48d7-962a-45cf1c2ce3ec",
+    "studentCode": "TG-STU-2026-5030",
+    "fullName": "Dhara Desai",
+    "firstName": "Dhara",
+    "lastName": "Desai",
+    "email": "dhara.6n@gmail.com",
+    "dob": "2005-01-01",
+    "age": 4,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 713 894 4018",
+    "studentPhones": [
+      "+1 713 894 4018"
+    ],
+    "parentPhones": [
+      "+1 713 894 4018"
+    ],
+    "studentEmails": [
+      "dhara.6n@gmail.com"
+    ],
+    "parentEmails": [
+      "dhara.6n@gmail.com"
+    ],
+    "fatherName": "Dhyana & Aarshiv",
+    "motherName": "",
+    "guardianName": "",
+    "program": "GT prep/ Math & Reading",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "GT prep/ Math & Reading",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "a5d9eca7-a9fa-4107-a401-fb6cb8da3890",
+    "studentCode": "TG-STU-2026-5031",
+    "fullName": "Rashmi Aggarwal",
+    "firstName": "Rashmi",
+    "lastName": "Aggarwal",
+    "email": "rashmi.esq@gmail.com",
+    "dob": "2005-01-01",
+    "age": 12,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 713 855 9596",
+    "studentPhones": [
+      "+1 713 855 9596"
+    ],
+    "parentPhones": [
+      "+1 713 855 9596"
+    ],
+    "studentEmails": [
+      "rashmi.esq@gmail.com"
+    ],
+    "parentEmails": [
+      "rashmi.esq@gmail.com"
+    ],
+    "fatherName": "Amisha",
+    "motherName": "",
+    "guardianName": "",
+    "program": "PAP Spanish",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "PAP Spanish",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "096db108-6b6d-476a-969f-40dc36d844c8",
+    "studentCode": "TG-STU-2026-5032",
+    "fullName": "Linda Duggal",
+    "firstName": "Linda",
+    "lastName": "Duggal",
+    "email": "duggaljd14@gmail.com",
+    "dob": "2005-01-01",
+    "age": 6,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 832 314 3624",
+    "studentPhones": [
+      "+1 832 314 3624"
+    ],
+    "parentPhones": [
+      "+1 832 314 3624"
+    ],
+    "studentEmails": [
+      "duggaljd14@gmail.com"
+    ],
+    "parentEmails": [
+      "duggaljd14@gmail.com"
+    ],
+    "fatherName": "Deven",
+    "motherName": "",
+    "guardianName": "",
+    "program": "AP Chem , SAT prep",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "AP Chem , SAT prep",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "a3a10d93-f01a-452f-b695-91e648146a54",
+    "studentCode": "TG-STU-2026-5033",
+    "fullName": "Sandeep Duggal",
+    "firstName": "Sandeep",
+    "lastName": "Duggal",
+    "email": "duggalmd@aol.com",
+    "dob": "2005-01-01",
+    "age": 12,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 832 314 3626",
+    "studentPhones": [
+      "+1 832 314 3626"
+    ],
+    "parentPhones": [
+      "+1 832 314 3626"
+    ],
+    "studentEmails": [
+      "duggalmd@aol.com"
+    ],
+    "parentEmails": [
+      "duggalmd@aol.com"
+    ],
+    "fatherName": "",
+    "motherName": "",
+    "guardianName": "",
+    "program": "",
+    "teacher": "",
+    "allocatedCourses": []
+  },
+  {
+    "id": "deac1925-34c5-4c72-a366-e312e7cab7e6",
+    "studentCode": "TG-STU-2026-5034",
+    "fullName": "Anvita Gupta",
+    "firstName": "Anvita",
+    "lastName": "Gupta",
+    "email": "anvita512@gmail.com",
+    "dob": "2005-01-01",
+    "age": 6,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 312 497 0695",
+    "studentPhones": [
+      "+1 312 497 0695"
+    ],
+    "parentPhones": [
+      "+1 312 497 0695"
+    ],
+    "studentEmails": [
+      "anvita512@gmail.com"
+    ],
+    "parentEmails": [
+      "anvita512@gmail.com"
+    ],
+    "fatherName": "Noshi & Kiaan",
+    "motherName": "",
+    "guardianName": "",
+    "program": "",
+    "teacher": "",
+    "allocatedCourses": []
+  },
+  {
+    "id": "6ea4dc77-9ae9-493b-9134-0e37f5f7dfa8",
+    "studentCode": "TG-STU-2026-5035",
+    "fullName": "Nitin Wadhwa",
+    "firstName": "Nitin",
+    "lastName": "Wadhwa",
+    "email": "nwadhwa78@gmail.com",
+    "dob": "2005-01-01",
+    "age": 10,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 832 754 8223",
+    "studentPhones": [
+      "+1 832 754 8223"
+    ],
+    "parentPhones": [
+      "+1 832 754 8223"
+    ],
+    "studentEmails": [
+      "nwadhwa78@gmail.com"
+    ],
+    "parentEmails": [
+      "nwadhwa78@gmail.com"
+    ],
+    "fatherName": "Raina",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Hindi",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "Hindi",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "2f6fc548-1e9e-4d87-9449-207110701c34",
+    "studentCode": "TG-STU-2026-5036",
+    "fullName": "Brandon Kimmons",
+    "firstName": "Brandon",
+    "lastName": "Kimmons",
+    "email": "kimmonscare@gmail.com",
+    "dob": "2005-01-01",
+    "age": 8,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 901 246 5376",
+    "studentPhones": [
+      "+1 901 246 5376"
+    ],
+    "parentPhones": [
+      "+1 901 246 5376"
+    ],
+    "studentEmails": [
+      "kimmonscare@gmail.com"
+    ],
+    "parentEmails": [
+      "kimmonscare@gmail.com"
+    ],
+    "fatherName": "Brandon",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Math",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "Math",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "5b0d7d58-5fef-43d5-ab01-6833fe4613fd",
+    "studentCode": "TG-STU-2026-5037",
+    "fullName": "Kaushalya Amunugama",
+    "firstName": "Kaushalya",
+    "lastName": "Amunugama",
+    "email": "kaushalya.amunugama@gmail.com",
+    "dob": "2005-01-01",
+    "age": 10,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 573 308 5088",
+    "studentPhones": [
+      "+1 573 308 5088"
+    ],
+    "parentPhones": [
+      "+1 573 308 5088"
+    ],
+    "studentEmails": [
+      "kaushalya.amunugama@gmail.com"
+    ],
+    "parentEmails": [
+      "kaushalya.amunugama@gmail.com"
+    ],
+    "fatherName": "Vinoli",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Reading Writing",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "Reading Writing",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "bc7d96b6-2551-4059-9f6d-09eb455f34ce",
+    "studentCode": "TG-STU-2026-5039",
+    "fullName": "Ayan Monpara",
+    "firstName": "Ayan",
+    "lastName": "Monpara",
+    "email": "monpara@gmail.com",
+    "dob": "2005-01-01",
+    "age": 6,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 281 736 0945",
+    "studentPhones": [
+      "+1 281 736 0945"
+    ],
+    "parentPhones": [
+      "+1 281 736 0945"
+    ],
+    "studentEmails": [
+      "monpara@gmail.com"
+    ],
+    "parentEmails": [
+      "monpara@gmail.com"
+    ],
+    "fatherName": "Anushka",
+    "motherName": "",
+    "guardianName": "",
+    "program": "SAT prep",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "SAT prep",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "3423761e-675e-4f3b-8bec-4f1b0cbba5d9",
+    "studentCode": "TG-STU-2026-5040",
+    "fullName": "Kirtida Monpara",
+    "firstName": "Kirtida",
+    "lastName": "Monpara",
+    "email": "kirtida.monpara@student.topgrade.edu",
+    "dob": "2005-01-01",
+    "age": 12,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 781 353 1272",
+    "studentPhones": [
+      "+1 781 353 1272"
+    ],
+    "parentPhones": [
+      "+1 781 353 1272"
+    ],
+    "studentEmails": [
+      "kirtida.monpara@student.topgrade.edu"
+    ],
+    "parentEmails": [
+      "kirtida.monpara@student.topgrade.edu"
+    ],
+    "fatherName": "",
+    "motherName": "",
+    "guardianName": "",
+    "program": "",
+    "teacher": "",
+    "allocatedCourses": []
+  },
+  {
+    "id": "d62ddb95-753b-416b-9292-8f1ce9c8ffad",
+    "studentCode": "TG-STU-2026-5041",
+    "fullName": "Blake Johnson",
+    "firstName": "Blake",
+    "lastName": "Johnson",
+    "email": "mykix3@gmail.com",
+    "dob": "2005-01-01",
+    "age": 6,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 973 760 4734",
+    "studentPhones": [
+      "+1 973 760 4734"
+    ],
+    "parentPhones": [
+      "+1 973 760 4734"
+    ],
+    "studentEmails": [
+      "mykix3@gmail.com"
+    ],
+    "parentEmails": [
+      "mykix3@gmail.com"
+    ],
+    "fatherName": "Kaleb Smith",
+    "motherName": "",
+    "guardianName": "",
+    "program": "SAT prep",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "SAT prep",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "867087b6-2914-4efb-8429-660516f2f0a5",
+    "studentCode": "TG-STU-2026-5042",
+    "fullName": "Kaleb Smith",
+    "firstName": "Kaleb",
+    "lastName": "Smith",
+    "email": "kaleb.smith@student.topgrade.edu",
+    "dob": "2005-01-01",
+    "age": 12,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 908 340 2976",
+    "studentPhones": [
+      "+1 908 340 2976"
+    ],
+    "parentPhones": [
+      "+1 908 340 2976"
+    ],
+    "studentEmails": [
+      "kaleb.smith@student.topgrade.edu"
+    ],
+    "parentEmails": [
+      "kaleb.smith@student.topgrade.edu"
+    ],
+    "fatherName": "",
+    "motherName": "",
+    "guardianName": "",
+    "program": "",
+    "teacher": "",
+    "allocatedCourses": []
+  },
+  {
+    "id": "a5696856-7c60-4f50-975c-87a1caad52f5",
+    "studentCode": "TG-STU-2026-5043",
+    "fullName": "Serena Ayala",
+    "firstName": "Serena",
+    "lastName": "Ayala",
+    "email": "smayala79@yahoo.com",
+    "dob": "2005-01-01",
+    "age": 14,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 832 607 0195",
+    "studentPhones": [
+      "+1 832 607 0195"
+    ],
+    "parentPhones": [
+      "+1 832 607 0195"
+    ],
+    "studentEmails": [
+      "smayala79@yahoo.com"
+    ],
+    "parentEmails": [
+      "smayala79@yahoo.com"
+    ],
+    "fatherName": "Serena",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Alge 1",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "Alge 1",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "4455f575-219f-44cd-b6b4-21750fd94971",
+    "studentCode": "TG-STU-2026-5044",
+    "fullName": "Serena III",
+    "firstName": "Serena",
+    "lastName": "III",
+    "email": "serena.iii@student.topgrade.edu",
+    "dob": "2005-01-01",
+    "age": 12,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 979 900 7400",
+    "studentPhones": [
+      "+1 979 900 7400"
+    ],
+    "parentPhones": [
+      "+1 979 900 7400"
+    ],
+    "studentEmails": [
+      "serena.iii@student.topgrade.edu"
+    ],
+    "parentEmails": [
+      "serena.iii@student.topgrade.edu"
+    ],
+    "fatherName": "",
+    "motherName": "",
+    "guardianName": "",
+    "program": "",
+    "teacher": "",
+    "allocatedCourses": []
+  },
+  {
+    "id": "a2bdad83-bae4-4913-b99d-ca0cb9594482",
+    "studentCode": "TG-STU-2026-5045",
+    "fullName": "Gayathri Sathiamoorthy",
+    "firstName": "Gayathri",
+    "lastName": "Sathiamoorthy",
+    "email": "gayathri.sathiamoorthy@gmail.com",
+    "dob": "2005-01-01",
+    "age": 6,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 617 959 3713",
+    "studentPhones": [
+      "+1 617 959 3713"
+    ],
+    "parentPhones": [
+      "+1 617 959 3713"
+    ],
+    "studentEmails": [
+      "gayathri.sathiamoorthy@gmail.com"
+    ],
+    "parentEmails": [
+      "gayathri.sathiamoorthy@gmail.com"
+    ],
+    "fatherName": "Hari Charan",
+    "motherName": "",
+    "guardianName": "",
+    "program": "SAT prep",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "SAT prep",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "a19cfb74-3ed8-4db4-88ba-5cb30a935c30",
+    "studentCode": "TG-STU-2026-5046",
+    "fullName": "Bindu Aghari",
+    "firstName": "Bindu",
+    "lastName": "Aghari",
+    "email": "bindu.aghari@student.topgrade.edu",
+    "dob": "2005-01-01",
+    "age": 14,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 832 215 5432",
+    "studentPhones": [
+      "+1 832 215 5432"
+    ],
+    "parentPhones": [
+      "+1 832 215 5432"
+    ],
+    "studentEmails": [
+      "bindu.aghari@student.topgrade.edu"
+    ],
+    "parentEmails": [
+      "bindu.aghari@student.topgrade.edu"
+    ],
+    "fatherName": "Reshmika",
+    "motherName": "",
+    "guardianName": "",
+    "program": "",
+    "teacher": "",
+    "allocatedCourses": []
+  },
+  {
+    "id": "222410fc-f5ec-4bf6-9689-bca568d31594",
+    "studentCode": "TG-STU-2026-5047",
+    "fullName": "Shiva Marthy",
+    "firstName": "Shiva",
+    "lastName": "Marthy",
+    "email": "Shiva90@gmail.com",
+    "dob": "2005-01-01",
+    "age": 6,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 281 851 5873",
+    "studentPhones": [
+      "+1 281 851 5873"
+    ],
+    "parentPhones": [
+      "+1 281 851 5873"
+    ],
+    "studentEmails": [
+      "Shiva90@gmail.com"
+    ],
+    "parentEmails": [
+      "Shiva90@gmail.com"
+    ],
+    "fatherName": "Nikhil",
+    "motherName": "",
+    "guardianName": "",
+    "program": "SAT prep",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "SAT prep",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "dc61147b-5aa6-4a52-869e-de65d9e20684",
+    "studentCode": "TG-STU-2026-5048",
+    "fullName": "Chaitanya Gundapaneni",
+    "firstName": "Chaitanya",
+    "lastName": "Gundapaneni",
+    "email": "chaitu900@gmail.com",
+    "dob": "2005-01-01",
+    "age": 12,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 281 614 9093",
+    "studentPhones": [
+      "+1 281 614 9093"
+    ],
+    "parentPhones": [
+      "+1 281 614 9093"
+    ],
+    "studentEmails": [
+      "chaitu900@gmail.com"
+    ],
+    "parentEmails": [
+      "chaitu900@gmail.com"
+    ],
+    "fatherName": "",
+    "motherName": "",
+    "guardianName": "",
+    "program": "",
+    "teacher": "",
+    "allocatedCourses": []
+  },
+  {
+    "id": "8acebc78-2222-4d33-b177-274437c9419d",
+    "studentCode": "TG-STU-2026-5049",
+    "fullName": "Garrett Grant",
+    "firstName": "Garrett",
+    "lastName": "Grant",
+    "email": "ggrantl@renewedstrength.biz",
+    "dob": "2005-01-01",
+    "age": 13,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 713 299 8351",
+    "studentPhones": [
+      "+1 713 299 8351"
+    ],
+    "parentPhones": [
+      "+1 713 299 8351"
+    ],
+    "studentEmails": [
+      "ggrantl@renewedstrength.biz"
+    ],
+    "parentEmails": [
+      "ggrantl@renewedstrength.biz"
+    ],
+    "fatherName": "Brooke",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Math",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "Math",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "15084b08-a5f9-4c34-8b41-f836dff52190",
+    "studentCode": "TG-STU-2026-5050",
+    "fullName": "Vondeah Grant",
+    "firstName": "Vondeah",
+    "lastName": "Grant",
+    "email": "vondeahgrant@yahoo.com",
+    "dob": "2005-01-01",
+    "age": 12,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 713 725 3665",
+    "studentPhones": [
+      "+1 713 725 3665"
+    ],
+    "parentPhones": [
+      "+1 713 725 3665"
+    ],
+    "studentEmails": [
+      "vondeahgrant@yahoo.com"
+    ],
+    "parentEmails": [
+      "vondeahgrant@yahoo.com"
+    ],
+    "fatherName": "",
+    "motherName": "",
+    "guardianName": "",
+    "program": "",
+    "teacher": "",
+    "allocatedCourses": []
+  },
+  {
+    "id": "c0dca76d-260b-4542-b299-d1f140277211",
+    "studentCode": "TG-STU-2026-5051",
+    "fullName": "Elizabeth Osorio",
+    "firstName": "Elizabeth",
+    "lastName": "Osorio",
+    "email": "o.elizabeth@icloud.com",
+    "dob": "2005-01-01",
+    "age": 6,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 713 302 1264",
+    "studentPhones": [
+      "+1 713 302 1264"
+    ],
+    "parentPhones": [
+      "+1 713 302 1264"
+    ],
+    "studentEmails": [
+      "o.elizabeth@icloud.com"
+    ],
+    "parentEmails": [
+      "o.elizabeth@icloud.com"
+    ],
+    "fatherName": "Ulaysha",
+    "motherName": "",
+    "guardianName": "",
+    "program": "TSI prep",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "TSI prep",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "bbb8561f-6942-4db9-b8c1-ba41bbd9e138",
+    "studentCode": "TG-STU-2026-5052",
+    "fullName": "Ulaysha Gibbs",
+    "firstName": "Ulaysha",
+    "lastName": "Gibbs",
+    "email": "ulayshagibbs@gmail.com",
+    "dob": "2005-01-01",
+    "age": 12,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 713 820 0792",
+    "studentPhones": [
+      "+1 713 820 0792"
+    ],
+    "parentPhones": [
+      "+1 713 820 0792"
+    ],
+    "studentEmails": [
+      "ulayshagibbs@gmail.com"
+    ],
+    "parentEmails": [
+      "ulayshagibbs@gmail.com"
+    ],
+    "fatherName": "",
+    "motherName": "",
+    "guardianName": "",
+    "program": "",
+    "teacher": "",
+    "allocatedCourses": []
+  },
+  {
+    "id": "24f37be3-3bb6-4c5b-a830-d75ff49b99c0",
+    "studentCode": "TG-STU-2026-5053",
+    "fullName": "Amy Carter",
+    "firstName": "Amy",
+    "lastName": "Carter",
+    "email": "carterae2020@gmail.com",
+    "dob": "2005-01-01",
+    "age": 11,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 832 816 4463",
+    "studentPhones": [
+      "+1 832 816 4463"
+    ],
+    "parentPhones": [
+      "+1 832 816 4463"
+    ],
+    "studentEmails": [
+      "carterae2020@gmail.com"
+    ],
+    "parentEmails": [
+      "carterae2020@gmail.com"
+    ],
+    "fatherName": "Madison Carter",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Afterschool",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "Afterschool",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "27157b65-a5a6-4404-9b7c-2d44f51ddb6b",
+    "studentCode": "TG-STU-2026-5054",
+    "fullName": "Florence Buaku",
+    "firstName": "Florence",
+    "lastName": "Buaku",
+    "email": "flossied@gmail.com",
+    "dob": "2005-01-01",
+    "age": 8,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 734 709 1718",
+    "studentPhones": [
+      "+1 734 709 1718"
+    ],
+    "parentPhones": [
+      "+1 734 709 1718"
+    ],
+    "studentEmails": [
+      "flossied@gmail.com"
+    ],
+    "parentEmails": [
+      "flossied@gmail.com"
+    ],
+    "fatherName": "Isabelle & Julia Buaku",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Afterschool",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "Afterschool",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "e1e66bbc-1606-4ebc-8a0d-1fd6b3e77305",
+    "studentCode": "TG-STU-2026-5055",
+    "fullName": "Judith Rawls",
+    "firstName": "Judith",
+    "lastName": "Rawls",
+    "email": "jcothorn@gmail.com",
+    "dob": "2005-01-01",
+    "age": 11,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 202 368 3012",
+    "studentPhones": [
+      "+1 202 368 3012"
+    ],
+    "parentPhones": [
+      "+1 202 368 3012"
+    ],
+    "studentEmails": [
+      "jcothorn@gmail.com"
+    ],
+    "parentEmails": [
+      "jcothorn@gmail.com"
+    ],
+    "fatherName": "Abigail Rawls",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Afterschool",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "Afterschool",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "0c662cc1-58e8-44b0-99e5-5d7bde01a5f6",
+    "studentCode": "TG-STU-2026-5038",
+    "fullName": "Minny Bhatty",
+    "firstName": "Minny",
+    "lastName": "Bhatty",
+    "email": "minnybhatty@gmail.com",
+    "dob": "2005-01-01",
+    "age": 11,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 662 617 9073",
+    "studentPhones": [
+      "+1 662 617 9073"
+    ],
+    "parentPhones": [
+      "+1 662 617 9073"
+    ],
+    "studentEmails": [
+      "minnybhatty@gmail.com"
+    ],
+    "parentEmails": [
+      "minnybhatty@gmail.com"
+    ],
+    "fatherName": "Sumay",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Writing",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "Writing",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "f9532d08-0ceb-4dad-a4fd-5fdc8dde75be",
+    "studentCode": "TG-STU-2026-5026",
+    "fullName": "Lexii Zielinski",
+    "firstName": "Lexii",
+    "lastName": "Zielinski",
+    "email": "alexisszielinski@gmail.com",
+    "dob": "2005-01-01",
+    "age": 5,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 832 274 9851",
+    "studentPhones": [
+      "+1 832 274 9851"
+    ],
+    "parentPhones": [
+      "+1 832 274 9851"
+    ],
+    "studentEmails": [
+      "alexisszielinski@gmail.com"
+    ],
+    "parentEmails": [
+      "alexisszielinski@gmail.com"
+    ],
+    "fatherName": "Sky Zielinski",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Afterschool",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "Afterschool",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "c38527cf-265c-4274-98d4-46de4e383f3f",
+    "studentCode": "TG-STU-2026-5068",
+    "fullName": "Liz Rodwell",
+    "firstName": "Liz",
+    "lastName": "Rodwell",
+    "email": "elizabethannrodwell@gmail.com",
+    "dob": "2005-01-01",
+    "age": 9,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 401 743 9608",
+    "studentPhones": [
+      "+1 401 743 9608"
+    ],
+    "parentPhones": [
+      "+1 401 743 9608"
+    ],
+    "studentEmails": [
+      "elizabethannrodwell@gmail.com"
+    ],
+    "parentEmails": [
+      "elizabethannrodwell@gmail.com"
+    ],
+    "fatherName": "Charlie",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Reading",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "Reading",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "bc7d6522-5feb-4b91-bea8-53d285ade5a0",
+    "studentCode": "TG-STU-2026-5025",
+    "fullName": "Barbara Habal",
+    "firstName": "Barbara",
+    "lastName": "Habal",
+    "email": "barbarajaycacho@yahoo.com",
+    "dob": "2005-01-01",
+    "age": 6,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 832 526 2483",
+    "studentPhones": [
+      "+1 832 526 2483"
+    ],
+    "parentPhones": [
+      "+1 832 526 2483"
+    ],
+    "studentEmails": [
+      "barbarajaycacho@yahoo.com"
+    ],
+    "parentEmails": [
+      "barbarajaycacho@yahoo.com"
+    ],
+    "fatherName": "Christopher Habal",
+    "motherName": "",
+    "guardianName": "",
+    "program": "SAT prep, College Essay workshop",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "SAT prep, College Essay workshop",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "3385160b-4248-4f62-8f9c-b768b6f5415d",
+    "studentCode": "TG-STU-2026-5027",
+    "fullName": "marisol penaloza",
+    "firstName": "marisol",
+    "lastName": "penaloza",
+    "email": "marisol.maldonado96@icloud.com",
+    "dob": "2005-01-01",
+    "age": 5,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 832 941 8419",
+    "studentPhones": [
+      "+1 832 941 8419"
+    ],
+    "parentPhones": [
+      "+1 832 941 8419"
+    ],
+    "studentEmails": [
+      "marisol.maldonado96@icloud.com"
+    ],
+    "parentEmails": [
+      "marisol.maldonado96@icloud.com"
+    ],
+    "fatherName": "eric penaloza & Robert Mora",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Afterschool",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "Afterschool",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "1b4fb652-ade2-43a8-9324-bb452d795cfc",
+    "studentCode": "TG-STU-2026-5056",
+    "fullName": "Yordana Bridger",
+    "firstName": "Yordana",
+    "lastName": "Bridger",
+    "email": "yordana.bridger@student.topgrade.edu",
+    "dob": "2005-01-01",
+    "age": 11,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "",
+    "studentPhones": [],
+    "parentPhones": [],
+    "studentEmails": [
+      "yordana.bridger@student.topgrade.edu"
+    ],
+    "parentEmails": [
+      "yordana.bridger@student.topgrade.edu"
+    ],
+    "fatherName": "Abi Bridger",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Afterschool",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "Afterschool",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "f97f1834-7674-45f1-a35c-ac3275120724",
+    "studentCode": "TG-STU-2026-5057",
+    "fullName": "Geraldine Raja",
+    "firstName": "Geraldine",
+    "lastName": "Raja",
+    "email": "gerijosie@yahoo.com",
+    "dob": "2005-01-01",
+    "age": 7,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 716 464 0517",
+    "studentPhones": [
+      "+1 716 464 0517"
+    ],
+    "parentPhones": [
+      "+1 716 464 0517"
+    ],
+    "studentEmails": [
+      "gerijosie@yahoo.com"
+    ],
+    "parentEmails": [
+      "gerijosie@yahoo.com"
+    ],
+    "fatherName": "Viviana",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Afterschool",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "Afterschool",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "a35e0009-0b1f-4b6d-9ef8-fd2ab94cacca",
+    "studentCode": "TG-STU-2026-5058",
+    "fullName": "Soosan Pappan",
+    "firstName": "Soosan",
+    "lastName": "Pappan",
+    "email": "soosanmathai@yahoo.com",
+    "dob": "2005-01-01",
+    "age": 11,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 832 746 7799",
+    "studentPhones": [
+      "+1 832 746 7799"
+    ],
+    "parentPhones": [
+      "+1 832 746 7799"
+    ],
+    "studentEmails": [
+      "soosanmathai@yahoo.com"
+    ],
+    "parentEmails": [
+      "soosanmathai@yahoo.com"
+    ],
+    "fatherName": "Nehemiah & Bezaleel",
+    "motherName": "",
+    "guardianName": "",
+    "program": "ESL",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "ESL",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "ffa38a2e-96a5-4b72-ac7f-d1809242f0ff",
+    "studentCode": "TG-STU-2026-5059",
+    "fullName": "Lakeshia Morgan",
+    "firstName": "Lakeshia",
+    "lastName": "Morgan",
+    "email": "lakeshiamorgan880",
+    "dob": "2005-01-01",
+    "age": 7,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 936 414 7009",
+    "studentPhones": [
+      "+1 936 414 7009"
+    ],
+    "parentPhones": [
+      "+1 936 414 7009"
+    ],
+    "studentEmails": [
+      "lakeshiamorgan880"
+    ],
+    "parentEmails": [
+      "lakeshiamorgan880"
+    ],
+    "fatherName": "Kaliyah, Kalena",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Reading & Math",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "Reading & Math",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "55f66a8d-8b0f-4cb4-9c62-6c428d843272",
+    "studentCode": "TG-STU-2026-5060",
+    "fullName": "Chardae Evans",
+    "firstName": "Chardae",
+    "lastName": "Evans",
+    "email": "chardaeevans1@gmail.com",
+    "dob": "2005-01-01",
+    "age": 9,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 346 319 9044",
+    "studentPhones": [
+      "+1 346 319 9044"
+    ],
+    "parentPhones": [
+      "+1 346 319 9044"
+    ],
+    "studentEmails": [
+      "chardaeevans1@gmail.com"
+    ],
+    "parentEmails": [
+      "chardaeevans1@gmail.com"
+    ],
+    "fatherName": "Kayden Jones",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Math",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "Math",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "ae322fbf-9846-4961-8d1e-c8fb46587948",
+    "studentCode": "TG-STU-2026-5061",
+    "fullName": "Brindha Madhan",
+    "firstName": "Brindha",
+    "lastName": "Madhan",
+    "email": "brindha.biotek@gmail.com",
+    "dob": "2005-01-01",
+    "age": 6,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 281 809 6351",
+    "studentPhones": [
+      "+1 281 809 6351"
+    ],
+    "parentPhones": [
+      "+1 281 809 6351"
+    ],
+    "studentEmails": [
+      "brindha.biotek@gmail.com"
+    ],
+    "parentEmails": [
+      "brindha.biotek@gmail.com"
+    ],
+    "fatherName": "AmudhanMadhan Kumar",
+    "motherName": "",
+    "guardianName": "",
+    "program": "College Essay writing",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "College Essay writing",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "08ff00f0-bf81-4149-ad78-5d3bda30f026",
+    "studentCode": "TG-STU-2026-5062",
+    "fullName": "Annie Smith",
+    "firstName": "Annie",
+    "lastName": "Smith",
+    "email": "AnnieB@cgsfs.com",
+    "dob": "2005-01-01",
+    "age": 10,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 832 275 5298",
+    "studentPhones": [
+      "+1 832 275 5298"
+    ],
+    "parentPhones": [
+      "+1 832 275 5298"
+    ],
+    "studentEmails": [
+      "AnnieB@cgsfs.com"
+    ],
+    "parentEmails": [
+      "AnnieB@cgsfs.com"
+    ],
+    "fatherName": "Sophie, Dahlia",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Afterschool",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "Afterschool",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "2cc76de3-2547-4241-9610-bbf472e0cd5a",
+    "studentCode": "TG-STU-2026-5063",
+    "fullName": "Chardaet Galvan",
+    "firstName": "Chardaet",
+    "lastName": "Galvan",
+    "email": "chardaet.galvan@student.topgrade.edu",
+    "dob": "2005-01-01",
+    "age": 12,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 713 858 5771",
+    "studentPhones": [
+      "+1 713 858 5771"
+    ],
+    "parentPhones": [
+      "+1 713 858 5771"
+    ],
+    "studentEmails": [
+      "chardaet.galvan@student.topgrade.edu"
+    ],
+    "parentEmails": [
+      "chardaet.galvan@student.topgrade.edu"
+    ],
+    "fatherName": "",
+    "motherName": "",
+    "guardianName": "",
+    "program": "",
+    "teacher": "",
+    "allocatedCourses": []
+  },
+  {
+    "id": "42e07a36-2dc7-4676-9405-bfd780a96a46",
+    "studentCode": "TG-STU-2026-5064",
+    "fullName": "Ke Li",
+    "firstName": "Ke",
+    "lastName": "Li",
+    "email": "ke.li@outlook.com",
+    "dob": "2005-01-01",
+    "age": 6,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 832 288 0435",
+    "studentPhones": [
+      "+1 832 288 0435"
+    ],
+    "parentPhones": [
+      "+1 832 288 0435"
+    ],
+    "studentEmails": [
+      "ke.li@outlook.com"
+    ],
+    "parentEmails": [
+      "ke.li@outlook.com"
+    ],
+    "fatherName": "Evan Li",
+    "motherName": "",
+    "guardianName": "",
+    "program": "PAP Chemistry, PAP Alge 2",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "PAP Chemistry, PAP Alge 2",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "753196f4-4721-49ba-bd86-40629a94b769",
+    "studentCode": "TG-STU-2026-5065",
+    "fullName": "Wes Murdoch",
+    "firstName": "Wes",
+    "lastName": "Murdoch",
+    "email": "wesdmurdock@hotmail.com",
+    "dob": "2005-01-01",
+    "age": 12,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 832 712 3339",
+    "studentPhones": [
+      "+1 832 712 3339"
+    ],
+    "parentPhones": [
+      "+1 832 712 3339"
+    ],
+    "studentEmails": [
+      "wesdmurdock@hotmail.com"
+    ],
+    "parentEmails": [
+      "wesdmurdock@hotmail.com"
+    ],
+    "fatherName": "Micah",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Reading, Handwriting",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "Reading, Handwriting",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "937e2fef-5587-47e3-9d79-cf1a9c2420b9",
+    "studentCode": "TG-STU-2026-5066",
+    "fullName": "Rosie Lopez",
+    "firstName": "Rosie",
+    "lastName": "Lopez",
+    "email": "rosieflopez@yahoo.com",
+    "dob": "2005-01-01",
+    "age": 6,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 832 879 7941",
+    "studentPhones": [
+      "+1 832 879 7941"
+    ],
+    "parentPhones": [
+      "+1 832 879 7941"
+    ],
+    "studentEmails": [
+      "rosieflopez@yahoo.com"
+    ],
+    "parentEmails": [
+      "rosieflopez@yahoo.com"
+    ],
+    "fatherName": "Ava",
+    "motherName": "",
+    "guardianName": "",
+    "program": "PAP Geometry",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "PAP Geometry",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "99013dc1-18b7-4c79-9c6b-1d7d8f432996",
+    "studentCode": "TG-STU-2026-5067",
+    "fullName": "Frank Fernandez",
+    "firstName": "Frank",
+    "lastName": "Fernandez",
+    "email": "ftfern24@yahoo.com",
+    "dob": "2005-01-01",
+    "age": 6,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 713 823 6790",
+    "studentPhones": [
+      "+1 713 823 6790"
+    ],
+    "parentPhones": [
+      "+1 713 823 6790"
+    ],
+    "studentEmails": [
+      "ftfern24@yahoo.com"
+    ],
+    "parentEmails": [
+      "ftfern24@yahoo.com"
+    ],
+    "fatherName": "Charlotte",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Math",
+    "teacher": "",
+    "allocatedCourses": [
+      {
+        "courseName": "Math",
+        "duration": "3 Months"
+      }
+    ]
   }
 ]

@@ -1,1 +1,131 @@
-[]
+[
+  {
+    "id": "sch-1789030150137-o7fb",
+    "course_id": "aa8474af-1a73-4838-8967-a66db54e9423",
+    "course_name": "Afterschool Program",
+    "teacher_id": "09f57d87-119d-4eba-bea1-72328a16a51c",
+    "teacher_name": "manikanta",
+    "day_of_week": "Monday",
+    "start_time": "10:00 AM",
+    "end_time": "11:30 AM",
+    "time_slot": "10:00 AM - 11:30 AM",
+    "room": "Classroom 101",
+    "location": "Main Academic Center",
+    "max_capacity": 15,
+    "is_active": true,
+    "students": [
+      {
+        "id": "sch-stu-1789030150137-lk3o",
+        "schedule_id": "sch-1789030150137-o7fb",
+        "student_id": "4457858c-594e-4b96-9df6-eb66753cfe3c",
+        "student_name": "harshith pabisetty",
+        "student_code": "TG-STU-2026-9717",
+        "created_at": "2026-09-10T08:49:10.137Z"
+      },
+      {
+        "id": "sch-stu-1789030150137-191a",
+        "schedule_id": "sch-1789030150137-o7fb",
+        "student_id": "ec40d0c0-c9b4-436a-9e73-f3e34d424fab",
+        "student_name": "Siva Reddy",
+        "student_code": "TG-STU-2026-3632",
+        "created_at": "2026-09-10T08:49:10.137Z"
+      },
+      {
+        "id": "sch-stu-1789030150137-5brd",
+        "schedule_id": "sch-1789030150137-o7fb",
+        "student_id": "f4ca7a7b-c64a-4e18-86ab-a0a48e342be2",
+        "student_name": "rajesh ganta",
+        "student_code": "TG-STU-2026-4231",
+        "created_at": "2026-09-10T08:49:10.137Z"
+      }
+    ],
+    "created_at": "2026-09-10T08:49:10.137Z",
+    "updated_at": "2026-09-10T08:49:10.137Z"
+  },
+  {
+    "id": "sch-1789030151888-nh3c",
+    "course_id": "25c26842-00a7-44db-ba70-337b3ed6a23a",
+    "course_name": "Algebra 1 & PAP Algebra 2",
+    "teacher_id": "1e6e2f89-b8ad-425f-aada-982406db640c",
+    "teacher_name": "Logan",
+    "day_of_week": "Wednesday",
+    "start_time": "01:00 PM",
+    "end_time": "02:30 PM",
+    "time_slot": "01:00 PM - 02:30 PM",
+    "room": "Classroom 102",
+    "location": "Main Academic Center",
+    "max_capacity": 15,
+    "is_active": true,
+    "students": [
+      {
+        "id": "sch-stu-1789030151888-ncxa",
+        "schedule_id": "sch-1789030151888-nh3c",
+        "student_id": "4bc5b282-bedd-4d26-a871-aec99e21abc5",
+        "student_name": "Tierra Perry",
+        "student_code": "TG-STU-2026-5003",
+        "created_at": "2026-09-10T08:49:11.888Z"
+      },
+      {
+        "id": "sch-stu-1789030151888-fre2",
+        "schedule_id": "sch-1789030151888-nh3c",
+        "student_id": "a1165403-134a-4354-bff1-45f3e671aeda",
+        "student_name": "DULCE Eduardo Garcia",
+        "student_code": "TG-STU-2026-5004",
+        "created_at": "2026-09-10T08:49:11.888Z"
+      },
+      {
+        "id": "sch-stu-1789030151888-c6aj",
+        "schedule_id": "sch-1789030151888-nh3c",
+        "student_id": "9cc422f4-59f2-4ca6-8087-507b16eaad79",
+        "student_name": "Elizabeth Guillory",
+        "student_code": "TG-STU-2026-5005",
+        "created_at": "2026-09-10T08:49:11.888Z"
+      }
+    ],
+    "created_at": "2026-09-10T08:49:11.888Z",
+    "updated_at": "2026-09-10T08:49:11.888Z"
+  },
+  {
+    "id": "sch-1789030153775-phup",
+    "course_id": "e1dbafdc-ccfc-4967-bee1-59a8307b3818",
+    "course_name": "AP Chemistry & PAP Chemistry",
+    "teacher_id": "ef5d54e4-3238-4c6c-9a1a-bda1187fbd5e",
+    "teacher_name": "Chole Self",
+    "day_of_week": "Friday",
+    "start_time": "04:00 PM",
+    "end_time": "05:30 PM",
+    "time_slot": "04:00 PM - 05:30 PM",
+    "room": "Science Lab 201",
+    "location": "Science Building",
+    "max_capacity": 15,
+    "is_active": true,
+    "students": [
+      {
+        "id": "sch-stu-1789030153775-iwbk",
+        "schedule_id": "sch-1789030153775-phup",
+        "student_id": "a8484377-6a04-4980-90f1-037a8cb3dd58",
+        "student_name": "Esperanza garcia",
+        "student_code": "TG-STU-2026-5006",
+        "created_at": "2026-09-10T08:49:13.775Z"
+      },
+      {
+        "id": "sch-stu-1789030153775-xb7x",
+        "schedule_id": "sch-1789030153775-phup",
+        "student_id": "3ac44fbb-f6bc-4d28-9251-afdbef215ddc",
+        "student_name": "Lani Mercado",
+        "student_code": "TG-STU-2026-5007",
+        "created_at": "2026-09-10T08:49:13.775Z"
+      },
+      {
+        "id": "sch-stu-1789030153775-1ddf",
+        "schedule_id": "sch-1789030153775-phup",
+        "student_id": "84e4e3c1-237c-4375-a734-5c18103ed5e5",
+        "student_name": "Anna Jan",
+        "student_code": "TG-STU-2026-5008",
+        "created_at": "2026-09-10T08:49:13.775Z"
+      }
+    ],
+    "created_at": "2026-09-10T08:49:13.775Z",
+    "updated_at": "2026-09-10T08:49:13.775Z"
+  }
+]

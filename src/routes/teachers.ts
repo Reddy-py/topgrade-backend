@@ -40,7 +40,15 @@ export let inMemoryTeachers: any[] = [
 
 // GET: List all teachers with fail-safe fallback
 export const getTeachersHandler = async (_req: express.Request, res: express.Response) => {
-  res.status(200).json({ success: true, data: inMemoryTeachers });
+  try {
+    const { data, error } = await supabaseAdmin.from("teachers").select("*");
+    if (!error && data && data.length > 0) {
+      return res.status(200).json({ success: true, count: data.length, data });
+    }
+  } catch (err) {
+    console.warn("Notice querying Supabase teachers in getTeachersHandler:", err);
+  }
+  res.status(200).json({ success: true, count: inMemoryTeachers.length, data: inMemoryTeachers });
 };
 
 router.get("/list", getTeachersHandler);

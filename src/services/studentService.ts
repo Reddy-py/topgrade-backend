@@ -143,6 +143,41 @@ export async function getStudentsService(params: {
   const gradeFilter = (params.grade || "ALL");
   const user = params.currentUser;
 
+  if (inMemoryStudentStore.length < 10) {
+    try {
+      const { data, error } = await supabaseAdmin.from("students").select("*");
+      if (!error && data && data.length > inMemoryStudentStore.length) {
+        inMemoryStudentStore = data.map((s: any) => ({
+          id: s.id,
+          studentCode: s.student_id_code || s.studentCode || `TG-STU-${s.id?.slice(0, 4)}`,
+          fullName: s.name || s.full_name || s.fullName || "Student",
+          firstName: (s.name || "").split(" ")[0] || "Student",
+          lastName: (s.name || "").split(" ").slice(1).join(" ") || "",
+          email: s.email,
+          dob: s.dob || "2005-01-01",
+          age: s.age || 18,
+          school: s.school || "Top Grade Academy",
+          grade: s.grade || "Grade 10",
+          status: (s.status || "ACTIVE").toUpperCase(),
+          primaryMobile: s.phone || "",
+          studentPhones: s.phone ? [s.phone] : [],
+          parentPhones: s.father_phone ? [s.father_phone] : (s.phone ? [s.phone] : []),
+          studentEmails: s.email ? [s.email] : [],
+          parentEmails: s.email ? [s.email] : [],
+          fatherName: s.father_name || "",
+          motherName: s.mother_name || "",
+          guardianName: s.guardian || "",
+          program: s.program || "",
+          teacher: s.teacher || "",
+          allocatedCourses: s.program ? [{ courseName: s.program, duration: "3 Months" }] : []
+        }));
+        saveStudentsToDisk();
+      }
+    } catch (err) {
+      console.warn("Notice syncing students from Supabase:", err);
+    }
+  }
+
   let students = [...inMemoryStudentStore];
 
   // Role-based Access Filter
