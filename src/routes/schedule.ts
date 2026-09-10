@@ -1,11 +1,190 @@
 import { Router } from "express";
 import { supabaseAdmin } from "../supabase.js";
-import { dispatchMultiChannelNotification } from "../services/notificationService.js";
+import { dispatchMultiChannelNotification, sendClassScheduleEmail } from "../services/notificationService.js";
+import { ScheduleDataService } from "../services/scheduleDataService.js";
 
 const router = Router();
 
 // In-memory reschedule tracking state fallback
 let inMemoryReschedules: Record<string, { count: number; lastSessionTime?: string }> = {};
+
+// ==========================================
+// NODE 4 & 5: WEEKLY SCHEDULE ENGINE ROUTES
+// ==========================================
+
+// 1. List all active schedule slots with mapped students
+router.get("/list", async (_req, res): Promise<any> => {
+  try {
+    const schedules = await ScheduleDataService.listSchedules();
+    return res.status(200).json({ success: true, count: schedules.length, data: schedules });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 2. Fetch existing institutional courses strictly from database/CSV
+router.get("/existing-courses", async (_req, res): Promise<any> => {
+  try {
+    const courses = await ScheduleDataService.getExistingCourses();
+    return res.status(200).json({ success: true, count: courses.length, data: courses });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 3. Create schedule slot with collision detection & student email notification
+router.post("/create", async (req, res): Promise<any> => {
+  try {
+    const {
+      course_id,
+      course_name,
+      teacher_id,
+      teacher_name,
+      day_of_week,
+      start_time,
+      end_time,
+      room,
+      location,
+      max_capacity,
+      students
+    } = req.body;
+
+    if (!course_name || !teacher_name || !day_of_week || !start_time || !end_time) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing mandatory schedule fields (course_name, teacher_name, day_of_week, start_time, end_time)."
+      });
+    }
+
+    // Verify course exists in existing course list
+    const existingCourses = await ScheduleDataService.getExistingCourses();
+    const courseExists = existingCourses.length === 0 || existingCourses.some(c => 
+      c.id === course_id || 
+      c.name.trim().toLowerCase() === course_name.trim().toLowerCase()
+    );
+
+    if (!courseExists) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid Course: '${course_name}' is not in the enrolled institutional courses. Must bind strictly to existing courses.`
+      });
+    }
+
+    const createdSlot = await ScheduleDataService.createSchedule({
+      course_id: course_id || `crs-${Date.now()}`,
+      course_name,
+      teacher_id: teacher_id || "tchr-1",
+      teacher_name,
+      day_of_week,
+      start_time,
+      end_time,
+      room: room || "Room 101",
+      location: location || "Main Campus",
+      max_capacity: max_capacity || 15,
+      students
+    });
+
+    // Send Node 8: Class Schedule Email to Parents of all enrolled students
+    if (students && Array.isArray(students)) {
+      for (const st of students) {
+        let parentEmail = (st as any).parent_email;
+        if (!parentEmail) {
+          try {
+            const { data: sRec } = await supabaseAdmin
+              .from("students")
+              .select("email, parent_emails, father_phone, parent_id")
+              .eq("id", st.student_id)
+              .maybeSingle();
+
+            if (sRec) {
+              parentEmail = sRec.parent_emails?.[0] || sRec.email;
+            }
+          } catch (e) {}
+        }
+
+        if (parentEmail) {
+          sendClassScheduleEmail({
+            parentEmail,
+            studentName: st.student_name,
+            courseName: course_name,
+            dayOfWeek: day_of_week,
+            timeSlot: createdSlot.time_slot,
+            room: createdSlot.room,
+            teacherName: teacher_name,
+            location: createdSlot.location
+          }).catch(e => console.warn("Email dispatch note:", e));
+        }
+      }
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: `Weekly schedule slot for '${course_name}' on ${day_of_week} created successfully.`,
+      data: createdSlot
+    });
+  } catch (err: any) {
+    const isConflict = err.message?.toLowerCase().includes("collision");
+    return res.status(isConflict ? 400 : 500).json({
+      success: false,
+      error: err.message
+    });
+  }
+});
+
+// 4. Update schedule slot
+router.put("/edit/:id", async (req, res): Promise<any> => {
+  try {
+    const { id } = req.params;
+    const updated = await ScheduleDataService.updateSchedule(id, req.body);
+    return res.status(200).json({
+      success: true,
+      message: "Schedule slot updated successfully.",
+      data: updated
+    });
+  } catch (err: any) {
+    const isConflict = err.message?.toLowerCase().includes("collision");
+    return res.status(isConflict ? 400 : 500).json({
+      success: false,
+      error: err.message
+    });
+  }
+});
+
+// 5. Delete schedule slot
+router.delete("/:id", async (req, res): Promise<any> => {
+  try {
+    const { id } = req.params;
+    await ScheduleDataService.deleteSchedule(id);
+    return res.status(200).json({
+      success: true,
+      message: "Schedule slot removed successfully."
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 6. Get student schedule slots
+router.get("/student/:studentId", async (req, res): Promise<any> => {
+  try {
+    const { studentId } = req.params;
+    const schedules = await ScheduleDataService.getStudentSchedules(studentId);
+    return res.status(200).json({ success: true, count: schedules.length, data: schedules });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 7. Get teacher roster
+router.get("/teacher/:teacherId/roster", async (req, res): Promise<any> => {
+  try {
+    const { teacherId } = req.params;
+    const roster = await ScheduleDataService.getTeacherRoster(teacherId);
+    return res.status(200).json({ success: true, count: roster.length, data: roster });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 // 1. Endpoint to allocate a new class with active conflict checks
 router.post("/allocate", async (req, res): Promise<any> => {

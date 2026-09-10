@@ -5,6 +5,7 @@ import type { AuthenticatedRequest } from "../middleware/auth.js";
 import { authorizePermission } from "../middleware/authorize.js";
 import { dispatchMultiChannelNotification } from "../services/notificationService.js";
 import { demoTeachersPool } from "../services/demoDataService.js";
+import { ScheduleDataService } from "../services/scheduleDataService.js";
 
 const router = express.Router();
 
@@ -438,6 +439,78 @@ router.post("/onboarding-waiver", authenticateJwt, async (req: AuthenticatedRequ
     });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ==========================================
+// NODE 3: TEACHER ROSTER & AVAILABILITY
+// ==========================================
+
+// GET: Teacher Assigned Students Roster
+router.get("/:id/roster", async (req, res): Promise<any> => {
+  try {
+    const { id } = req.params;
+    const roster = await ScheduleDataService.getTeacherRoster(id);
+    return res.status(200).json({ success: true, count: roster.length, data: roster });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET: Teacher Past Conducted Sessions History
+router.get("/:id/history", async (req, res): Promise<any> => {
+  try {
+    const { id } = req.params;
+    let teacherName = id;
+    const match = inMemoryTeachers.find(t => t.id === id || t.teacher_id_code === id);
+    if (match) teacherName = match.name;
+
+    const { data: pastSessions } = await supabaseAdmin
+      .from("attendance")
+      .select("*")
+      .or(`marked_by.ilike.%${teacherName}%,marked_by.eq.${id}`)
+      .order("date", { ascending: false });
+
+    return res.status(200).json({
+      success: true,
+      count: pastSessions?.length || 0,
+      data: pastSessions || []
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// PUT: Update Teacher Working Days & Shift Availability
+router.put("/:id/availability", async (req, res): Promise<any> => {
+  try {
+    const { id } = req.params;
+    const { availabilityDays, availabilitySlots } = req.body;
+
+    const teacher = inMemoryTeachers.find(t => t.id === id || t.teacher_id_code === id);
+    if (teacher) {
+      if (availabilityDays) teacher.availability_days = availabilityDays;
+      if (availabilitySlots) teacher.availability_slots = availabilitySlots;
+    }
+
+    try {
+      await supabaseAdmin.from("teachers").update({
+        availability_days: availabilityDays,
+        availability_slots: availabilitySlots
+      }).eq("id", id);
+    } catch (e) {}
+
+    return res.status(200).json({
+      success: true,
+      message: "Teacher availability updated successfully.",
+      data: {
+        teacherId: id,
+        availabilityDays,
+        availabilitySlots
+      }
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
   }
 });
 

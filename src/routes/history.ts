@@ -1,7 +1,19 @@
 import express from "express";
 import { HistoryService } from "../services/historyService.js";
+import { ScheduleDataService } from "../services/scheduleDataService.js";
 
 const router = express.Router();
+
+// 0. GET CHRONOLOGICAL STUDENT AUDIT LEDGER (GET /api/history/student/:studentId)
+router.get("/student/:studentId", async (req, res): Promise<any> => {
+  try {
+    const { studentId } = req.params;
+    const history = await ScheduleDataService.getStudentHistory(studentId);
+    return res.status(200).json({ success: true, count: history.length, data: history });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
 
 // 1. GET HISTORY OVERVIEW (GET /api/history/overview)
 router.get("/overview", (_req, res) => {

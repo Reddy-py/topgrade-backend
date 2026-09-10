@@ -158,3 +158,135 @@ export async function dispatchMultiChannelNotification(payload: NotificationPayl
   return { success: true, dispatchedLogs };
 }
 
+/**
+ * Node 8: Class Schedule Confirmation Email to Parents
+ */
+export async function sendClassScheduleEmail(params: {
+  parentEmail: string;
+  studentName: string;
+  courseName: string;
+  dayOfWeek: string;
+  timeSlot: string;
+  room?: string;
+  teacherName?: string;
+  location?: string;
+}): Promise<boolean> {
+  const subject = `📅 Class Schedule Confirmed: ${params.courseName} (${params.dayOfWeek})`;
+  const room = params.room || "Room 101";
+  const teacher = params.teacherName || "Assigned Faculty";
+  const location = params.location || "Top Grade Learning Main Campus";
+
+  const message = `We are pleased to confirm that ${params.studentName} has been enrolled into the weekly class schedule for ${params.courseName}.\n\n` +
+    `• Day: Every ${params.dayOfWeek}\n` +
+    `• Time Slot: ${params.timeSlot}\n` +
+    `• Classroom: ${room}\n` +
+    `• Instructor: ${teacher}\n` +
+    `• Location: ${location}\n\n` +
+    `Please ensure ${params.studentName} arrives 5–10 minutes prior to session start.`;
+
+  const result = await dispatchMultiChannelNotification({
+    eventType: "ADMISSION_INQUIRY",
+    subject,
+    message,
+    recipients: [
+      {
+        role: "PARENT",
+        email: params.parentEmail,
+        name: `Parent of ${params.studentName}`
+      }
+    ]
+  });
+
+  return result.success;
+}
+
+/**
+ * Node 8: Daily Attendance Roll-Call Summary Email to Parents (1-Click Notification)
+ */
+export async function sendDailyAttendanceRollCallEmail(params: {
+  parentEmail: string;
+  studentName: string;
+  courseName: string;
+  date: string;
+  status: "PRESENT" | "ABSENT" | "EXCUSED" | string;
+  remarks?: string;
+  attendancePercentage?: number | string;
+  markedBy?: string;
+}): Promise<boolean> {
+  const normStatus = params.status.toUpperCase();
+  const statusEmoji = normStatus === "PRESENT" ? "✅" : normStatus === "ABSENT" ? "🚨" : "ℹ️";
+  const subject = `${statusEmoji} Daily Attendance Notice: ${params.studentName} — ${normStatus} (${params.courseName})`;
+
+  let statusBanner = "";
+  if (normStatus === "PRESENT") {
+    statusBanner = `VERIFIED PRESENCE: ${params.studentName} attended today's session in ${params.courseName}.`;
+  } else if (normStatus === "ABSENT") {
+    statusBanner = `ATTENDANCE ALERT: ${params.studentName} was marked ABSENT for today's class in ${params.courseName}. If this was unexpected, please contact the center immediately.`;
+  } else {
+    statusBanner = `EXCUSED ABSENCE: An excused absence was logged for ${params.studentName} for today's session in ${params.courseName}.`;
+  }
+
+  const message = `${statusBanner}\n\n` +
+    `• Date: ${params.date}\n` +
+    `• Course: ${params.courseName}\n` +
+    `• Attendance Status: ${normStatus}\n` +
+    `• Marked By: ${params.markedBy || "Course Faculty"}\n` +
+    (params.remarks ? `• Notes: ${params.remarks}\n` : "") +
+    (params.attendancePercentage ? `• Current Overall Attendance: ${params.attendancePercentage}%\n` : "") +
+    `\nThank you for partnering with Top Grade Learning for academic excellence.`;
+
+  const result = await dispatchMultiChannelNotification({
+    eventType: "ATTENDANCE_ALERT",
+    subject,
+    message,
+    recipients: [
+      {
+        role: "PARENT",
+        email: params.parentEmail,
+        name: `Parent of ${params.studentName}`
+      }
+    ]
+  });
+
+  return result.success;
+}
+
+/**
+ * Node 8: Monthly Progress Attendance Summary Email
+ */
+export async function sendMonthlyAttendanceSummaryEmail(params: {
+  parentEmail: string;
+  studentName: string;
+  month: string;
+  courseName?: string;
+  totalClasses: number;
+  attendedClasses: number;
+  percentage: number;
+}): Promise<boolean> {
+  const subject = `📊 Monthly Attendance Report — ${params.studentName} (${params.month})`;
+  const statusText = params.percentage >= 85 ? "Excellent Attendance! Keep up the great work." : params.percentage >= 75 ? "Satisfactory Attendance." : "Attention Needed: Attendance is below 75%.";
+
+  const message = `Here is the monthly attendance summary for ${params.studentName} for ${params.month}:\n\n` +
+    (params.courseName ? `• Course: ${params.courseName}\n` : "") +
+    `• Total Conducted Sessions: ${params.totalClasses}\n` +
+    `• Sessions Attended: ${params.attendedClasses}\n` +
+    `• Attendance Percentage: ${params.percentage}%\n` +
+    `• Status: ${statusText}\n\n` +
+    `You can view complete session history and report cards in the Top Grade Learning portal.`;
+
+  const result = await dispatchMultiChannelNotification({
+    eventType: "ATTENDANCE_ALERT",
+    subject,
+    message,
+    recipients: [
+      {
+        role: "PARENT",
+        email: params.parentEmail,
+        name: `Parent of ${params.studentName}`
+      }
+    ]
+  });
+
+  return result.success;
+}
+

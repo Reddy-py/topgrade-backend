@@ -210,7 +210,8 @@ async function main() {
 
   for (let i = 0; i < lines.length; i++) {
     const rowNum = i + 1;
-    const cols = parseCsvLine(lines[i]);
+    const line = lines[i] || "";
+    const cols = parseCsvLine(line);
     const rawStudentName = cols[0] || `Student ${rowNum}`;
     const rawPhone = cols[1] || "";
     const rawEmail = cols[2] || "";

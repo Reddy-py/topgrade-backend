@@ -2,8 +2,225 @@ import express from "express";
 import { AttendanceService, attendanceStore } from "../services/attendanceService.js";
 import { SessionAttendanceService, classSessionQrStore, type ClassSessionQRRecord } from "../services/sessionAttendanceService.js";
 import { inMemoryStudentStore } from "../services/studentService.js";
+import { supabaseAdmin } from "../supabase.js";
+import { sendDailyAttendanceRollCallEmail, sendMonthlyAttendanceSummaryEmail } from "../services/notificationService.js";
+import { ScheduleDataService } from "../services/scheduleDataService.js";
 
 const router = express.Router();
+
+// ==============================================================
+// NODE 6: SCHEDULE-DRIVEN DAILY ATTENDANCE SYSTEM (NO QR CODE)
+// ==============================================================
+
+/**
+ * Submit Daily Class Attendance Roll-Call for a Scheduled Slot
+ * Saves to Supabase `attendance`, recalculates attendance %, dispatches emails, and writes to student history.
+ */
+router.post("/daily-rollcall", async (req, res): Promise<any> => {
+  try {
+    const { scheduleId, courseName, date, markedBy, entries } = req.body;
+
+    if (!Array.isArray(entries) || entries.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing 'entries' array in daily attendance submission payload."
+      });
+    }
+
+    const rollDate = date || new Date().toISOString().slice(0, 10);
+    const recordedBy = markedBy || "Course Faculty";
+    const processedRecords: any[] = [];
+    let presentCount = 0;
+    let absentCount = 0;
+    let excusedCount = 0;
+
+    for (const entry of entries) {
+      const studentId = entry.studentId || entry.student_id;
+      const studentName = entry.studentName || entry.student_name || "Student";
+      const status = (entry.status || "PRESENT").toUpperCase();
+      const remarks = entry.remarks || "";
+
+      if (status === "PRESENT") presentCount++;
+      else if (status === "ABSENT") absentCount++;
+      else if (status === "EXCUSED") excusedCount++;
+
+      // 1. Insert into Supabase `attendance` table
+      let insertedId = `att-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      try {
+        const { data: dbAtt, error: attErr } = await supabaseAdmin
+          .from("attendance")
+          .insert([
+            {
+              student_id: studentId,
+              student_name: studentName,
+              class_name: courseName || "Scheduled Class",
+              status,
+              date: rollDate,
+              remarks,
+              marked_by: recordedBy
+            }
+          ])
+          .select();
+
+        if (!attErr && dbAtt && dbAtt.length > 0) {
+          insertedId = dbAtt[0].id;
+        }
+      } catch (err) {
+        console.warn("Supabase attendance insert note:", err);
+      }
+
+      // Also record in attendanceStore memory for backward compatibility
+      attendanceStore.push({
+        id: insertedId,
+        studentId,
+        studentName,
+        studentCode: entry.studentCode || entry.student_code || `TG-STU-${studentId.slice(0, 6)}`,
+        courseId: scheduleId || "scheduled-slot",
+        courseName: courseName || "Scheduled Class",
+        date: rollDate,
+        status: status as any,
+        checkInTime: status === "PRESENT" ? `${rollDate}T10:00:00Z` : undefined,
+        scanMethod: "TEACHER_BATCH",
+        notes: remarks,
+        createdAt: new Date().toISOString()
+      });
+
+      // 2. Calculate updated overall attendance % for this student
+      let attendancePercentage = 100;
+      try {
+        const { data: allStudentAtt } = await supabaseAdmin
+          .from("attendance")
+          .select("status")
+          .or(`student_id.eq.${studentId},student_name.ilike.%${studentName}%`);
+
+        if (allStudentAtt && allStudentAtt.length > 0) {
+          const totalSessions = allStudentAtt.length;
+          const presentSessions = allStudentAtt.filter((a: any) => a.status === "PRESENT").length;
+          attendancePercentage = Math.round((presentSessions / totalSessions) * 100);
+        }
+      } catch (e) {
+        console.warn("Attendance percentage compute note:", e);
+      }
+
+      // 3. Append to Node 10: Student History Ledger
+      ScheduleDataService.appendHistoryItem({
+        student_id: studentId,
+        student_name: studentName,
+        event_type: "ATTENDANCE_RECORD",
+        title: `Daily Attendance: ${status}`,
+        description: `Marked ${status} for '${courseName || "Class"}' on ${rollDate}. Marked by: ${recordedBy}.${remarks ? ` Note: ${remarks}` : ""}`,
+        metadata: {
+          attendance_id: insertedId,
+          schedule_id: scheduleId,
+          date: rollDate,
+          status,
+          course_name: courseName,
+          marked_by: recordedBy,
+          remarks,
+          attendance_percentage: attendancePercentage
+        },
+        actor: recordedBy
+      });
+
+      // 4. Node 8: Dispatch Immediate Daily Attendance Summary Email to Parent
+      let parentEmail = entry.parentEmail || entry.parent_email;
+      if (!parentEmail) {
+        try {
+          const { data: stRec } = await supabaseAdmin
+            .from("students")
+            .select("email, parent_emails, father_phone")
+            .eq("id", studentId)
+            .maybeSingle();
+
+          if (stRec) {
+            parentEmail = stRec.parent_emails?.[0] || stRec.email;
+          }
+        } catch (e) {}
+      }
+
+      if (parentEmail) {
+        sendDailyAttendanceRollCallEmail({
+          parentEmail,
+          studentName,
+          courseName: courseName || "Scheduled Class",
+          date: rollDate,
+          status,
+          remarks,
+          attendancePercentage,
+          markedBy: recordedBy
+        }).catch(err => console.warn("Roll-call parent email warning:", err));
+      }
+
+      processedRecords.push({
+        studentId,
+        studentName,
+        status,
+        attendancePercentage
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Daily attendance for ${processedRecords.length} students submitted successfully! Parent emails dispatched.`,
+      data: {
+        date: rollDate,
+        courseName,
+        total: processedRecords.length,
+        present: presentCount,
+        absent: absentCount,
+        excused: excusedCount,
+        records: processedRecords
+      }
+    });
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to submit daily class attendance.",
+      error: err.message
+    });
+  }
+});
+
+/**
+ * Node 8: Dispatch Monthly Attendance Summary Email
+ */
+router.post("/monthly-summary-email", async (req, res): Promise<any> => {
+  try {
+    const { studentId, studentName, parentEmail, month, courseName } = req.body;
+
+    if (!studentId || !parentEmail) {
+      return res.status(400).json({ success: false, message: "studentId and parentEmail are required." });
+    }
+
+    // Pull student attendance counts
+    const { data: records } = await supabaseAdmin
+      .from("attendance")
+      .select("status")
+      .or(`student_id.eq.${studentId},student_name.ilike.%${studentName}%`);
+
+    const totalClasses = records?.length || 1;
+    const attendedClasses = records?.filter((r: any) => r.status === "PRESENT").length || 1;
+    const percentage = Math.round((attendedClasses / totalClasses) * 100);
+
+    const sent = await sendMonthlyAttendanceSummaryEmail({
+      parentEmail,
+      studentName: studentName || "Student",
+      month: month || new Date().toLocaleString("default", { month: "long", year: "numeric" }),
+      courseName,
+      totalClasses,
+      attendedClasses,
+      percentage
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: `Monthly attendance report dispatched to ${parentEmail}`,
+      sent
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 // 1. TEACHER SESSION ROSTER UNLOCK (GET /api/attendance/session/:sessionId/roster)
 router.get("/session/:sessionId/roster", async (req, res) => {
