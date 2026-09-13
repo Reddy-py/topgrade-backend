@@ -49,8 +49,32 @@ export interface CourseData {
   schedule: CourseScheduleSlot[];
 }
 
-// Clean initial state: 0 courses (ready for manual real-time addition)
-export let inMemoryCourses: CourseData[] = [];
+import { OFFICIAL_COURSES } from "../ingest_official_courses_and_teachers.js";
+
+// Clean state initialized from official courses catalog
+export let inMemoryCourses: CourseData[] = OFFICIAL_COURSES.map((c, idx) => ({
+  id: `crs-off-${idx + 1}`,
+  course_code: c.course_code,
+  name: c.name,
+  description: c.description,
+  category: (c.category.includes("STEM") || c.category.includes("Technology") || c.name === "Coding" || c.name === "3D Printing") ? "STEM & Technology" :
+            (c.category.includes("Math") || c.name.includes("Calculus") || c.name.includes("Geometry")) ? "Advanced Mathematics" :
+            (c.category.includes("Science") || c.name.includes("Chemistry") || c.name.includes("Physics") || c.name.includes("Biology")) ? "Science & Robotics" :
+            (c.category.includes("Language") || c.name.includes("English") || c.name.includes("Reading") || c.name.includes("French") || c.name.includes("Spanish")) ? "Language & Arts" : "Junior Foundation",
+  grade_category: c.age_group.includes("High School") ? "High School (Grade 9-12)" :
+                  c.age_group.includes("Middle School") ? "Middle School (Grade 6-8)" :
+                  c.age_group.includes("Primary") ? "Primary (Grade 1-5)" : "All Grades",
+  age_group: c.age_group,
+  grade_eligibility: [c.age_group],
+  duration: c.duration,
+  fee: c.fee,
+  max_students: c.max_students,
+  enrolled_students: 0,
+  status: "Active",
+  assigned_teachers: [],
+  mapped_students: [],
+  schedule: []
+}));
 
 // GET: List all courses with category and grade filtering
 export const getCoursesHandler = async (req: express.Request, res: express.Response) => {

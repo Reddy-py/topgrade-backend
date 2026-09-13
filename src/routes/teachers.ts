@@ -7,36 +7,36 @@ import { dispatchMultiChannelNotification } from "../services/notificationServic
 import { demoTeachersPool } from "../services/demoDataService.js";
 import { ScheduleDataService } from "../services/scheduleDataService.js";
 
+import { OFFICIAL_TEACHERS } from "../ingest_official_courses_and_teachers.js";
+
 const router = express.Router();
 
-export let inMemoryTeachers: any[] = [
-  {
-    id: "tch-1",
-    teacher_id_code: "TG-FAC-101",
-    name: "manikanta",
-    dob: "1994-05-15",
-    age: 32,
-    qualification: "M.Tech in Computer Science & Engineering",
-    qualification_certificate_url: null,
-    resume_url: null,
-    photo_url: null,
-    phone: "+1 778 064 8562",
-    email: "manikanta@topgrade.edu",
-    specialization: "Coding & Computer Science",
-    experience: "7 Years",
-    joining_date: "2026-01-10",
-    salary: "$65,000",
-    hourly_rate: 45.00,
-    weekly_assigned_sessions: 0,
-    weekly_max_sessions: 20,
-    document_folder_submitted: true,
-    photo_waiver_signed: true,
-    photo_waiver_signed_at: "2026-01-12T10:00:00Z",
-    status: "Active",
-    availability_days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
-    availability_slots: ["Morning (09:00 AM - 12:00 PM)", "Afternoon (01:00 PM - 04:00 PM)", "Evening (05:00 PM - 08:00 PM)"]
-  }
-];
+export let inMemoryTeachers: any[] = OFFICIAL_TEACHERS.map((t, idx) => ({
+  id: `tch-${101 + idx}`,
+  teacher_id_code: t.teacher_id_code,
+  name: t.name,
+  dob: t.dob,
+  age: t.age,
+  qualification: t.qualification,
+  qualification_certificate_url: null,
+  resume_url: null,
+  photo_url: null,
+  phone: t.phone,
+  email: t.email,
+  specialization: t.specialization,
+  experience: "5+ Years",
+  joining_date: t.joining_date,
+  salary: "$55,000",
+  hourly_rate: 45.00,
+  weekly_assigned_sessions: 0,
+  weekly_max_sessions: 20,
+  document_folder_submitted: true,
+  photo_waiver_signed: true,
+  photo_waiver_signed_at: "2026-01-12T10:00:00Z",
+  status: "Active",
+  availability_days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+  availability_slots: ["Morning - 09:00 AM - 12:00 PM", "Afternoon - 01:00 PM - 04:00 PM", "Evening - 05:00 PM - 08:00 PM"]
+}));
 
 // GET: List all teachers with fail-safe fallback
 export const getTeachersHandler = async (_req: express.Request, res: express.Response) => {
