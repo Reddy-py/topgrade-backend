@@ -58,7 +58,7 @@ router.get("/", getTeachersHandler);
 export const createTeacherHandler = async (req: express.Request, res: express.Response) => {
   const t = req.body;
   const uniqueId = t.teacher_id_code || `TG-FAC-${Math.floor(100 + Math.random() * 900)}`;
-  const defaultPassword = (t.password || "Teacher@123").slice(0, 16);
+  const defaultPassword = t.password || "TopGrade@2026!";
 
   const cleanSlots = (t.availabilitySlots || ["Morning - 09:00 AM - 12:00 PM", "Afternoon - 01:00 PM - 04:00 PM"])
     .map((s: string) => s.replace(/\(|\)/g, "").replace(/\s*-\s*/, " - ").trim())
@@ -80,8 +80,8 @@ export const createTeacherHandler = async (req: express.Request, res: express.Re
     role: "TEACHER",
     specialization: t.specialization || null,
     experience: t.experience || null,
-    joining_date: t.joiningDate || null,
-    salary: t.salary || null,
+    joining_date: t.joiningDate || new Date().toISOString().split("T")[0],
+    salary: t.salary || "$55,000",
     status: "Active",
     working_days_count: t.workingDaysCount || (t.availabilityDays?.length || 5),
     availability_days: t.availabilityDays || ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
@@ -94,7 +94,7 @@ export const createTeacherHandler = async (req: express.Request, res: express.Re
   try {
     let teacherAuthId: string | null = null;
     if (newTeacher.email) {
-      const { data: tAuth } = await supabaseAdmin.auth.admin.createUser({
+      const { data: tAuth, error: tAuthErr } = await supabaseAdmin.auth.admin.createUser({
         email: newTeacher.email,
         password: defaultPassword,
         email_confirm: true,
@@ -104,7 +104,11 @@ export const createTeacherHandler = async (req: express.Request, res: express.Re
           teacher_id_code: uniqueId
         }
       });
-      if (tAuth?.user) teacherAuthId = tAuth.user.id;
+      if (tAuth?.user) {
+        teacherAuthId = tAuth.user.id;
+      } else if (tAuthErr) {
+        console.warn("Notice teacher auth createUser:", tAuthErr.message);
+      }
 
       // Upsert into Supabase profiles
       await supabaseAdmin.from("profiles").upsert({
@@ -127,11 +131,18 @@ export const createTeacherHandler = async (req: express.Request, res: express.Re
       email: newTeacher.email || null,
       specialization: newTeacher.specialization || null,
       experience: newTeacher.experience || null,
+      joining_date: newTeacher.joining_date || null,
+      salary: newTeacher.salary || null,
+      availability_days: newTeacher.availability_days,
+      availability_slots: newTeacher.availability_slots,
       status: newTeacher.status || "Active"
     };
     if (teacherAuthId) teacherRow.user_id = teacherAuthId;
 
-    await supabaseAdmin.from("teachers").upsert(teacherRow, { onConflict: "teacher_id_code" });
+    const { error: tUpsertErr } = await supabaseAdmin.from("teachers").upsert(teacherRow, { onConflict: "teacher_id_code" });
+    if (tUpsertErr) {
+      console.warn("Supabase teacher upsert error:", tUpsertErr.message);
+    }
   } catch (error: any) {
     console.warn("Supabase teacher creation notice:", error?.message);
   }
@@ -225,6 +236,10 @@ export const updateTeacherHandler = async (req: express.Request, res: express.Re
       email: updatedTeacher.email || null,
       specialization: updatedTeacher.specialization || null,
       experience: updatedTeacher.experience || null,
+      joining_date: updatedTeacher.joining_date || null,
+      salary: updatedTeacher.salary || null,
+      availability_days: updatedTeacher.availability_days,
+      availability_slots: updatedTeacher.availability_slots,
       status: updatedTeacher.status || "Active"
     };
     await supabaseAdmin

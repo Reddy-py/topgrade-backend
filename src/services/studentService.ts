@@ -124,6 +124,7 @@ function saveStudentsToDisk() {
 
 // Initialize from persistent file on startup
 inMemoryStudentStore = loadStudentsFromDisk();
+let lastSupabaseStudentFetch = 0;
 
 /**
  * Service method to retrieve paginated student records with search, filters, and RBAC accessibility.
@@ -143,10 +144,11 @@ export async function getStudentsService(params: {
   const gradeFilter = (params.grade || "ALL");
   const user = params.currentUser;
 
-  if (inMemoryStudentStore.length < 10) {
+  if (Date.now() - lastSupabaseStudentFetch > 10000 || inMemoryStudentStore.length === 0) {
     try {
-      const { data, error } = await supabaseAdmin.from("students").select("*");
-      if (!error && data && data.length > inMemoryStudentStore.length) {
+      const { data, error } = await supabaseAdmin.from("students").select("*").order("created_at", { ascending: false });
+      if (!error && data && data.length > 0) {
+        lastSupabaseStudentFetch = Date.now();
         inMemoryStudentStore = data.map((s: any) => ({
           id: s.id,
           studentCode: s.student_id_code || s.studentCode || `TG-STU-${s.id?.slice(0, 4)}`,
@@ -354,7 +356,7 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
     residentialAddress: payload.residentialAddress || "",
     officeAddress: payload.officeAddress || "",
 
-    password: payload.password || "Student@123",
+    password: payload.password || "Student@TopGrade2026",
     admissionDate: payload.admissionDate || new Date().toISOString().split("T")[0],
     program: allocatedCourses[0]?.courseName || payload.program || "Standard Curriculum",
     allocatedCourses,
@@ -372,98 +374,102 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
 
   inMemoryStudentStore.unshift(newStudent);
   saveStudentsToDisk();
+  lastSupabaseStudentFetch = 0; // invalidate cache
 
   // ─── Real-time Supabase Database & Auth Sync ───
-  (async () => {
-    try {
-      let authUserId: string | null = null;
-      if (newStudent.email) {
-        const studentEmail = newStudent.email.trim().toLowerCase();
-        const studentPassword = (newStudent.password || "Student@123").slice(0, 16);
-        const { data: authCreated } = await supabaseAdmin.auth.admin.createUser({
-          email: studentEmail,
-          password: studentPassword,
-          email_confirm: true,
-          user_metadata: {
-            full_name: newStudent.fullName,
-            role: "STUDENT",
-            student_code: newStudent.studentCode
-          }
-        });
-        if (authCreated?.user) {
-          authUserId = authCreated.user.id;
-        }
-        // Also record student in profiles table
-        await supabaseAdmin.from("profiles").upsert({
-          ...(authUserId ? { id: authUserId } : {}),
-          email: studentEmail,
+  try {
+    let authUserId: string | null = null;
+    if (newStudent.email) {
+      const studentEmail = newStudent.email.trim().toLowerCase();
+      const studentPassword = newStudent.password || "Student@TopGrade2026";
+      const { data: authCreated, error: authErr } = await supabaseAdmin.auth.admin.createUser({
+        email: studentEmail,
+        password: studentPassword,
+        email_confirm: true,
+        user_metadata: {
           full_name: newStudent.fullName,
           role: "STUDENT",
+          student_code: newStudent.studentCode
+        }
+      });
+      if (authCreated?.user) {
+        authUserId = authCreated.user.id;
+      } else if (authErr) {
+        console.warn("Notice: student auth createUser:", authErr.message);
+      }
+      // Also record student in profiles table
+      await supabaseAdmin.from("profiles").upsert({
+        ...(authUserId ? { id: authUserId } : {}),
+        email: studentEmail,
+        full_name: newStudent.fullName,
+        role: "STUDENT",
+        status: "Active",
+        updated_at: new Date().toISOString()
+      }, { onConflict: "email" });
+    }
+
+    // Parent Auth & Profile in Supabase
+    if (cleanParentEmails[0]) {
+      const parentEmail = cleanParentEmails[0].trim().toLowerCase();
+      const parentPassword = "Parent@TopGrade2026";
+      let parentAuthId: string | null = null;
+      try {
+        const { data: pAuthCreated } = await supabaseAdmin.auth.admin.createUser({
+          email: parentEmail,
+          password: parentPassword,
+          email_confirm: true,
+          user_metadata: {
+            full_name: newStudent.fatherName || newStudent.motherName || "Parent",
+            role: "PARENT",
+            student_code: newStudent.studentCode,
+            student_name: newStudent.fullName
+          }
+        });
+        if (pAuthCreated?.user) parentAuthId = pAuthCreated.user.id;
+      } catch (pe: any) {
+        console.warn("Parent admin.createUser notice:", pe?.message);
+      }
+
+      try {
+        await supabaseAdmin.from("profiles").upsert({
+          ...(parentAuthId ? { id: parentAuthId } : {}),
+          email: parentEmail,
+          full_name: newStudent.fatherName || newStudent.motherName || "Parent",
+          role: "PARENT",
           status: "Active",
           updated_at: new Date().toISOString()
         }, { onConflict: "email" });
+      } catch (pe: any) {
+        console.warn("Parent profile upsert notice:", pe?.message);
       }
-
-      // Parent Auth & Profile in Supabase
-      if (cleanParentEmails[0]) {
-        const parentEmail = cleanParentEmails[0].trim().toLowerCase();
-        const parentPassword = (newStudent.password || "Parent@123").slice(0, 16);
-        let parentAuthId: string | null = null;
-        try {
-          const { data: pAuthCreated } = await supabaseAdmin.auth.admin.createUser({
-            email: parentEmail,
-            password: parentPassword,
-            email_confirm: true,
-            user_metadata: {
-              full_name: newStudent.fatherName || newStudent.motherName || "Parent",
-              role: "PARENT",
-              student_code: newStudent.studentCode,
-              student_name: newStudent.fullName
-            }
-          });
-          if (pAuthCreated?.user) parentAuthId = pAuthCreated.user.id;
-        } catch (pe: any) {
-          console.warn("Parent admin.createUser notice:", pe?.message);
-        }
-
-        try {
-          await supabaseAdmin.from("profiles").upsert({
-            ...(parentAuthId ? { id: parentAuthId } : {}),
-            email: parentEmail,
-            full_name: newStudent.fatherName || newStudent.motherName || "Parent",
-            role: "PARENT",
-            status: "Active",
-            updated_at: new Date().toISOString()
-          }, { onConflict: "email" });
-        } catch (pe: any) {
-          console.warn("Parent profile upsert notice:", pe?.message);
-        }
-      }
-
-      const studentRow: any = {
-        name: newStudent.fullName,
-        student_id_code: newStudent.studentCode,
-        gender: newStudent.gender || "Male",
-        dob: newStudent.dob || null,
-        age: newStudent.age || 0,
-        phone: newStudent.primaryMobile || null,
-        email: newStudent.email || null,
-        father_name: newStudent.fatherName || null,
-        mother_name: newStudent.motherName || null,
-        guardian: newStudent.guardianName || null,
-        father_phone: cleanParentPhones[0] || null,
-        address: newStudent.residentialAddress || "",
-        program: newStudent.program || "General Academic Track",
-        teacher: newStudent.teacher || "Unassigned",
-        status: newStudent.status || "Active"
-      };
-      if (authUserId) studentRow.user_id = authUserId;
-
-      await supabaseAdmin.from("students").upsert(studentRow, { onConflict: "student_id_code" });
-    } catch (sbErr: any) {
-      console.warn("Supabase student sync notice:", sbErr?.message);
     }
-  })();
+
+    const studentRow: any = {
+      name: newStudent.fullName,
+      student_id_code: newStudent.studentCode,
+      gender: newStudent.gender || "Male",
+      dob: newStudent.dob || null,
+      age: newStudent.age || 0,
+      phone: newStudent.primaryMobile || null,
+      email: newStudent.email || null,
+      father_name: newStudent.fatherName || null,
+      mother_name: newStudent.motherName || null,
+      guardian: newStudent.guardianName || null,
+      father_phone: cleanParentPhones[0] || null,
+      address: newStudent.residentialAddress || "",
+      program: newStudent.program || "General Academic Track",
+      teacher: newStudent.teacher || "Unassigned",
+      status: newStudent.status || "Active"
+    };
+    if (authUserId) studentRow.user_id = authUserId;
+
+    const { error: stuUpsertErr } = await supabaseAdmin.from("students").upsert(studentRow, { onConflict: "student_id_code" });
+    if (stuUpsertErr) {
+      console.warn("Supabase student upsert notice:", stuUpsertErr.message);
+    }
+  } catch (sbErr: any) {
+    console.warn("Supabase student sync notice:", sbErr?.message);
+  }
 
   // Multi-Email Dispatch Notification to Respected Student & Parent Email Addresses
   try {
@@ -531,29 +537,28 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
 
   inMemoryStudentStore[index] = updated;
   saveStudentsToDisk();
+  lastSupabaseStudentFetch = 0;
 
   // Real-time Supabase Update Sync
-  (async () => {
-    try {
-      const updateFields: any = {
-        name: updated.fullName,
-        gender: updated.gender || "Male",
-        dob: updated.dob || null,
-        age: updated.age || 0,
-        phone: updated.primaryMobile || null,
-        email: updated.email || null,
-        father_name: updated.fatherName || null,
-        mother_name: updated.motherName || null,
-        guardian: updated.guardianName || null,
-        program: updated.program || "General Academic Track",
-        teacher: updated.teacher || "Unassigned",
-        status: updated.status || "Active"
-      };
-      await supabaseAdmin.from("students").update(updateFields).eq("student_id_code", updated.studentCode);
-    } catch (e: any) {
-      console.warn("Supabase student update notice:", e?.message);
-    }
-  })();
+  try {
+    const updateFields: any = {
+      name: updated.fullName,
+      gender: updated.gender || "Male",
+      dob: updated.dob || null,
+      age: updated.age || 0,
+      phone: updated.primaryMobile || null,
+      email: updated.email || null,
+      father_name: updated.fatherName || null,
+      mother_name: updated.motherName || null,
+      guardian: updated.guardianName || null,
+      program: updated.program || "General Academic Track",
+      teacher: updated.teacher || "Unassigned",
+      status: updated.status || "Active"
+    };
+    await supabaseAdmin.from("students").update(updateFields).eq("student_id_code", updated.studentCode);
+  } catch (e: any) {
+    console.warn("Supabase student update notice:", e?.message);
+  }
 
   return updated;
 }
@@ -569,17 +574,16 @@ export async function deleteStudentService(id: string): Promise<boolean> {
 
   const removed = inMemoryStudentStore.splice(index, 1)[0];
   saveStudentsToDisk();
+  lastSupabaseStudentFetch = 0;
 
   // Real-time Supabase Delete Sync
-  (async () => {
-    try {
-      if (removed?.studentCode) {
-        await supabaseAdmin.from("students").delete().eq("student_id_code", removed.studentCode);
-      }
-    } catch (e: any) {
-      console.warn("Supabase student delete notice:", e?.message);
+  try {
+    if (removed?.studentCode) {
+      await supabaseAdmin.from("students").delete().eq("student_id_code", removed.studentCode);
     }
-  })();
+  } catch (e: any) {
+    console.warn("Supabase student delete notice:", e?.message);
+  }
 
   return true;
 }
