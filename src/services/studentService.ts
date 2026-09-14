@@ -160,6 +160,7 @@ export async function getStudentsService(params: {
         lastSupabaseStudentFetch = Date.now();
         inMemoryStudentStore = data.map((s: any) => {
           const rawSchool = s.school || (s.address && s.address.startsWith("School: ") ? s.address.replace("School: ", "") : "");
+          const rawGrade = s.grade || (s.nationality && s.nationality.startsWith("Grade: ") ? s.nationality.replace("Grade: ", "") : (s.nationality || "Grade 10"));
           const cleanAddress = s.address && !s.address.startsWith("School: ") ? s.address : "";
           const studentAddress = s.student_address || s.alternate_address || "";
           const examDate = s.exam_date || (s.medical_notes && s.medical_notes.startsWith("EXAM_DATE:") ? s.medical_notes.replace("EXAM_DATE:", "") : "");
@@ -175,7 +176,7 @@ export async function getStudentsService(params: {
             dob: s.dob || "2005-01-01",
             age: s.age || 18,
             school: rawSchool || "Top Grade Academy",
-            grade: s.grade || "Grade 10",
+            grade: rawGrade || "Grade 10",
             status: (s.status || "ACTIVE").toUpperCase(),
             primaryMobile: s.phone || "",
             studentPhones: s.phone ? [s.phone] : [],

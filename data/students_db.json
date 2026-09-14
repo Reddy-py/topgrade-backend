@@ -45,14 +45,14 @@
   {
     "id": "c38527cf-265c-4274-98d4-46de4e383f3f",
     "studentCode": "TG-STU-2026-5068",
-    "fullName": "Liz Rodwell",
-    "firstName": "Liz",
-    "lastName": "Rodwell",
-    "email": "elizabethannrodwell@gmail.com",
+    "fullName": "Charlie",
+    "firstName": "Charlie",
+    "lastName": "",
+    "email": "charlie.5068@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 9,
     "school": "Massey ranch",
-    "grade": "Grade 10",
+    "grade": "Grade 4",
     "status": "ACTIVE",
     "primaryMobile": "+1 401 743 9608",
     "studentPhones": [
@@ -62,12 +62,12 @@
       "+1 401 743 9608"
     ],
     "studentEmails": [
-      "elizabethannrodwell@gmail.com"
+      "charlie.5068@student.topgrade.edu"
     ],
     "parentEmails": [
-      "elizabethannrodwell@gmail.com"
+      "charlie.5068@student.topgrade.edu"
     ],
-    "fatherName": "Charlie",
+    "fatherName": "Liz Rodwell",
     "motherName": "",
     "guardianName": "",
     "program": "Reading",
@@ -88,14 +88,14 @@
   {
     "id": "99013dc1-18b7-4c79-9c6b-1d7d8f432996",
     "studentCode": "TG-STU-2026-5067",
-    "fullName": "Frank Fernandez",
-    "firstName": "Frank",
-    "lastName": "Fernandez",
-    "email": "ftfern24@yahoo.com",
+    "fullName": "Charlotte",
+    "firstName": "Charlotte",
+    "lastName": "",
+    "email": "charlotte.5067@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 6,
     "school": "Manvel HS",
-    "grade": "Grade 10",
+    "grade": "Grade 12",
     "status": "ACTIVE",
     "primaryMobile": "+1 713 823 6790",
     "studentPhones": [
@@ -105,12 +105,12 @@
       "+1 713 823 6790"
     ],
     "studentEmails": [
-      "ftfern24@yahoo.com"
+      "charlotte.5067@student.topgrade.edu"
     ],
     "parentEmails": [
-      "ftfern24@yahoo.com"
+      "charlotte.5067@student.topgrade.edu"
     ],
-    "fatherName": "Charlotte",
+    "fatherName": "Frank Fernandez",
     "motherName": "",
     "guardianName": "",
     "program": "Math",
@@ -131,10 +131,10 @@
   {
     "id": "937e2fef-5587-47e3-9d79-cf1a9c2420b9",
     "studentCode": "TG-STU-2026-5066",
-    "fullName": "Rosie Lopez",
-    "firstName": "Rosie",
-    "lastName": "Lopez",
-    "email": "rosieflopez@yahoo.com",
+    "fullName": "Ava",
+    "firstName": "Ava",
+    "lastName": "",
+    "email": "ava.5066@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 6,
     "school": "Pearland HS",
@@ -148,12 +148,12 @@
       "+1 832 879 7941"
     ],
     "studentEmails": [
-      "rosieflopez@yahoo.com"
+      "ava.5066@student.topgrade.edu"
     ],
     "parentEmails": [
-      "rosieflopez@yahoo.com"
+      "ava.5066@student.topgrade.edu"
     ],
-    "fatherName": "Ava",
+    "fatherName": "Rosie Lopez",
     "motherName": "",
     "guardianName": "",
     "program": "PAP Geometry",
@@ -174,14 +174,14 @@
   {
     "id": "753196f4-4721-49ba-bd86-40629a94b769",
     "studentCode": "TG-STU-2026-5065",
-    "fullName": "Wes Murdoch",
-    "firstName": "Wes",
-    "lastName": "Murdoch",
-    "email": "wesdmurdock@hotmail.com",
+    "fullName": "Micah",
+    "firstName": "Micah",
+    "lastName": "",
+    "email": "micah.5065@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 12,
     "school": "PJHS",
-    "grade": "Grade 10",
+    "grade": "Grade 7",
     "status": "ACTIVE",
     "primaryMobile": "+1 832 712 3339",
     "studentPhones": [
@@ -191,12 +191,12 @@
       "+1 832 712 3339"
     ],
     "studentEmails": [
-      "wesdmurdock@hotmail.com"
+      "micah.5065@student.topgrade.edu"
     ],
     "parentEmails": [
-      "wesdmurdock@hotmail.com"
+      "micah.5065@student.topgrade.edu"
     ],
-    "fatherName": "Micah",
+    "fatherName": "Wes Murdoch",
     "motherName": "",
     "guardianName": "",
     "program": "Reading, Handwriting",
@@ -217,10 +217,10 @@
   {
     "id": "42e07a36-2dc7-4676-9405-bfd780a96a46",
     "studentCode": "TG-STU-2026-5064",
-    "fullName": "Ke Li",
-    "firstName": "Ke",
+    "fullName": "Evan Li",
+    "firstName": "Evan",
     "lastName": "Li",
-    "email": "ke.li@outlook.com",
+    "email": "evan.li.5064@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 6,
     "school": "Dawson",
@@ -234,12 +234,12 @@
       "+1 832 288 0435"
     ],
     "studentEmails": [
-      "ke.li@outlook.com"
+      "evan.li.5064@student.topgrade.edu"
     ],
     "parentEmails": [
-      "ke.li@outlook.com"
+      "evan.li.5064@student.topgrade.edu"
     ],
-    "fatherName": "Evan Li",
+    "fatherName": "Ke Li",
     "motherName": "",
     "guardianName": "",
     "program": "PAP Chemistry, PAP Alge 2",
@@ -263,7 +263,7 @@
     "fullName": "Chardaet Galvan",
     "firstName": "Chardaet",
     "lastName": "Galvan",
-    "email": "chardaet.galvan@student.topgrade.edu",
+    "email": "chardaet.galvan.5063@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 12,
     "school": "Top Grade Academy",
@@ -277,10 +277,10 @@
       "+1 713 858 5771"
     ],
     "studentEmails": [
-      "chardaet.galvan@student.topgrade.edu"
+      "chardaet.galvan.5063@student.topgrade.edu"
     ],
     "parentEmails": [
-      "chardaet.galvan@student.topgrade.edu"
+      "chardaet.galvan.5063@student.topgrade.edu"
     ],
     "fatherName": "",
     "motherName": "",
@@ -298,14 +298,14 @@
   {
     "id": "08ff00f0-bf81-4149-ad78-5d3bda30f026",
     "studentCode": "TG-STU-2026-5062",
-    "fullName": "Annie Smith",
-    "firstName": "Annie",
-    "lastName": "Smith",
-    "email": "AnnieB@cgsfs.com",
+    "fullName": "Sophie, Dahlia",
+    "firstName": "Sophie,",
+    "lastName": "Dahlia",
+    "email": "sophie.dahlia.5062@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 10,
     "school": "Turner, Rogers",
-    "grade": "Grade 10",
+    "grade": "Grades 9 & 5",
     "status": "ACTIVE",
     "primaryMobile": "+1 832 275 5298",
     "studentPhones": [
@@ -315,12 +315,12 @@
       "+1 832 275 5298"
     ],
     "studentEmails": [
-      "AnnieB@cgsfs.com"
+      "sophie.dahlia.5062@student.topgrade.edu"
     ],
     "parentEmails": [
-      "AnnieB@cgsfs.com"
+      "sophie.dahlia.5062@student.topgrade.edu"
     ],
-    "fatherName": "Sophie, Dahlia",
+    "fatherName": "Annie Smith",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
@@ -341,14 +341,14 @@
   {
     "id": "ae322fbf-9846-4961-8d1e-c8fb46587948",
     "studentCode": "TG-STU-2026-5061",
-    "fullName": "Brindha Madhan",
-    "firstName": "Brindha",
-    "lastName": "Madhan",
-    "email": "brindha.biotek@gmail.com",
+    "fullName": "AmudhanMadhan Kumar",
+    "firstName": "AmudhanMadhan",
+    "lastName": "Kumar",
+    "email": "amudhanmadhan.kumar.5061@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 6,
     "school": "Dawson",
-    "grade": "Grade 10",
+    "grade": "Grade 12",
     "status": "ACTIVE",
     "primaryMobile": "+1 281 809 6351",
     "studentPhones": [
@@ -358,12 +358,12 @@
       "+1 281 809 6351"
     ],
     "studentEmails": [
-      "brindha.biotek@gmail.com"
+      "amudhanmadhan.kumar.5061@student.topgrade.edu"
     ],
     "parentEmails": [
-      "brindha.biotek@gmail.com"
+      "amudhanmadhan.kumar.5061@student.topgrade.edu"
     ],
-    "fatherName": "AmudhanMadhan Kumar",
+    "fatherName": "Brindha Madhan",
     "motherName": "",
     "guardianName": "",
     "program": "College Essay writing",
@@ -384,14 +384,14 @@
   {
     "id": "55f66a8d-8b0f-4cb4-9c62-6c428d843272",
     "studentCode": "TG-STU-2026-5060",
-    "fullName": "Chardae Evans",
-    "firstName": "Chardae",
-    "lastName": "Evans",
-    "email": "chardaeevans1@gmail.com",
+    "fullName": "Kayden Jones",
+    "firstName": "Kayden",
+    "lastName": "Jones",
+    "email": "kayden.jones.5060@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 9,
     "school": "The Imani school",
-    "grade": "Grade 10",
+    "grade": "Grade 4",
     "status": "ACTIVE",
     "primaryMobile": "+1 346 319 9044",
     "studentPhones": [
@@ -401,12 +401,12 @@
       "+1 346 319 9044"
     ],
     "studentEmails": [
-      "chardaeevans1@gmail.com"
+      "kayden.jones.5060@student.topgrade.edu"
     ],
     "parentEmails": [
-      "chardaeevans1@gmail.com"
+      "kayden.jones.5060@student.topgrade.edu"
     ],
-    "fatherName": "Kayden Jones",
+    "fatherName": "Chardae Evans",
     "motherName": "",
     "guardianName": "",
     "program": "Math",
@@ -427,14 +427,14 @@
   {
     "id": "ffa38a2e-96a5-4b72-ac7f-d1809242f0ff",
     "studentCode": "TG-STU-2026-5059",
-    "fullName": "Lakeshia Morgan",
-    "firstName": "Lakeshia",
-    "lastName": "Morgan",
-    "email": "lakeshiamorgan880",
+    "fullName": "Kaliyah, Kalena",
+    "firstName": "Kaliyah,",
+    "lastName": "Kalena",
+    "email": "kaliyah.kalena.5059@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 7,
     "school": "Wilder elem",
-    "grade": "Grade 10",
+    "grade": "grades 4 & 2",
     "status": "ACTIVE",
     "primaryMobile": "+1 936 414 7009",
     "studentPhones": [
@@ -444,12 +444,12 @@
       "+1 936 414 7009"
     ],
     "studentEmails": [
-      "lakeshiamorgan880"
+      "kaliyah.kalena.5059@student.topgrade.edu"
     ],
     "parentEmails": [
-      "lakeshiamorgan880"
+      "kaliyah.kalena.5059@student.topgrade.edu"
     ],
-    "fatherName": "Kaliyah, Kalena",
+    "fatherName": "Lakeshia Morgan",
     "motherName": "",
     "guardianName": "",
     "program": "Reading & Math",
@@ -470,14 +470,14 @@
   {
     "id": "a35e0009-0b1f-4b6d-9ef8-fd2ab94cacca",
     "studentCode": "TG-STU-2026-5058",
-    "fullName": "Soosan Pappan",
-    "firstName": "Soosan",
-    "lastName": "Pappan",
-    "email": "soosanmathai@yahoo.com",
+    "fullName": "Nehemiah & Bezaleel",
+    "firstName": "Nehemiah",
+    "lastName": "& Bezaleel",
+    "email": "nehemiah.bezaleel.5058@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 11,
     "school": "Sablatura, PJHW",
-    "grade": "Grade 10",
+    "grade": "Grade 6",
     "status": "ACTIVE",
     "primaryMobile": "+1 832 746 7799",
     "studentPhones": [
@@ -487,12 +487,12 @@
       "+1 832 746 7799"
     ],
     "studentEmails": [
-      "soosanmathai@yahoo.com"
+      "nehemiah.bezaleel.5058@student.topgrade.edu"
     ],
     "parentEmails": [
-      "soosanmathai@yahoo.com"
+      "nehemiah.bezaleel.5058@student.topgrade.edu"
     ],
-    "fatherName": "Nehemiah & Bezaleel",
+    "fatherName": "Soosan Pappan",
     "motherName": "",
     "guardianName": "",
     "program": "ESL",
@@ -513,14 +513,14 @@
   {
     "id": "f97f1834-7674-45f1-a35c-ac3275120724",
     "studentCode": "TG-STU-2026-5057",
-    "fullName": "Geraldine Raja",
-    "firstName": "Geraldine",
-    "lastName": "Raja",
-    "email": "gerijosie@yahoo.com",
+    "fullName": "Viviana",
+    "firstName": "Viviana",
+    "lastName": "",
+    "email": "viviana.5057@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 7,
     "school": "Silvercrest,",
-    "grade": "Grade 10",
+    "grade": "Grade 2",
     "status": "ACTIVE",
     "primaryMobile": "+1 716 464 0517",
     "studentPhones": [
@@ -530,12 +530,12 @@
       "+1 716 464 0517"
     ],
     "studentEmails": [
-      "gerijosie@yahoo.com"
+      "viviana.5057@student.topgrade.edu"
     ],
     "parentEmails": [
-      "gerijosie@yahoo.com"
+      "viviana.5057@student.topgrade.edu"
     ],
-    "fatherName": "Viviana",
+    "fatherName": "Geraldine Raja",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
@@ -556,25 +556,25 @@
   {
     "id": "1b4fb652-ade2-43a8-9324-bb452d795cfc",
     "studentCode": "TG-STU-2026-5056",
-    "fullName": "Yordana Bridger",
-    "firstName": "Yordana",
+    "fullName": "Abi Bridger",
+    "firstName": "Abi",
     "lastName": "Bridger",
-    "email": "yordana.bridger@student.topgrade.edu",
+    "email": "abi.bridger.5056@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 11,
     "school": "Rogers",
-    "grade": "Grade 10",
+    "grade": "Grade 6",
     "status": "ACTIVE",
     "primaryMobile": "",
     "studentPhones": [],
     "parentPhones": [],
     "studentEmails": [
-      "yordana.bridger@student.topgrade.edu"
+      "abi.bridger.5056@student.topgrade.edu"
     ],
     "parentEmails": [
-      "yordana.bridger@student.topgrade.edu"
+      "abi.bridger.5056@student.topgrade.edu"
     ],
-    "fatherName": "Abi Bridger",
+    "fatherName": "Yordana Bridger",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
@@ -595,14 +595,14 @@
   {
     "id": "e1e66bbc-1606-4ebc-8a0d-1fd6b3e77305",
     "studentCode": "TG-STU-2026-5055",
-    "fullName": "Judith Rawls",
-    "firstName": "Judith",
+    "fullName": "Abigail Rawls",
+    "firstName": "Abigail",
     "lastName": "Rawls",
-    "email": "jcothorn@gmail.com",
+    "email": "abigail.rawls.5055@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 11,
     "school": "Rogers",
-    "grade": "Grade 10",
+    "grade": "Grade 6",
     "status": "ACTIVE",
     "primaryMobile": "+1 202 368 3012",
     "studentPhones": [
@@ -612,12 +612,12 @@
       "+1 202 368 3012"
     ],
     "studentEmails": [
-      "jcothorn@gmail.com"
+      "abigail.rawls.5055@student.topgrade.edu"
     ],
     "parentEmails": [
-      "jcothorn@gmail.com"
+      "abigail.rawls.5055@student.topgrade.edu"
     ],
-    "fatherName": "Abigail Rawls",
+    "fatherName": "Judith Rawls",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
@@ -638,14 +638,14 @@
   {
     "id": "27157b65-a5a6-4404-9b7c-2d44f51ddb6b",
     "studentCode": "TG-STU-2026-5054",
-    "fullName": "Florence Buaku",
-    "firstName": "Florence",
-    "lastName": "Buaku",
-    "email": "flossied@gmail.com",
+    "fullName": "Isabelle & Julia Buaku",
+    "firstName": "Isabelle",
+    "lastName": "& Julia Buaku",
+    "email": "isabelle.julia.buaku.5054@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 8,
     "school": "Silvercrest & Rogers",
-    "grade": "Grade 10",
+    "grade": "Grades 3 & 6",
     "status": "ACTIVE",
     "primaryMobile": "+1 734 709 1718",
     "studentPhones": [
@@ -655,12 +655,12 @@
       "+1 734 709 1718"
     ],
     "studentEmails": [
-      "flossied@gmail.com"
+      "isabelle.julia.buaku.5054@student.topgrade.edu"
     ],
     "parentEmails": [
-      "flossied@gmail.com"
+      "isabelle.julia.buaku.5054@student.topgrade.edu"
     ],
-    "fatherName": "Isabelle & Julia Buaku",
+    "fatherName": "Florence Buaku",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
@@ -681,14 +681,14 @@
   {
     "id": "24f37be3-3bb6-4c5b-a830-d75ff49b99c0",
     "studentCode": "TG-STU-2026-5053",
-    "fullName": "Amy Carter",
-    "firstName": "Amy",
+    "fullName": "Madison Carter",
+    "firstName": "Madison",
     "lastName": "Carter",
-    "email": "carterae2020@gmail.com",
+    "email": "madison.carter.5053@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 11,
     "school": "Sablatura",
-    "grade": "Grade 10",
+    "grade": "Grade 6",
     "status": "ACTIVE",
     "primaryMobile": "+1 832 816 4463",
     "studentPhones": [
@@ -698,12 +698,12 @@
       "+1 832 816 4463"
     ],
     "studentEmails": [
-      "carterae2020@gmail.com"
+      "madison.carter.5053@student.topgrade.edu"
     ],
     "parentEmails": [
-      "carterae2020@gmail.com"
+      "madison.carter.5053@student.topgrade.edu"
     ],
-    "fatherName": "Madison Carter",
+    "fatherName": "Amy Carter",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
@@ -727,7 +727,7 @@
     "fullName": "Ulaysha Gibbs",
     "firstName": "Ulaysha",
     "lastName": "Gibbs",
-    "email": "ulayshagibbs@gmail.com",
+    "email": "ulaysha.gibbs.5052@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 12,
     "school": "Top Grade Academy",
@@ -741,10 +741,10 @@
       "+1 713 820 0792"
     ],
     "studentEmails": [
-      "ulayshagibbs@gmail.com"
+      "ulaysha.gibbs.5052@student.topgrade.edu"
     ],
     "parentEmails": [
-      "ulayshagibbs@gmail.com"
+      "ulaysha.gibbs.5052@student.topgrade.edu"
     ],
     "fatherName": "",
     "motherName": "",
@@ -762,14 +762,14 @@
   {
     "id": "c0dca76d-260b-4542-b299-d1f140277211",
     "studentCode": "TG-STU-2026-5051",
-    "fullName": "Elizabeth Osorio",
-    "firstName": "Elizabeth",
-    "lastName": "Osorio",
-    "email": "o.elizabeth@icloud.com",
+    "fullName": "Ulaysha",
+    "firstName": "Ulaysha",
+    "lastName": "",
+    "email": "ulaysha.5051@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 6,
     "school": "Shadow Creek",
-    "grade": "Grade 10",
+    "grade": "Grade 12",
     "status": "ACTIVE",
     "primaryMobile": "+1 713 302 1264",
     "studentPhones": [
@@ -779,12 +779,12 @@
       "+1 713 302 1264"
     ],
     "studentEmails": [
-      "o.elizabeth@icloud.com"
+      "ulaysha.5051@student.topgrade.edu"
     ],
     "parentEmails": [
-      "o.elizabeth@icloud.com"
+      "ulaysha.5051@student.topgrade.edu"
     ],
-    "fatherName": "Ulaysha",
+    "fatherName": "Elizabeth Osorio",
     "motherName": "",
     "guardianName": "",
     "program": "TSI prep",
@@ -808,7 +808,7 @@
     "fullName": "Vondeah Grant",
     "firstName": "Vondeah",
     "lastName": "Grant",
-    "email": "vondeahgrant@yahoo.com",
+    "email": "vondeah.grant.5050@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 12,
     "school": "Top Grade Academy",
@@ -822,10 +822,10 @@
       "+1 713 725 3665"
     ],
     "studentEmails": [
-      "vondeahgrant@yahoo.com"
+      "vondeah.grant.5050@student.topgrade.edu"
     ],
     "parentEmails": [
-      "vondeahgrant@yahoo.com"
+      "vondeah.grant.5050@student.topgrade.edu"
     ],
     "fatherName": "",
     "motherName": "",
@@ -843,14 +843,14 @@
   {
     "id": "8acebc78-2222-4d33-b177-274437c9419d",
     "studentCode": "TG-STU-2026-5049",
-    "fullName": "Garrett Grant",
-    "firstName": "Garrett",
-    "lastName": "Grant",
-    "email": "ggrantl@renewedstrength.biz",
+    "fullName": "Brooke",
+    "firstName": "Brooke",
+    "lastName": "",
+    "email": "brooke.5049@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 13,
     "school": "Berry Miller",
-    "grade": "Grade 10",
+    "grade": "Grade 8",
     "status": "ACTIVE",
     "primaryMobile": "+1 713 299 8351",
     "studentPhones": [
@@ -860,12 +860,12 @@
       "+1 713 299 8351"
     ],
     "studentEmails": [
-      "ggrantl@renewedstrength.biz"
+      "brooke.5049@student.topgrade.edu"
     ],
     "parentEmails": [
-      "ggrantl@renewedstrength.biz"
+      "brooke.5049@student.topgrade.edu"
     ],
-    "fatherName": "Brooke",
+    "fatherName": "Garrett Grant",
     "motherName": "",
     "guardianName": "",
     "program": "Math",
@@ -889,7 +889,7 @@
     "fullName": "Chaitanya Gundapaneni",
     "firstName": "Chaitanya",
     "lastName": "Gundapaneni",
-    "email": "chaitu900@gmail.com",
+    "email": "chaitanya.gundapaneni.5048@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 12,
     "school": "Top Grade Academy",
@@ -903,10 +903,10 @@
       "+1 281 614 9093"
     ],
     "studentEmails": [
-      "chaitu900@gmail.com"
+      "chaitanya.gundapaneni.5048@student.topgrade.edu"
     ],
     "parentEmails": [
-      "chaitu900@gmail.com"
+      "chaitanya.gundapaneni.5048@student.topgrade.edu"
     ],
     "fatherName": "",
     "motherName": "",
@@ -924,14 +924,14 @@
   {
     "id": "222410fc-f5ec-4bf6-9689-bca568d31594",
     "studentCode": "TG-STU-2026-5047",
-    "fullName": "Shiva Marthy",
-    "firstName": "Shiva",
-    "lastName": "Marthy",
-    "email": "Shiva90@gmail.com",
+    "fullName": "Nikhil",
+    "firstName": "Nikhil",
+    "lastName": "",
+    "email": "nikhil.5047@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 6,
     "school": "Shadow Creek",
-    "grade": "Grade 10",
+    "grade": "Grade 12",
     "status": "ACTIVE",
     "primaryMobile": "+1 281 851 5873",
     "studentPhones": [
@@ -941,12 +941,12 @@
       "+1 281 851 5873"
     ],
     "studentEmails": [
-      "Shiva90@gmail.com"
+      "nikhil.5047@student.topgrade.edu"
     ],
     "parentEmails": [
-      "Shiva90@gmail.com"
+      "nikhil.5047@student.topgrade.edu"
     ],
-    "fatherName": "Nikhil",
+    "fatherName": "Shiva Marthy",
     "motherName": "",
     "guardianName": "",
     "program": "SAT prep",
@@ -967,14 +967,14 @@
   {
     "id": "a19cfb74-3ed8-4db4-88ba-5cb30a935c30",
     "studentCode": "TG-STU-2026-5046",
-    "fullName": "Bindu Aghari",
-    "firstName": "Bindu",
-    "lastName": "Aghari",
-    "email": "bindu.aghari@student.topgrade.edu",
+    "fullName": "Reshmika",
+    "firstName": "Reshmika",
+    "lastName": "",
+    "email": "reshmika.5046@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 14,
     "school": "Dawson",
-    "grade": "Grade 10",
+    "grade": "Grade 9",
     "status": "ACTIVE",
     "primaryMobile": "+1 832 215 5432",
     "studentPhones": [
@@ -984,12 +984,12 @@
       "+1 832 215 5432"
     ],
     "studentEmails": [
-      "bindu.aghari@student.topgrade.edu"
+      "reshmika.5046@student.topgrade.edu"
     ],
     "parentEmails": [
-      "bindu.aghari@student.topgrade.edu"
+      "reshmika.5046@student.topgrade.edu"
     ],
-    "fatherName": "Reshmika",
+    "fatherName": "Bindu Aghari",
     "motherName": "",
     "guardianName": "",
     "program": "",
@@ -1005,14 +1005,14 @@
   {
     "id": "a2bdad83-bae4-4913-b99d-ca0cb9594482",
     "studentCode": "TG-STU-2026-5045",
-    "fullName": "Gayathri Sathiamoorthy",
-    "firstName": "Gayathri",
-    "lastName": "Sathiamoorthy",
-    "email": "gayathri.sathiamoorthy@gmail.com",
+    "fullName": "Hari Charan",
+    "firstName": "Hari",
+    "lastName": "Charan",
+    "email": "hari.charan.5045@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 6,
     "school": "Dawson",
-    "grade": "Grade 10",
+    "grade": "Grade 11",
     "status": "ACTIVE",
     "primaryMobile": "+1 617 959 3713",
     "studentPhones": [
@@ -1022,12 +1022,12 @@
       "+1 617 959 3713"
     ],
     "studentEmails": [
-      "gayathri.sathiamoorthy@gmail.com"
+      "hari.charan.5045@student.topgrade.edu"
     ],
     "parentEmails": [
-      "gayathri.sathiamoorthy@gmail.com"
+      "hari.charan.5045@student.topgrade.edu"
     ],
-    "fatherName": "Hari Charan",
+    "fatherName": "Gayathri Sathiamoorthy",
     "motherName": "",
     "guardianName": "",
     "program": "SAT prep",
@@ -1051,7 +1051,7 @@
     "fullName": "Serena III",
     "firstName": "Serena",
     "lastName": "III",
-    "email": "serena.iii@student.topgrade.edu",
+    "email": "serena.iii.5044@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 12,
     "school": "Top Grade Academy",
@@ -1065,10 +1065,10 @@
       "+1 979 900 7400"
     ],
     "studentEmails": [
-      "serena.iii@student.topgrade.edu"
+      "serena.iii.5044@student.topgrade.edu"
     ],
     "parentEmails": [
-      "serena.iii@student.topgrade.edu"
+      "serena.iii.5044@student.topgrade.edu"
     ],
     "fatherName": "",
     "motherName": "",
@@ -1086,14 +1086,14 @@
   {
     "id": "a5696856-7c60-4f50-975c-87a1caad52f5",
     "studentCode": "TG-STU-2026-5043",
-    "fullName": "Serena Ayala",
+    "fullName": "Serena",
     "firstName": "Serena",
-    "lastName": "Ayala",
-    "email": "smayala79@yahoo.com",
+    "lastName": "",
+    "email": "serena.5043@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 14,
     "school": "Turner",
-    "grade": "Grade 10",
+    "grade": "Grade 9",
     "status": "ACTIVE",
     "primaryMobile": "+1 832 607 0195",
     "studentPhones": [
@@ -1103,12 +1103,12 @@
       "+1 832 607 0195"
     ],
     "studentEmails": [
-      "smayala79@yahoo.com"
+      "serena.5043@student.topgrade.edu"
     ],
     "parentEmails": [
-      "smayala79@yahoo.com"
+      "serena.5043@student.topgrade.edu"
     ],
-    "fatherName": "Serena",
+    "fatherName": "Serena Ayala",
     "motherName": "",
     "guardianName": "",
     "program": "Alge 1",
@@ -1132,7 +1132,7 @@
     "fullName": "Kaleb Smith",
     "firstName": "Kaleb",
     "lastName": "Smith",
-    "email": "kaleb.smith@student.topgrade.edu",
+    "email": "kaleb.smith.5042@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 12,
     "school": "Top Grade Academy",
@@ -1146,10 +1146,10 @@
       "+1 908 340 2976"
     ],
     "studentEmails": [
-      "kaleb.smith@student.topgrade.edu"
+      "kaleb.smith.5042@student.topgrade.edu"
     ],
     "parentEmails": [
-      "kaleb.smith@student.topgrade.edu"
+      "kaleb.smith.5042@student.topgrade.edu"
     ],
     "fatherName": "",
     "motherName": "",
@@ -1167,14 +1167,14 @@
   {
     "id": "d62ddb95-753b-416b-9292-8f1ce9c8ffad",
     "studentCode": "TG-STU-2026-5041",
-    "fullName": "Blake Johnson",
-    "firstName": "Blake",
-    "lastName": "Johnson",
-    "email": "mykix3@gmail.com",
+    "fullName": "Kaleb Smith",
+    "firstName": "Kaleb",
+    "lastName": "Smith",
+    "email": "kaleb.smith.5041@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 6,
     "school": "Pearland HS",
-    "grade": "Grade 10",
+    "grade": "Grade 12",
     "status": "ACTIVE",
     "primaryMobile": "+1 973 760 4734",
     "studentPhones": [
@@ -1184,12 +1184,12 @@
       "+1 973 760 4734"
     ],
     "studentEmails": [
-      "mykix3@gmail.com"
+      "kaleb.smith.5041@student.topgrade.edu"
     ],
     "parentEmails": [
-      "mykix3@gmail.com"
+      "kaleb.smith.5041@student.topgrade.edu"
     ],
-    "fatherName": "Kaleb Smith",
+    "fatherName": "Blake Johnson",
     "motherName": "",
     "guardianName": "",
     "program": "SAT prep",
@@ -1213,7 +1213,7 @@
     "fullName": "Kirtida Monpara",
     "firstName": "Kirtida",
     "lastName": "Monpara",
-    "email": "kirtida.monpara@student.topgrade.edu",
+    "email": "kirtida.monpara.5040@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 12,
     "school": "Top Grade Academy",
@@ -1227,10 +1227,10 @@
       "+1 781 353 1272"
     ],
     "studentEmails": [
-      "kirtida.monpara@student.topgrade.edu"
+      "kirtida.monpara.5040@student.topgrade.edu"
     ],
     "parentEmails": [
-      "kirtida.monpara@student.topgrade.edu"
+      "kirtida.monpara.5040@student.topgrade.edu"
     ],
     "fatherName": "",
     "motherName": "",
@@ -1248,14 +1248,14 @@
   {
     "id": "bc7d96b6-2551-4059-9f6d-09eb455f34ce",
     "studentCode": "TG-STU-2026-5039",
-    "fullName": "Ayan Monpara",
-    "firstName": "Ayan",
-    "lastName": "Monpara",
-    "email": "monpara@gmail.com",
+    "fullName": "Anushka",
+    "firstName": "Anushka",
+    "lastName": "",
+    "email": "anushka.5039@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 6,
     "school": "Dawson",
-    "grade": "Grade 10",
+    "grade": "Grade 12",
     "status": "ACTIVE",
     "primaryMobile": "+1 281 736 0945",
     "studentPhones": [
@@ -1265,12 +1265,12 @@
       "+1 281 736 0945"
     ],
     "studentEmails": [
-      "monpara@gmail.com"
+      "anushka.5039@student.topgrade.edu"
     ],
     "parentEmails": [
-      "monpara@gmail.com"
+      "anushka.5039@student.topgrade.edu"
     ],
-    "fatherName": "Anushka",
+    "fatherName": "Ayan Monpara",
     "motherName": "",
     "guardianName": "",
     "program": "SAT prep",
@@ -1291,14 +1291,14 @@
   {
     "id": "0c662cc1-58e8-44b0-99e5-5d7bde01a5f6",
     "studentCode": "TG-STU-2026-5038",
-    "fullName": "Minny Bhatty",
-    "firstName": "Minny",
-    "lastName": "Bhatty",
-    "email": "minnybhatty@gmail.com",
+    "fullName": "Sumay",
+    "firstName": "Sumay",
+    "lastName": "",
+    "email": "sumay.5038@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 11,
     "school": "Top Grade Academy",
-    "grade": "Grade 10",
+    "grade": "Grade 6",
     "status": "ACTIVE",
     "primaryMobile": "+1 662 617 9073",
     "studentPhones": [
@@ -1308,12 +1308,12 @@
       "+1 662 617 9073"
     ],
     "studentEmails": [
-      "minnybhatty@gmail.com"
+      "sumay.5038@student.topgrade.edu"
     ],
     "parentEmails": [
-      "minnybhatty@gmail.com"
+      "sumay.5038@student.topgrade.edu"
     ],
-    "fatherName": "Sumay",
+    "fatherName": "Minny Bhatty",
     "motherName": "",
     "guardianName": "",
     "program": "Writing",
@@ -1334,14 +1334,14 @@
   {
     "id": "5b0d7d58-5fef-43d5-ab01-6833fe4613fd",
     "studentCode": "TG-STU-2026-5037",
-    "fullName": "Kaushalya Amunugama",
-    "firstName": "Kaushalya",
-    "lastName": "Amunugama",
-    "email": "kaushalya.amunugama@gmail.com",
+    "fullName": "Vinoli",
+    "firstName": "Vinoli",
+    "lastName": "",
+    "email": "vinoli.5037@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 10,
     "school": "Top Grade Academy",
-    "grade": "Grade 10",
+    "grade": "Grade 5",
     "status": "ACTIVE",
     "primaryMobile": "+1 573 308 5088",
     "studentPhones": [
@@ -1351,12 +1351,12 @@
       "+1 573 308 5088"
     ],
     "studentEmails": [
-      "kaushalya.amunugama@gmail.com"
+      "vinoli.5037@student.topgrade.edu"
     ],
     "parentEmails": [
-      "kaushalya.amunugama@gmail.com"
+      "vinoli.5037@student.topgrade.edu"
     ],
-    "fatherName": "Vinoli",
+    "fatherName": "Kaushalya Amunugama",
     "motherName": "",
     "guardianName": "",
     "program": "Reading Writing",
@@ -1377,14 +1377,14 @@
   {
     "id": "2f6fc548-1e9e-4d87-9449-207110701c34",
     "studentCode": "TG-STU-2026-5036",
-    "fullName": "Brandon Kimmons",
+    "fullName": "Brandon",
     "firstName": "Brandon",
-    "lastName": "Kimmons",
-    "email": "kimmonscare@gmail.com",
+    "lastName": "",
+    "email": "brandon.5036@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 8,
     "school": "Top Grade Academy",
-    "grade": "Grade 10",
+    "grade": "Grade 3",
     "status": "ACTIVE",
     "primaryMobile": "+1 901 246 5376",
     "studentPhones": [
@@ -1394,12 +1394,12 @@
       "+1 901 246 5376"
     ],
     "studentEmails": [
-      "kimmonscare@gmail.com"
+      "brandon.5036@student.topgrade.edu"
     ],
     "parentEmails": [
-      "kimmonscare@gmail.com"
+      "brandon.5036@student.topgrade.edu"
     ],
-    "fatherName": "Brandon",
+    "fatherName": "Brandon Kimmons",
     "motherName": "",
     "guardianName": "",
     "program": "Math",
@@ -1420,14 +1420,14 @@
   {
     "id": "6ea4dc77-9ae9-493b-9134-0e37f5f7dfa8",
     "studentCode": "TG-STU-2026-5035",
-    "fullName": "Nitin Wadhwa",
-    "firstName": "Nitin",
-    "lastName": "Wadhwa",
-    "email": "nwadhwa78@gmail.com",
+    "fullName": "Raina",
+    "firstName": "Raina",
+    "lastName": "",
+    "email": "raina.5035@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 10,
     "school": "Top Grade Academy",
-    "grade": "Grade 10",
+    "grade": "Grade 5",
     "status": "ACTIVE",
     "primaryMobile": "+1 832 754 8223",
     "studentPhones": [
@@ -1437,12 +1437,12 @@
       "+1 832 754 8223"
     ],
     "studentEmails": [
-      "nwadhwa78@gmail.com"
+      "raina.5035@student.topgrade.edu"
     ],
     "parentEmails": [
-      "nwadhwa78@gmail.com"
+      "raina.5035@student.topgrade.edu"
     ],
-    "fatherName": "Raina",
+    "fatherName": "Nitin Wadhwa",
     "motherName": "",
     "guardianName": "",
     "program": "Hindi",
@@ -1463,14 +1463,14 @@
   {
     "id": "deac1925-34c5-4c72-a366-e312e7cab7e6",
     "studentCode": "TG-STU-2026-5034",
-    "fullName": "Anvita Gupta",
-    "firstName": "Anvita",
-    "lastName": "Gupta",
-    "email": "anvita512@gmail.com",
+    "fullName": "Noshi & Kiaan",
+    "firstName": "Noshi",
+    "lastName": "& Kiaan",
+    "email": "noshi.kiaan.5034@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 6,
     "school": "Top Grade Academy",
-    "grade": "Grade 10",
+    "grade": "Grade 11",
     "status": "ACTIVE",
     "primaryMobile": "+1 312 497 0695",
     "studentPhones": [
@@ -1480,12 +1480,12 @@
       "+1 312 497 0695"
     ],
     "studentEmails": [
-      "anvita512@gmail.com"
+      "noshi.kiaan.5034@student.topgrade.edu"
     ],
     "parentEmails": [
-      "anvita512@gmail.com"
+      "noshi.kiaan.5034@student.topgrade.edu"
     ],
-    "fatherName": "Noshi & Kiaan",
+    "fatherName": "Anvita Gupta",
     "motherName": "",
     "guardianName": "",
     "program": "",
@@ -1504,7 +1504,7 @@
     "fullName": "Sandeep Duggal",
     "firstName": "Sandeep",
     "lastName": "Duggal",
-    "email": "duggalmd@aol.com",
+    "email": "sandeep.duggal.5033@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 12,
     "school": "Top Grade Academy",
@@ -1518,10 +1518,10 @@
       "+1 832 314 3626"
     ],
     "studentEmails": [
-      "duggalmd@aol.com"
+      "sandeep.duggal.5033@student.topgrade.edu"
     ],
     "parentEmails": [
-      "duggalmd@aol.com"
+      "sandeep.duggal.5033@student.topgrade.edu"
     ],
     "fatherName": "",
     "motherName": "",
@@ -1539,14 +1539,14 @@
   {
     "id": "096db108-6b6d-476a-969f-40dc36d844c8",
     "studentCode": "TG-STU-2026-5032",
-    "fullName": "Linda Duggal",
-    "firstName": "Linda",
-    "lastName": "Duggal",
-    "email": "duggaljd14@gmail.com",
+    "fullName": "Deven",
+    "firstName": "Deven",
+    "lastName": "",
+    "email": "deven.5032@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 6,
     "school": "Dawson",
-    "grade": "Grade 10",
+    "grade": "Grade 11",
     "status": "ACTIVE",
     "primaryMobile": "+1 832 314 3624",
     "studentPhones": [
@@ -1556,12 +1556,12 @@
       "+1 832 314 3624"
     ],
     "studentEmails": [
-      "duggaljd14@gmail.com"
+      "deven.5032@student.topgrade.edu"
     ],
     "parentEmails": [
-      "duggaljd14@gmail.com"
+      "deven.5032@student.topgrade.edu"
     ],
-    "fatherName": "Deven",
+    "fatherName": "Linda Duggal",
     "motherName": "",
     "guardianName": "",
     "program": "AP Chem , SAT prep",
@@ -1582,14 +1582,14 @@
   {
     "id": "a5d9eca7-a9fa-4107-a401-fb6cb8da3890",
     "studentCode": "TG-STU-2026-5031",
-    "fullName": "Rashmi Aggarwal",
-    "firstName": "Rashmi",
-    "lastName": "Aggarwal",
-    "email": "rashmi.esq@gmail.com",
+    "fullName": "Amisha",
+    "firstName": "Amisha",
+    "lastName": "",
+    "email": "amisha.5031@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 12,
     "school": "Berry Miller",
-    "grade": "Grade 10",
+    "grade": "Grade 7",
     "status": "ACTIVE",
     "primaryMobile": "+1 713 855 9596",
     "studentPhones": [
@@ -1599,12 +1599,12 @@
       "+1 713 855 9596"
     ],
     "studentEmails": [
-      "rashmi.esq@gmail.com"
+      "amisha.5031@student.topgrade.edu"
     ],
     "parentEmails": [
-      "rashmi.esq@gmail.com"
+      "amisha.5031@student.topgrade.edu"
     ],
-    "fatherName": "Amisha",
+    "fatherName": "Rashmi Aggarwal",
     "motherName": "",
     "guardianName": "",
     "program": "PAP Spanish",
@@ -1625,14 +1625,14 @@
   {
     "id": "05ea6e62-0b51-48d7-962a-45cf1c2ce3ec",
     "studentCode": "TG-STU-2026-5030",
-    "fullName": "Dhara Desai",
-    "firstName": "Dhara",
-    "lastName": "Desai",
-    "email": "dhara.6n@gmail.com",
+    "fullName": "Dhyana & Aarshiv",
+    "firstName": "Dhyana",
+    "lastName": "& Aarshiv",
+    "email": "dhyana.aarshiv.5030@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 4,
     "school": "Glen York elem",
-    "grade": "Grade 10",
+    "grade": "Grade 2",
     "status": "ACTIVE",
     "primaryMobile": "+1 713 894 4018",
     "studentPhones": [
@@ -1642,12 +1642,12 @@
       "+1 713 894 4018"
     ],
     "studentEmails": [
-      "dhara.6n@gmail.com"
+      "dhyana.aarshiv.5030@student.topgrade.edu"
     ],
     "parentEmails": [
-      "dhara.6n@gmail.com"
+      "dhyana.aarshiv.5030@student.topgrade.edu"
     ],
-    "fatherName": "Dhyana & Aarshiv",
+    "fatherName": "Dhara Desai",
     "motherName": "",
     "guardianName": "",
     "program": "GT prep/ Math & Reading",
@@ -1668,14 +1668,14 @@
   {
     "id": "2b43adca-cfe0-4434-a543-940297baee0c",
     "studentCode": "TG-STU-2026-5029",
-    "fullName": "Chantha",
-    "firstName": "Chantha",
-    "lastName": "",
-    "email": "chanthavorng@icloud.com",
+    "fullName": "Amir Douhdouh",
+    "firstName": "Amir",
+    "lastName": "Douhdouh",
+    "email": "amir.douhdouh.5029@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 13,
     "school": "Berry Miller",
-    "grade": "Grade 10",
+    "grade": "Grade 8",
     "status": "ACTIVE",
     "primaryMobile": "+1 346 574 4701",
     "studentPhones": [
@@ -1685,12 +1685,12 @@
       "+1 346 574 4701"
     ],
     "studentEmails": [
-      "chanthavorng@icloud.com"
+      "amir.douhdouh.5029@student.topgrade.edu"
     ],
     "parentEmails": [
-      "chanthavorng@icloud.com"
+      "amir.douhdouh.5029@student.topgrade.edu"
     ],
-    "fatherName": "Amir Douhdouh",
+    "fatherName": "Chantha",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
@@ -1711,14 +1711,14 @@
   {
     "id": "34433d55-2899-4037-a43f-29c00a489147",
     "studentCode": "TG-STU-2026-5028",
-    "fullName": "Mili Chavez",
-    "firstName": "Mili",
-    "lastName": "Chavez",
-    "email": "pabloymili2023@gmail.com",
+    "fullName": "Faith",
+    "firstName": "Faith",
+    "lastName": "",
+    "email": "faith.5028@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 9,
     "school": "Silverlake",
-    "grade": "Grade 10",
+    "grade": "Grade 4",
     "status": "ACTIVE",
     "primaryMobile": "+1 346 313 5879",
     "studentPhones": [
@@ -1728,12 +1728,12 @@
       "+1 346 313 5879"
     ],
     "studentEmails": [
-      "pabloymili2023@gmail.com"
+      "faith.5028@student.topgrade.edu"
     ],
     "parentEmails": [
-      "pabloymili2023@gmail.com"
+      "faith.5028@student.topgrade.edu"
     ],
-    "fatherName": "Faith",
+    "fatherName": "Mili Chavez",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
@@ -1754,14 +1754,14 @@
   {
     "id": "3385160b-4248-4f62-8f9c-b768b6f5415d",
     "studentCode": "TG-STU-2026-5027",
-    "fullName": "marisol penaloza",
-    "firstName": "marisol",
-    "lastName": "penaloza",
-    "email": "marisol.maldonado96@icloud.com",
+    "fullName": "eric penaloza & Robert Mora",
+    "firstName": "eric",
+    "lastName": "penaloza & Robert Mora",
+    "email": "eric.penaloza.robert.mora.5027@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 5,
     "school": "Mary Marek & Nolan Ryan",
-    "grade": "Grade 10",
+    "grade": "Kindergarten",
     "status": "ACTIVE",
     "primaryMobile": "+1 832 941 8419",
     "studentPhones": [
@@ -1771,12 +1771,12 @@
       "+1 832 941 8419"
     ],
     "studentEmails": [
-      "marisol.maldonado96@icloud.com"
+      "eric.penaloza.robert.mora.5027@student.topgrade.edu"
     ],
     "parentEmails": [
-      "marisol.maldonado96@icloud.com"
+      "eric.penaloza.robert.mora.5027@student.topgrade.edu"
     ],
-    "fatherName": "eric penaloza & Robert Mora",
+    "fatherName": "marisol penaloza",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
@@ -1797,14 +1797,14 @@
   {
     "id": "f9532d08-0ceb-4dad-a4fd-5fdc8dde75be",
     "studentCode": "TG-STU-2026-5026",
-    "fullName": "Lexii Zielinski",
-    "firstName": "Lexii",
+    "fullName": "Sky Zielinski",
+    "firstName": "Sky",
     "lastName": "Zielinski",
-    "email": "alexisszielinski@gmail.com",
+    "email": "sky.zielinski.5026@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 5,
     "school": "Massey Ranch",
-    "grade": "Grade 10",
+    "grade": "Kindergarten",
     "status": "ACTIVE",
     "primaryMobile": "+1 832 274 9851",
     "studentPhones": [
@@ -1814,12 +1814,12 @@
       "+1 832 274 9851"
     ],
     "studentEmails": [
-      "alexisszielinski@gmail.com"
+      "sky.zielinski.5026@student.topgrade.edu"
     ],
     "parentEmails": [
-      "alexisszielinski@gmail.com"
+      "sky.zielinski.5026@student.topgrade.edu"
     ],
-    "fatherName": "Sky Zielinski",
+    "fatherName": "Lexii Zielinski",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
@@ -1840,14 +1840,14 @@
   {
     "id": "bc7d6522-5feb-4b91-bea8-53d285ade5a0",
     "studentCode": "TG-STU-2026-5025",
-    "fullName": "Barbara Habal",
-    "firstName": "Barbara",
+    "fullName": "Christopher Habal",
+    "firstName": "Christopher",
     "lastName": "Habal",
-    "email": "barbarajaycacho@yahoo.com",
+    "email": "christopher.habal.5025@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 6,
     "school": "HPVA-High School of Performing & Visual Arts",
-    "grade": "Grade 10",
+    "grade": "Grade 12",
     "status": "ACTIVE",
     "primaryMobile": "+1 832 526 2483",
     "studentPhones": [
@@ -1857,12 +1857,12 @@
       "+1 832 526 2483"
     ],
     "studentEmails": [
-      "barbarajaycacho@yahoo.com"
+      "christopher.habal.5025@student.topgrade.edu"
     ],
     "parentEmails": [
-      "barbarajaycacho@yahoo.com"
+      "christopher.habal.5025@student.topgrade.edu"
     ],
-    "fatherName": "Christopher Habal",
+    "fatherName": "Barbara Habal",
     "motherName": "",
     "guardianName": "",
     "program": "SAT prep, College Essay workshop",
@@ -1883,14 +1883,14 @@
   {
     "id": "2b068cfa-fe0c-40bd-8285-86e262704339",
     "studentCode": "TG-STU-2026-5024",
-    "fullName": "Uma Narula",
-    "firstName": "Uma",
+    "fullName": "Saanvi Narula",
+    "firstName": "Saanvi",
     "lastName": "Narula",
-    "email": "umanutritionist@gmail.com",
+    "email": "saanvi.narula.5024@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 6,
     "school": "Clear Creek HS",
-    "grade": "Grade 10",
+    "grade": "Grade 12",
     "status": "ACTIVE",
     "primaryMobile": "+1 346 546 9546",
     "studentPhones": [
@@ -1900,12 +1900,12 @@
       "+1 346 546 9546"
     ],
     "studentEmails": [
-      "umanutritionist@gmail.com"
+      "saanvi.narula.5024@student.topgrade.edu"
     ],
     "parentEmails": [
-      "umanutritionist@gmail.com"
+      "saanvi.narula.5024@student.topgrade.edu"
     ],
-    "fatherName": "Saanvi Narula",
+    "fatherName": "Uma Narula",
     "motherName": "",
     "guardianName": "",
     "program": "College Essay workshop",
@@ -1926,14 +1926,14 @@
   {
     "id": "866f9cdc-86af-42a9-b29e-b028f3db7705",
     "studentCode": "TG-STU-2026-5023",
-    "fullName": "Natalie Chaiban",
-    "firstName": "Natalie",
-    "lastName": "Chaiban",
-    "email": "n_pilotte@yahoo.com",
+    "fullName": "Lydia, Elias",
+    "firstName": "Lydia,",
+    "lastName": "Elias",
+    "email": "lydia.elias.5023@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 5,
     "school": "Red Duke",
-    "grade": "Grade 10",
+    "grade": "Kindergarten",
     "status": "ACTIVE",
     "primaryMobile": "+1 504 495 3594",
     "studentPhones": [
@@ -1943,12 +1943,12 @@
       "+1 504 495 3594"
     ],
     "studentEmails": [
-      "n_pilotte@yahoo.com"
+      "lydia.elias.5023@student.topgrade.edu"
     ],
     "parentEmails": [
-      "n_pilotte@yahoo.com"
+      "lydia.elias.5023@student.topgrade.edu"
     ],
-    "fatherName": "Lydia, Elias",
+    "fatherName": "Natalie Chaiban",
     "motherName": "",
     "guardianName": "",
     "program": "summer camp",
@@ -1969,14 +1969,14 @@
   {
     "id": "8ffc70b7-ab49-4d9b-8fba-07f96fcd3877",
     "studentCode": "TG-STU-2026-5022",
-    "fullName": "Rekha Nair",
-    "firstName": "Rekha",
-    "lastName": "Nair",
-    "email": "nair.rekha11@gmail.com",
+    "fullName": "Kris",
+    "firstName": "Kris",
+    "lastName": "",
+    "email": "kris.5022@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 14,
     "school": "Top Grade Academy",
-    "grade": "Grade 10",
+    "grade": "Grade 9",
     "status": "ACTIVE",
     "primaryMobile": "+1 346 391 0006",
     "studentPhones": [
@@ -1986,12 +1986,12 @@
       "+1 346 391 0006"
     ],
     "studentEmails": [
-      "nair.rekha11@gmail.com"
+      "kris.5022@student.topgrade.edu"
     ],
     "parentEmails": [
-      "nair.rekha11@gmail.com"
+      "kris.5022@student.topgrade.edu"
     ],
-    "fatherName": "Kris",
+    "fatherName": "Rekha Nair",
     "motherName": "",
     "guardianName": "",
     "program": "Geometry",
@@ -2015,7 +2015,7 @@
     "fullName": "Chirag Motwani",
     "firstName": "Chirag",
     "lastName": "Motwani",
-    "email": "cmotwani10@gmail.com",
+    "email": "chirag.motwani.5021@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 12,
     "school": "Top Grade Academy",
@@ -2029,10 +2029,10 @@
       "+1 304 767 2676"
     ],
     "studentEmails": [
-      "cmotwani10@gmail.com"
+      "chirag.motwani.5021@student.topgrade.edu"
     ],
     "parentEmails": [
-      "cmotwani10@gmail.com"
+      "chirag.motwani.5021@student.topgrade.edu"
     ],
     "fatherName": "",
     "motherName": "",
@@ -2050,14 +2050,14 @@
   {
     "id": "ba921124-6bbd-4859-9376-054adc40f828",
     "studentCode": "TG-STU-2026-5020",
-    "fullName": "Prakash Motwani",
-    "firstName": "Prakash",
-    "lastName": "Motwani",
-    "email": "pmots@yahoo.com",
+    "fullName": "Chirag",
+    "firstName": "Chirag",
+    "lastName": "",
+    "email": "chirag.5020@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 6,
     "school": "Dawson",
-    "grade": "Grade 10",
+    "grade": "Grade 11",
     "status": "ACTIVE",
     "primaryMobile": "+1 304 419 5289",
     "studentPhones": [
@@ -2067,12 +2067,12 @@
       "+1 304 419 5289"
     ],
     "studentEmails": [
-      "pmots@yahoo.com"
+      "chirag.5020@student.topgrade.edu"
     ],
     "parentEmails": [
-      "pmots@yahoo.com"
+      "chirag.5020@student.topgrade.edu"
     ],
-    "fatherName": "Chirag",
+    "fatherName": "Prakash Motwani",
     "motherName": "",
     "guardianName": "",
     "program": "AP Physics",
@@ -2093,14 +2093,14 @@
   {
     "id": "d77b4589-6273-4b94-aff0-7c9158c7c164",
     "studentCode": "TG-STU-2026-5019",
-    "fullName": "Minny Bhatty",
-    "firstName": "Minny",
-    "lastName": "Bhatty",
-    "email": "minnybhatty@gmail.com",
+    "fullName": "Sumay",
+    "firstName": "Sumay",
+    "lastName": "",
+    "email": "sumay.5019@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 12,
     "school": "Sablatura",
-    "grade": "Grade 10",
+    "grade": "Grade 7",
     "status": "ACTIVE",
     "primaryMobile": "+1 662 617 9073",
     "studentPhones": [
@@ -2110,12 +2110,12 @@
       "+1 662 617 9073"
     ],
     "studentEmails": [
-      "minnybhatty@gmail.com"
+      "sumay.5019@student.topgrade.edu"
     ],
     "parentEmails": [
-      "minnybhatty@gmail.com"
+      "sumay.5019@student.topgrade.edu"
     ],
-    "fatherName": "Sumay",
+    "fatherName": "Minny Bhatty",
     "motherName": "",
     "guardianName": "",
     "program": "Writing skills",
@@ -2136,14 +2136,14 @@
   {
     "id": "36cf49e7-9878-48a6-b705-3b2fcd550de1",
     "studentCode": "TG-STU-2026-5018",
-    "fullName": "Janice Perkins",
-    "firstName": "Janice",
-    "lastName": "Perkins",
-    "email": "deeutley@gmail.com",
+    "fullName": "Joseph",
+    "firstName": "Joseph",
+    "lastName": "",
+    "email": "joseph.5018@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 6,
     "school": "Top Grade Academy",
-    "grade": "Grade 10",
+    "grade": "Going to 1st grade-",
     "status": "ACTIVE",
     "primaryMobile": "+1 919 215 3437",
     "studentPhones": [
@@ -2153,12 +2153,12 @@
       "+1 919 215 3437"
     ],
     "studentEmails": [
-      "deeutley@gmail.com"
+      "joseph.5018@student.topgrade.edu"
     ],
     "parentEmails": [
-      "deeutley@gmail.com"
+      "joseph.5018@student.topgrade.edu"
     ],
-    "fatherName": "Joseph",
+    "fatherName": "Janice Perkins",
     "motherName": "",
     "guardianName": "",
     "program": "Summer camp & Math, writing, reading tutoring",
@@ -2179,14 +2179,14 @@
   {
     "id": "ebd54605-b67c-4fed-9dce-e6c0559c0bba",
     "studentCode": "TG-STU-2026-5017",
-    "fullName": "Quinisha Starks",
-    "firstName": "Quinisha",
+    "fullName": "Logan Starks",
+    "firstName": "Logan",
     "lastName": "Starks",
-    "email": "qunisha.starks1@gmail.com",
+    "email": "logan.starks.5017@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 11,
     "school": "Sam Jamison",
-    "grade": "Grade 10",
+    "grade": "Grade 6",
     "status": "ACTIVE",
     "primaryMobile": "+1 229 854 1224",
     "studentPhones": [
@@ -2196,12 +2196,12 @@
       "+1 229 854 1224"
     ],
     "studentEmails": [
-      "qunisha.starks1@gmail.com"
+      "logan.starks.5017@student.topgrade.edu"
     ],
     "parentEmails": [
-      "qunisha.starks1@gmail.com"
+      "logan.starks.5017@student.topgrade.edu"
     ],
-    "fatherName": "Logan Starks",
+    "fatherName": "Quinisha Starks",
     "motherName": "",
     "guardianName": "",
     "program": "Math & Reading",
@@ -2222,14 +2222,14 @@
   {
     "id": "daeb9ca1-9dbe-4d17-9701-e6912455607c",
     "studentCode": "TG-STU-2026-5016",
-    "fullName": "Selena Miller",
-    "firstName": "Selena",
+    "fullName": "Samson Miller",
+    "firstName": "Samson",
     "lastName": "Miller",
-    "email": "selenademps@hotmail.com",
+    "email": "samson.miller.5016@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 5,
     "school": "Red Duke",
-    "grade": "Grade 10",
+    "grade": "Kindergarten",
     "status": "ACTIVE",
     "primaryMobile": "+1 713 820 0880",
     "studentPhones": [
@@ -2239,12 +2239,12 @@
       "+1 713 820 0880"
     ],
     "studentEmails": [
-      "selenademps@hotmail.com"
+      "samson.miller.5016@student.topgrade.edu"
     ],
     "parentEmails": [
-      "selenademps@hotmail.com"
+      "samson.miller.5016@student.topgrade.edu"
     ],
-    "fatherName": "Samson Miller",
+    "fatherName": "Selena Miller",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
@@ -2265,10 +2265,10 @@
   {
     "id": "33f23d67-7c8b-472c-b30f-6b63944442f1",
     "studentCode": "TG-STU-2026-5015",
-    "fullName": "Claudette Fonndikum",
-    "firstName": "Claudette",
-    "lastName": "Fonndikum",
-    "email": "claudette.fonndikum@student.topgrade.edu",
+    "fullName": "Uriel",
+    "firstName": "Uriel",
+    "lastName": "",
+    "email": "uriel.5015@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 12,
     "school": "Top Grade Academy",
@@ -2282,12 +2282,12 @@
       "+1 713 382 5195"
     ],
     "studentEmails": [
-      "claudette.fonndikum@student.topgrade.edu"
+      "uriel.5015@student.topgrade.edu"
     ],
     "parentEmails": [
-      "claudette.fonndikum@student.topgrade.edu"
+      "uriel.5015@student.topgrade.edu"
     ],
-    "fatherName": "Uriel",
+    "fatherName": "Claudette Fonndikum",
     "motherName": "",
     "guardianName": "",
     "program": "STAAR prep",
@@ -2308,14 +2308,14 @@
   {
     "id": "cf15f3f5-d859-492d-b1dd-5ef3e61c1202",
     "studentCode": "TG-STU-2026-5014",
-    "fullName": "Alexis Merritt",
-    "firstName": "Alexis",
-    "lastName": "Merritt",
-    "email": "megul41@gmail.com",
+    "fullName": "Peyton",
+    "firstName": "Peyton",
+    "lastName": "",
+    "email": "peyton.5014@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 10,
     "school": "Rogers",
-    "grade": "Grade 10",
+    "grade": "Grade 5",
     "status": "ACTIVE",
     "primaryMobile": "+1 334 372 5625",
     "studentPhones": [
@@ -2325,12 +2325,12 @@
       "+1 334 372 5625"
     ],
     "studentEmails": [
-      "megul41@gmail.com"
+      "peyton.5014@student.topgrade.edu"
     ],
     "parentEmails": [
-      "megul41@gmail.com"
+      "peyton.5014@student.topgrade.edu"
     ],
-    "fatherName": "Peyton",
+    "fatherName": "Alexis Merritt",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
@@ -2354,7 +2354,7 @@
     "fullName": "Tu Hyunh",
     "firstName": "Tu",
     "lastName": "Hyunh",
-    "email": "tuhuynh0046@gmail.com",
+    "email": "tu.hyunh.5013@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 12,
     "school": "Top Grade Academy",
@@ -2368,10 +2368,10 @@
       "+1 714 261 6170"
     ],
     "studentEmails": [
-      "tuhuynh0046@gmail.com"
+      "tu.hyunh.5013@student.topgrade.edu"
     ],
     "parentEmails": [
-      "tuhuynh0046@gmail.com"
+      "tu.hyunh.5013@student.topgrade.edu"
     ],
     "fatherName": "",
     "motherName": "",
@@ -2389,14 +2389,14 @@
   {
     "id": "06a555c1-0263-4ec9-a0e0-fb6bc7272f11",
     "studentCode": "TG-STU-2026-5012",
-    "fullName": "Loan Nguyen",
-    "firstName": "Loan",
-    "lastName": "Nguyen",
-    "email": "nloan969@gmail.com",
+    "fullName": "Minh",
+    "firstName": "Minh",
+    "lastName": "",
+    "email": "minh.5012@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 5,
     "school": "Silverlake elem",
-    "grade": "Grade 10",
+    "grade": "Kindergarten",
     "status": "ACTIVE",
     "primaryMobile": "+1 281 617 9583",
     "studentPhones": [
@@ -2406,12 +2406,12 @@
       "+1 281 617 9583"
     ],
     "studentEmails": [
-      "nloan969@gmail.com"
+      "minh.5012@student.topgrade.edu"
     ],
     "parentEmails": [
-      "nloan969@gmail.com"
+      "minh.5012@student.topgrade.edu"
     ],
-    "fatherName": "Minh",
+    "fatherName": "Loan Nguyen",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
@@ -2435,7 +2435,7 @@
     "fullName": "Conner Kuzniar",
     "firstName": "Conner",
     "lastName": "Kuzniar",
-    "email": "conner.skuzniar@gmail.com",
+    "email": "conner.kuzniar.5011@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 12,
     "school": "Top Grade Academy",
@@ -2449,10 +2449,10 @@
       "+1 713 208 0947"
     ],
     "studentEmails": [
-      "conner.skuzniar@gmail.com"
+      "conner.kuzniar.5011@student.topgrade.edu"
     ],
     "parentEmails": [
-      "conner.skuzniar@gmail.com"
+      "conner.kuzniar.5011@student.topgrade.edu"
     ],
     "fatherName": "",
     "motherName": "",
@@ -2470,14 +2470,14 @@
   {
     "id": "417e3e9d-f6a9-4574-97d1-8e73ca91dc71",
     "studentCode": "TG-STU-2026-5010",
-    "fullName": "Yoselin Kuzniar",
-    "firstName": "Yoselin",
+    "fullName": "Ethan Kuzniar",
+    "firstName": "Ethan",
     "lastName": "Kuzniar",
-    "email": "yosyaranda18@gmail.com",
+    "email": "ethan.kuzniar.5010@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 9,
     "school": "Top Grade Academy",
-    "grade": "Grade 10",
+    "grade": "Grade 4",
     "status": "ACTIVE",
     "primaryMobile": "+1 832 344 7553",
     "studentPhones": [
@@ -2487,12 +2487,12 @@
       "+1 832 344 7553"
     ],
     "studentEmails": [
-      "yosyaranda18@gmail.com"
+      "ethan.kuzniar.5010@student.topgrade.edu"
     ],
     "parentEmails": [
-      "yosyaranda18@gmail.com"
+      "ethan.kuzniar.5010@student.topgrade.edu"
     ],
-    "fatherName": "Ethan Kuzniar",
+    "fatherName": "Yoselin Kuzniar",
     "motherName": "",
     "guardianName": "",
     "program": "STAAR",
@@ -2513,14 +2513,14 @@
   {
     "id": "027ba3f8-fa50-4cab-afc8-70765bf7b6f0",
     "studentCode": "TG-STU-2026-5009",
-    "fullName": "Chad Williams",
-    "firstName": "Chad",
-    "lastName": "Williams",
-    "email": "Chad8404@gmail.com",
+    "fullName": "CJ",
+    "firstName": "CJ",
+    "lastName": "",
+    "email": "cj.5009@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 8,
     "school": "Top Grade Academy",
-    "grade": "Grade 10",
+    "grade": "Grade 3",
     "status": "ACTIVE",
     "primaryMobile": "+1 904 226 8065",
     "studentPhones": [
@@ -2530,12 +2530,12 @@
       "+1 904 226 8065"
     ],
     "studentEmails": [
-      "Chad8404@gmail.com"
+      "cj.5009@student.topgrade.edu"
     ],
     "parentEmails": [
-      "Chad8404@gmail.com"
+      "cj.5009@student.topgrade.edu"
     ],
-    "fatherName": "CJ",
+    "fatherName": "Chad Williams",
     "motherName": "",
     "guardianName": "",
     "program": "Reading",
@@ -2556,14 +2556,14 @@
   {
     "id": "84e4e3c1-237c-4375-a734-5c18103ed5e5",
     "studentCode": "TG-STU-2026-5008",
-    "fullName": "Anna Jan",
-    "firstName": "Anna",
-    "lastName": "Jan",
-    "email": "annasjan@gmail.com",
+    "fullName": "Evelyn",
+    "firstName": "Evelyn",
+    "lastName": "",
+    "email": "evelyn.5008@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 5,
     "school": "Silvercrest",
-    "grade": "Grade 10",
+    "grade": "Kindergarten",
     "status": "ACTIVE",
     "primaryMobile": "+1 626 808 2351",
     "studentPhones": [
@@ -2573,12 +2573,12 @@
       "+1 626 808 2351"
     ],
     "studentEmails": [
-      "annasjan@gmail.com"
+      "evelyn.5008@student.topgrade.edu"
     ],
     "parentEmails": [
-      "annasjan@gmail.com"
+      "evelyn.5008@student.topgrade.edu"
     ],
-    "fatherName": "Evelyn",
+    "fatherName": "Anna Jan",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
@@ -2599,14 +2599,14 @@
   {
     "id": "3ac44fbb-f6bc-4d28-9251-afdbef215ddc",
     "studentCode": "TG-STU-2026-5007",
-    "fullName": "Lani Mercado",
-    "firstName": "Lani",
-    "lastName": "Mercado",
-    "email": "lani.garrido@gmail.com",
+    "fullName": "Kiron & Cara",
+    "firstName": "Kiron",
+    "lastName": "& Cara",
+    "email": "kiron.cara.5007@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 7,
     "school": "Silverlake",
-    "grade": "Grade 10",
+    "grade": "GRADES 4 & 2",
     "status": "ACTIVE",
     "primaryMobile": "+1 713 319 8985",
     "studentPhones": [
@@ -2616,12 +2616,12 @@
       "+1 713 319 8985"
     ],
     "studentEmails": [
-      "lani.garrido@gmail.com"
+      "kiron.cara.5007@student.topgrade.edu"
     ],
     "parentEmails": [
-      "lani.garrido@gmail.com"
+      "kiron.cara.5007@student.topgrade.edu"
     ],
-    "fatherName": "Kiron & Cara",
+    "fatherName": "Lani Mercado",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
@@ -2642,14 +2642,14 @@
   {
     "id": "a8484377-6a04-4980-90f1-037a8cb3dd58",
     "studentCode": "TG-STU-2026-5006",
-    "fullName": "Esperanza garcia",
-    "firstName": "Esperanza",
-    "lastName": "garcia",
-    "email": "esperanzagarciaovalle@gmail.com",
+    "fullName": "Leandro",
+    "firstName": "Leandro",
+    "lastName": "",
+    "email": "leandro.5006@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 9,
     "school": "Silverlake",
-    "grade": "Grade 10",
+    "grade": "Grade 4",
     "status": "ACTIVE",
     "primaryMobile": "+1 832 431 1633",
     "studentPhones": [
@@ -2659,12 +2659,12 @@
       "+1 832 431 1633"
     ],
     "studentEmails": [
-      "esperanzagarciaovalle@gmail.com"
+      "leandro.5006@student.topgrade.edu"
     ],
     "parentEmails": [
-      "esperanzagarciaovalle@gmail.com"
+      "leandro.5006@student.topgrade.edu"
     ],
-    "fatherName": "Leandro",
+    "fatherName": "Esperanza garcia",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
@@ -2685,14 +2685,14 @@
   {
     "id": "9cc422f4-59f2-4ca6-8087-507b16eaad79",
     "studentCode": "TG-STU-2026-5005",
-    "fullName": "Elizabeth Guillory",
-    "firstName": "Elizabeth",
-    "lastName": "Guillory",
-    "email": "guilloryea@gmail.com",
+    "fullName": "Giselle",
+    "firstName": "Giselle",
+    "lastName": "",
+    "email": "giselle.5005@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 9,
     "school": "Rogers",
-    "grade": "Grade 10",
+    "grade": "Grade 4",
     "status": "ACTIVE",
     "primaryMobile": "+1 832 589 3676",
     "studentPhones": [
@@ -2702,12 +2702,12 @@
       "+1 832 589 3676"
     ],
     "studentEmails": [
-      "guilloryea@gmail.com"
+      "giselle.5005@student.topgrade.edu"
     ],
     "parentEmails": [
-      "guilloryea@gmail.com"
+      "giselle.5005@student.topgrade.edu"
     ],
-    "fatherName": "Giselle",
+    "fatherName": "Elizabeth Guillory",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
@@ -2728,14 +2728,14 @@
   {
     "id": "a1165403-134a-4354-bff1-45f3e671aeda",
     "studentCode": "TG-STU-2026-5004",
-    "fullName": "DULCE Eduardo Garcia",
-    "firstName": "DULCE",
-    "lastName": "Eduardo Garcia",
-    "email": "gdulce955@gmail.com",
+    "fullName": "Camila",
+    "firstName": "Camila",
+    "lastName": "",
+    "email": "camila.5004@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 8,
     "school": "Lahon elem,",
-    "grade": "Grade 10",
+    "grade": "Grade 3",
     "status": "ACTIVE",
     "primaryMobile": "+1 832 276 2098",
     "studentPhones": [
@@ -2745,12 +2745,12 @@
       "+1 832 276 2098"
     ],
     "studentEmails": [
-      "gdulce955@gmail.com"
+      "camila.5004@student.topgrade.edu"
     ],
     "parentEmails": [
-      "gdulce955@gmail.com"
+      "camila.5004@student.topgrade.edu"
     ],
-    "fatherName": "Camila",
+    "fatherName": "DULCE Eduardo Garcia",
     "motherName": "",
     "guardianName": "",
     "program": "Reading",
@@ -2774,7 +2774,7 @@
     "fullName": "Tierra Perry",
     "firstName": "Tierra",
     "lastName": "Perry",
-    "email": "tierra.perry@student.topgrade.edu",
+    "email": "tierra.perry.5003@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 12,
     "school": "Top Grade Academy",
@@ -2788,10 +2788,10 @@
       "+1 832 888 8512"
     ],
     "studentEmails": [
-      "tierra.perry@student.topgrade.edu"
+      "tierra.perry.5003@student.topgrade.edu"
     ],
     "parentEmails": [
-      "tierra.perry@student.topgrade.edu"
+      "tierra.perry.5003@student.topgrade.edu"
     ],
     "fatherName": "",
     "motherName": "",
@@ -2809,14 +2809,14 @@
   {
     "id": "449005f7-b25a-49e6-8449-a1421abf6ee0",
     "studentCode": "TG-STU-2026-5002",
-    "fullName": "Angel Lewis",
-    "firstName": "Angel",
-    "lastName": "Lewis",
-    "email": "missyou1970@yahoo.com",
+    "fullName": "Kamauri Hunter",
+    "firstName": "Kamauri",
+    "lastName": "Hunter",
+    "email": "kamauri.hunter.5002@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 5,
     "school": "IL Texas",
-    "grade": "Grade 10",
+    "grade": "Kindergarten",
     "status": "ACTIVE",
     "primaryMobile": "+1 832 322 2239",
     "studentPhones": [
@@ -2826,12 +2826,12 @@
       "+1 832 322 2239"
     ],
     "studentEmails": [
-      "missyou1970@yahoo.com"
+      "kamauri.hunter.5002@student.topgrade.edu"
     ],
     "parentEmails": [
-      "missyou1970@yahoo.com"
+      "kamauri.hunter.5002@student.topgrade.edu"
     ],
-    "fatherName": "Kamauri Hunter",
+    "fatherName": "Angel Lewis",
     "motherName": "",
     "guardianName": "",
     "program": "Reading",
@@ -2852,14 +2852,14 @@
   {
     "id": "04ba0962-0dad-4b63-803b-9985df8c7e8b",
     "studentCode": "TG-STU-2026-5001",
-    "fullName": "Tanyea Fowls",
-    "firstName": "Tanyea",
-    "lastName": "Fowls",
-    "email": "tanyeafowls@yahoo.com",
+    "fullName": "Jacob",
+    "firstName": "Jacob",
+    "lastName": "",
+    "email": "jacob.5001@student.topgrade.edu",
     "dob": "2005-01-01",
     "age": 10,
     "school": "Sablatura",
-    "grade": "Grade 10",
+    "grade": "Grade 5",
     "status": "ACTIVE",
     "primaryMobile": "+1 832 209 9729",
     "studentPhones": [
@@ -2869,12 +2869,12 @@
       "+1 832 209 9729"
     ],
     "studentEmails": [
-      "tanyeafowls@yahoo.com"
+      "jacob.5001@student.topgrade.edu"
     ],
     "parentEmails": [
-      "tanyeafowls@yahoo.com"
+      "jacob.5001@student.topgrade.edu"
     ],
-    "fatherName": "Jacob",
+    "fatherName": "Tanyea Fowls",
     "motherName": "",
     "guardianName": "",
     "program": "Reading Comp",
