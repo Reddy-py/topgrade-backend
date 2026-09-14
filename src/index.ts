@@ -19,6 +19,9 @@ import sessionQrRouter from "./routes/sessionQr.js";
 import reportsRouter from "./routes/reports.js";
 import historyRouter from "./routes/history.js";
 import alertsRouter from "./routes/alerts.js";
+import notificationsRouter from "./routes/notifications.js";
+import { initializeAutomatedEmailScheduler } from "./services/automatedEmailService.js";
+import { reloadStudentsService } from "./services/studentService.js";
 
 dotenv.config();
 
@@ -55,6 +58,22 @@ import { classSessionQrStore } from "./services/sessionAttendanceService.js";
 // Top-Level Direct Resource Endpoints
 app.get("/api/students/list", getStudentsHandler);
 app.get("/api/students", getStudentsHandler);
+app.get("/api/students/reload", async (_req, res) => {
+  try {
+    const data = await reloadStudentsService();
+    res.json({ success: true, message: `Reloaded ${data.length} students live from Supabase.`, data });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+app.post("/api/students/reload", async (_req, res) => {
+  try {
+    const data = await reloadStudentsService();
+    res.json({ success: true, message: `Reloaded ${data.length} students live from Supabase.`, data });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 app.post("/api/students/add", createStudentHandler);
 app.post("/api/students/create", createStudentHandler);
 app.post("/api/students", createStudentHandler);
@@ -158,6 +177,7 @@ app.use("/api/session-qr", sessionQrRouter);
 app.use("/api/reports", reportsRouter);
 app.use("/api/history", historyRouter);
 app.use("/api/alerts", alertsRouter);
+app.use("/api/notifications", notificationsRouter);
 
 import { runDatabaseSeed } from "./seeds/seedData.js";
 
@@ -199,6 +219,7 @@ app.get("/", (req, res) => {
 if (process.env.NODE_ENV !== "test") {
   const server = app.listen(PORT, () => {
     console.log(`🚀 TopGrade Backend Engine active on port ${PORT}`);
+    initializeAutomatedEmailScheduler();
   });
 
   server.on("error", (err: any) => {

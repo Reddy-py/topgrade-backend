@@ -114,7 +114,9 @@ export async function dispatchMultiChannelNotification(payload: NotificationPayl
     // Real Gmail Send if Transporter configured
     if (transporter && emailTarget) {
       try {
-        const htmlContent = buildHtmlEmailTemplate(
+        const senderAddress = process.env.GMAIL_SENDER_EMAIL || "topgradelearning101@gmail.com";
+        const isRawHtml = (payload.message || "").trim().startsWith("<");
+        const htmlContent = isRawHtml ? payload.message : buildHtmlEmailTemplate(
           payload.subject,
           payload.message,
           recipient.role,
@@ -123,7 +125,7 @@ export async function dispatchMultiChannelNotification(payload: NotificationPayl
         );
 
         await transporter.sendMail({
-          from: `"Top Grade Learning" <${gmailUser}>`,
+          from: `"Top Grade Learning" <${senderAddress}>`,
           to: emailTarget,
           subject: payload.subject,
           html: htmlContent,

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import type { Request, Response } from "express";
 import { supabaseAdmin } from "../supabase.js";
 import { dispatchMultiChannelNotification, sendClassScheduleEmail } from "../services/notificationService.js";
 import { ScheduleDataService } from "../services/scheduleDataService.js";
@@ -33,7 +34,7 @@ router.get("/existing-courses", async (_req, res): Promise<any> => {
 });
 
 // 3. Create schedule slot with collision detection & student email notification
-router.post("/create", async (req, res): Promise<any> => {
+const createScheduleSlotHandler = async (req: Request, res: Response): Promise<any> => {
   try {
     const {
       course_id,
@@ -49,10 +50,17 @@ router.post("/create", async (req, res): Promise<any> => {
       students
     } = req.body;
 
-    if (!course_name || !teacher_name || !day_of_week || !start_time || !end_time) {
+    const effectiveStartTime = start_time || (req.body.time_slot ? req.body.time_slot.split("-")[0]?.trim() : "");
+    const effectiveEndTime = end_time || (req.body.time_slot ? req.body.time_slot.split("-")[1]?.trim() : "");
+
+    const daysList = Array.isArray(req.body.days_of_week) && req.body.days_of_week.length > 0
+      ? req.body.days_of_week
+      : (Array.isArray(day_of_week) ? day_of_week : (day_of_week ? [day_of_week] : []));
+
+    if (!course_name || !teacher_name || daysList.length === 0 || !effectiveStartTime || !effectiveEndTime) {
       return res.status(400).json({
         success: false,
-        error: "Missing mandatory schedule fields (course_name, teacher_name, day_of_week, start_time, end_time)."
+        error: "Missing mandatory schedule fields (course_name, teacher_name, day_of_week / days_of_week, start_time, end_time)."
       });
     }
 
@@ -60,7 +68,9 @@ router.post("/create", async (req, res): Promise<any> => {
     const existingCourses = await ScheduleDataService.getExistingCourses();
     const courseExists = existingCourses.length === 0 || existingCourses.some(c => 
       c.id === course_id || 
-      c.name.trim().toLowerCase() === course_name.trim().toLowerCase()
+      c.name.trim().toLowerCase() === course_name.trim().toLowerCase() ||
+      course_name.toLowerCase().includes(c.name.toLowerCase()) ||
+      c.name.toLowerCase().includes(course_name.toLowerCase())
     );
 
     if (!courseExists) {
@@ -70,21 +80,44 @@ router.post("/create", async (req, res): Promise<any> => {
       });
     }
 
+    if (daysList.length > 1) {
+      const createdSlots = await ScheduleDataService.createMultiDaySchedules({
+        course_id: course_id || `crs-${Date.now()}`,
+        course_name,
+        teacher_id: teacher_id || "tchr-1",
+        teacher_name,
+        days_of_week: daysList,
+        start_time: effectiveStartTime,
+        end_time: effectiveEndTime,
+        room: room || "Room 101",
+        location: location || "Main Campus",
+        max_capacity: max_capacity || 15,
+        students
+      });
+
+      return res.status(201).json({
+        success: true,
+        message: `Created ${createdSlots.length} weekly schedule slots for '${course_name}' across ${daysList.join(", ")}.`,
+        data: createdSlots[0],
+        allCreated: createdSlots
+      });
+    }
+
     const createdSlot = await ScheduleDataService.createSchedule({
       course_id: course_id || `crs-${Date.now()}`,
       course_name,
       teacher_id: teacher_id || "tchr-1",
       teacher_name,
-      day_of_week,
-      start_time,
-      end_time,
+      day_of_week: daysList[0],
+      start_time: effectiveStartTime,
+      end_time: effectiveEndTime,
       room: room || "Room 101",
       location: location || "Main Campus",
       max_capacity: max_capacity || 15,
       students
     });
 
-    // Send Node 8: Class Schedule Email to Parents of all enrolled students
+    // Send Class Schedule Email to Parents of all enrolled students
     if (students && Array.isArray(students)) {
       for (const st of students) {
         let parentEmail = (st as any).parent_email;
@@ -107,7 +140,7 @@ router.post("/create", async (req, res): Promise<any> => {
             parentEmail,
             studentName: st.student_name,
             courseName: course_name,
-            dayOfWeek: day_of_week,
+            dayOfWeek: daysList[0],
             timeSlot: createdSlot.time_slot,
             room: createdSlot.room,
             teacherName: teacher_name,
@@ -119,7 +152,7 @@ router.post("/create", async (req, res): Promise<any> => {
 
     return res.status(201).json({
       success: true,
-      message: `Weekly schedule slot for '${course_name}' on ${day_of_week} created successfully.`,
+      message: `Weekly schedule slot for '${course_name}' on ${daysList[0]} created successfully.`,
       data: createdSlot
     });
   } catch (err: any) {
@@ -129,7 +162,10 @@ router.post("/create", async (req, res): Promise<any> => {
       error: err.message
     });
   }
-});
+};
+
+router.post("/create", createScheduleSlotHandler);
+router.post("/create-multi", createScheduleSlotHandler);
 
 // 4. Update schedule slot
 router.put("/edit/:id", async (req, res): Promise<any> => {

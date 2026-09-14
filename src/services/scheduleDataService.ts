@@ -500,11 +500,64 @@ export class ScheduleDataService {
           room: payload.room,
           teacher_name: payload.teacher_name
         },
-        actor: "Admin / Faculty"
+        actor: "Academic Registrar"
       });
     }
 
     return newSlot;
+  }
+
+  /**
+   * Create multiple schedule slots for multiple days with the same course, teacher, room, time, and students
+   */
+  static async createMultiDaySchedules(payload: {
+    course_id: string;
+    course_name: string;
+    teacher_id: string;
+    teacher_name: string;
+    days_of_week: string[];
+    start_time: string;
+    end_time: string;
+    room?: string;
+    location?: string;
+    max_capacity?: number;
+    students?: Array<{ student_id: string; student_name: string; student_code?: string }>;
+  }): Promise<ScheduleSlot[]> {
+    const days = (payload.days_of_week && payload.days_of_week.length > 0)
+      ? payload.days_of_week
+      : ["Monday"];
+
+    const createdSlots: ScheduleSlot[] = [];
+    const errors: string[] = [];
+
+    for (const day of days) {
+      try {
+        const createArgs: any = {
+          course_id: payload.course_id,
+          course_name: payload.course_name,
+          teacher_id: payload.teacher_id,
+          teacher_name: payload.teacher_name,
+          day_of_week: day,
+          start_time: payload.start_time,
+          end_time: payload.end_time
+        };
+        if (payload.room) createArgs.room = payload.room;
+        if (payload.location) createArgs.location = payload.location;
+        if (payload.max_capacity) createArgs.max_capacity = payload.max_capacity;
+        if (payload.students) createArgs.students = payload.students;
+
+        const slot = await this.createSchedule(createArgs);
+        createdSlots.push(slot);
+      } catch (err: any) {
+        errors.push(`${day}: ${err.message}`);
+      }
+    }
+
+    if (createdSlots.length === 0 && errors.length > 0) {
+      throw new Error(errors.join(" | "));
+    }
+
+    return createdSlots;
   }
 
   /**

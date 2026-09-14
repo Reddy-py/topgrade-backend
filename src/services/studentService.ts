@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { dispatchMultiChannelNotification } from "./notificationService.js";
+import { sendExamGoodLuckWishes } from "./automatedEmailService.js";
 import { inMemoryTeachers } from "../routes/teachers.js";
 import { supabaseAdmin } from "../supabase.js";
 
@@ -50,6 +51,8 @@ export interface StudentDossier {
   emergencyContactName?: string | undefined;
   emergencyContactRelationship?: string | undefined;
   residentialAddress?: string | undefined;
+  studentAddress?: string | undefined;
+  alternateAddress?: string | undefined;
   officeAddress?: string | undefined;
 
   // Enrollment & Credentials Details
@@ -69,6 +72,11 @@ export interface StudentDossier {
   feePlan?: string | undefined;
   discount?: string | undefined;
   purchasedHours?: number | undefined;
+  hoursLeft?: number | undefined;
+  daysLeft?: number | undefined;
+  attendedHours?: number | undefined;
+  attendedSessions?: number | undefined;
+  examDate?: string | undefined;
   paymentMethod?: string | undefined;
   createdAt?: string | undefined;
   updatedAt?: string | undefined;
@@ -135,6 +143,7 @@ export async function getStudentsService(params: {
   search?: string | undefined;
   status?: string | undefined;
   grade?: string | undefined;
+  refresh?: boolean | undefined;
   currentUser?: { id?: string | undefined; email?: string | undefined; role?: string | undefined } | undefined;
 }) {
   const page = params.page || 1;
@@ -144,35 +153,49 @@ export async function getStudentsService(params: {
   const gradeFilter = (params.grade || "ALL");
   const user = params.currentUser;
 
-  if (Date.now() - lastSupabaseStudentFetch > 10000 || inMemoryStudentStore.length === 0) {
+  if (params.refresh || Date.now() - lastSupabaseStudentFetch > 10000 || inMemoryStudentStore.length === 0) {
     try {
       const { data, error } = await supabaseAdmin.from("students").select("*").order("created_at", { ascending: false });
       if (!error && data && data.length > 0) {
         lastSupabaseStudentFetch = Date.now();
-        inMemoryStudentStore = data.map((s: any) => ({
-          id: s.id,
-          studentCode: s.student_id_code || s.studentCode || `TG-STU-${s.id?.slice(0, 4)}`,
-          fullName: s.name || s.full_name || s.fullName || "Student",
-          firstName: (s.name || "").split(" ")[0] || "Student",
-          lastName: (s.name || "").split(" ").slice(1).join(" ") || "",
-          email: s.email,
-          dob: s.dob || "2005-01-01",
-          age: s.age || 18,
-          school: s.school || "Top Grade Academy",
-          grade: s.grade || "Grade 10",
-          status: (s.status || "ACTIVE").toUpperCase(),
-          primaryMobile: s.phone || "",
-          studentPhones: s.phone ? [s.phone] : [],
-          parentPhones: s.father_phone ? [s.father_phone] : (s.phone ? [s.phone] : []),
-          studentEmails: s.email ? [s.email] : [],
-          parentEmails: s.email ? [s.email] : [],
-          fatherName: s.father_name || "",
-          motherName: s.mother_name || "",
-          guardianName: s.guardian || "",
-          program: s.program || "",
-          teacher: s.teacher || "",
-          allocatedCourses: s.program ? [{ courseName: s.program, duration: "3 Months" }] : []
-        }));
+        inMemoryStudentStore = data.map((s: any) => {
+          const rawSchool = s.school || (s.address && s.address.startsWith("School: ") ? s.address.replace("School: ", "") : "");
+          const cleanAddress = s.address && !s.address.startsWith("School: ") ? s.address : "";
+          const studentAddress = s.student_address || s.alternate_address || "";
+          const examDate = s.exam_date || (s.medical_notes && s.medical_notes.startsWith("EXAM_DATE:") ? s.medical_notes.replace("EXAM_DATE:", "") : "");
+          const purchasedHours = Number(s.purchased_hours) || 20;
+
+          return {
+            id: s.id,
+            studentCode: s.student_id_code || s.studentCode || `TG-STU-${s.id?.slice(0, 4)}`,
+            fullName: s.name || s.full_name || s.fullName || "Student",
+            firstName: (s.name || "").split(" ")[0] || "Student",
+            lastName: (s.name || "").split(" ").slice(1).join(" ") || "",
+            email: s.email,
+            dob: s.dob || "2005-01-01",
+            age: s.age || 18,
+            school: rawSchool || "Top Grade Academy",
+            grade: s.grade || "Grade 10",
+            status: (s.status || "ACTIVE").toUpperCase(),
+            primaryMobile: s.phone || "",
+            studentPhones: s.phone ? [s.phone] : [],
+            parentPhones: s.father_phone ? [s.father_phone] : (s.phone ? [s.phone] : []),
+            studentEmails: s.email ? [s.email] : [],
+            parentEmails: s.email ? [s.email] : [],
+            fatherName: s.father_name || "",
+            motherName: s.mother_name || "",
+            guardianName: s.guardian || "",
+            program: s.program || "",
+            teacher: s.teacher || "",
+            residentialAddress: cleanAddress,
+            studentAddress: studentAddress,
+            alternateAddress: studentAddress,
+            examDate: examDate,
+            purchasedHours: purchasedHours,
+            feePlan: s.fee_plan || "Standard Plan",
+            allocatedCourses: s.program ? [{ courseName: s.program, duration: "3 Months" }] : []
+          };
+        });
         saveStudentsToDisk();
       }
     } catch (err) {
@@ -199,11 +222,17 @@ export async function getStudentsService(params: {
              (user.email && s.email.toLowerCase() === user.email.toLowerCase())
       );
     } else if (roleUpper === "TEACHER") {
-      // Teachers see ONLY students in their assigned courses or classes
-      students = students.filter(
-        s => (user.id && s.assignedTeacherId === user.id) ||
-             (user.id && s.teacher && s.teacher.toLowerCase().includes(user.id.toLowerCase()))
-      );
+      // Teachers see ONLY students in their assigned courses or classes (if teacher context supplied)
+      const teacherNameMatch = (user.email || "").split("@")[0]?.replace(".", " ")?.toLowerCase() || "";
+      if (user.id || (teacherNameMatch && teacherNameMatch !== "faculty member")) {
+        students = students.filter(
+          s => (user.id && s.assignedTeacherId === user.id) ||
+               (s.teacher && (
+                 (user.id && s.teacher.toLowerCase().includes(user.id.toLowerCase())) ||
+                 (teacherNameMatch && s.teacher.toLowerCase().includes(teacherNameMatch))
+               ))
+        );
+      }
     }
     // ADMIN and ACCOUNTANT see ALL
   }
@@ -228,6 +257,29 @@ export async function getStudentsService(params: {
       return matchName || matchCode || matchGrade || matchSchool || matchParentPhone || matchStudentPhone || matchPrimary;
     });
   }
+
+  // Calculate hours, days left, and apply privacy scrubbing for all matching students
+  students = students.map(s => {
+    const copy: any = { ...s };
+    const purchased = copy.purchasedHours ? Number(copy.purchasedHours) : 20;
+    const attendedSessions = copy.attendedSessions ? Number(copy.attendedSessions) : 0;
+    const attendedHours = attendedSessions * 1.5;
+    copy.purchasedHours = purchased;
+    copy.attendedSessions = attendedSessions;
+    copy.attendedHours = attendedHours;
+    copy.hoursLeft = Math.max(0, purchased - attendedHours);
+    copy.daysLeft = Math.max(0, Math.ceil(copy.hoursLeft / 1.5));
+
+    // STRICT PRIVACY: Tutor cannot see fees, payment plans, invoices or financial details
+    if (user && user.role && user.role.toUpperCase() === "TEACHER") {
+      delete copy.feePlan;
+      delete copy.discount;
+      delete copy.paymentMethod;
+      delete copy.pricing_type;
+    }
+
+    return copy;
+  });
 
   const total = students.length;
   const startIndex = (page - 1) * limit;
@@ -354,6 +406,10 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
     emergencyContactName: payload.emergencyContactName || "",
     emergencyContactRelationship: payload.emergencyContactRelationship || "",
     residentialAddress: payload.residentialAddress || "",
+    studentAddress: payload.studentAddress || payload.alternateAddress || "",
+    alternateAddress: payload.studentAddress || payload.alternateAddress || "",
+    examDate: payload.examDate || "",
+    purchasedHours: payload.purchasedHours ? Number(payload.purchasedHours) : 20,
     officeAddress: payload.officeAddress || "",
 
     password: payload.password || "Student@TopGrade2026",
@@ -457,6 +513,9 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
       guardian: newStudent.guardianName || null,
       father_phone: cleanParentPhones[0] || null,
       address: newStudent.residentialAddress || "",
+      alternate_address: newStudent.studentAddress || newStudent.alternateAddress || "",
+      purchased_hours: newStudent.purchasedHours || 20,
+      medical_notes: newStudent.examDate ? `EXAM_DATE:${newStudent.examDate}` : null,
       program: newStudent.program || "General Academic Track",
       teacher: newStudent.teacher || "Unassigned",
       status: newStudent.status || "Active"
@@ -469,6 +528,13 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
     }
   } catch (sbErr: any) {
     console.warn("Supabase student sync notice:", sbErr?.message);
+  }
+
+  // Automatic Exam Good Luck Email Trigger if Exam Date is scheduled
+  if (newStudent.examDate) {
+    sendExamGoodLuckWishes(newStudent, newStudent.examDate).catch(err =>
+      console.warn("Good luck email dispatch note:", err)
+    );
   }
 
   // Multi-Email Dispatch Notification to Respected Student & Parent Email Addresses
@@ -551,11 +617,21 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
       father_name: updated.fatherName || null,
       mother_name: updated.motherName || null,
       guardian: updated.guardianName || null,
+      address: updated.residentialAddress || "",
+      alternate_address: updated.studentAddress || updated.alternateAddress || "",
+      purchased_hours: updated.purchasedHours || 0,
+      medical_notes: updated.examDate ? `EXAM_DATE:${updated.examDate}` : null,
       program: updated.program || "General Academic Track",
       teacher: updated.teacher || "Unassigned",
       status: updated.status || "Active"
     };
     await supabaseAdmin.from("students").update(updateFields).eq("student_id_code", updated.studentCode);
+
+    if (updated.examDate && updated.examDate !== existing.examDate) {
+      sendExamGoodLuckWishes(updated, updated.examDate).catch(err =>
+        console.warn("Exam email note:", err)
+      );
+    }
   } catch (e: any) {
     console.warn("Supabase student update notice:", e?.message);
   }
@@ -825,3 +901,13 @@ export async function verifyLoginRoleService(emailOrCode: string) {
   // Any other registered student email
   return { success: true, role: "STUDENT" };
 }
+
+/**
+ * Service method to force-reload student records live from Supabase, bypassing in-memory cache.
+ */
+export async function reloadStudentsService(): Promise<StudentDossier[]> {
+  lastSupabaseStudentFetch = 0;
+  const result = await getStudentsService({ limit: 1000, refresh: true });
+  return result.data;
+}
+

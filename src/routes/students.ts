@@ -74,7 +74,12 @@ export const getStudentsHandler = async (req: AuthenticatedRequest, res: express
     const grade = (req.query.grade as string) || "ALL";
 
     // Pass authenticated user context for RBAC filtering
-    const currentUser = req.user ? { id: req.user.id || "", email: req.user.email || "", role: String(req.user.role) } : undefined;
+    const requestedRole = (req.query.userRole as string) || (req.query.role as string) || (req.headers["x-user-role"] as string);
+    const currentUser = req.user
+      ? { id: req.user.id || "", email: req.user.email || "", role: String(req.user.role) }
+      : requestedRole
+      ? { id: (req.query.userId as string) || "", email: (req.query.userEmail as string) || "", role: requestedRole.toUpperCase() }
+      : undefined;
 
     const result = await getStudentsService({ page, limit, search, status, grade, currentUser });
     res.status(200).json(result);
