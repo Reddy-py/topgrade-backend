@@ -282,6 +282,11 @@ export async function getStudentsService(params: {
     return copy;
   });
 
+  // Guarantee strict alphabetical order (A to Z) by student's name
+  students.sort((a, b) =>
+    (a.fullName || (a as any).name || "").localeCompare(b.fullName || (b as any).name || "", undefined, { sensitivity: "base" })
+  );
+
   const total = students.length;
   const startIndex = (page - 1) * limit;
   const paginatedData = students.slice(startIndex, startIndex + limit);

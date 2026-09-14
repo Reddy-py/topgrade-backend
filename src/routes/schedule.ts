@@ -222,6 +222,62 @@ router.get("/teacher/:teacherId/roster", async (req, res): Promise<any> => {
   }
 });
 
+// 8. Assign a student to a specific schedule slot
+router.post("/assign-student", async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { schedule_id, student_id, student_name, student_code, parent_email } = req.body;
+    if (!schedule_id || !student_id || !student_name) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing required fields: schedule_id, student_id, and student_name are mandatory."
+      });
+    }
+
+    const updatedSlot = await ScheduleDataService.assignStudentToSlot({
+      schedule_id,
+      student_id,
+      student_name,
+      student_code
+    });
+
+    // Optional email dispatch to parent
+    let targetParentEmail = parent_email;
+    if (!targetParentEmail) {
+      try {
+        const { data: sRec } = await supabaseAdmin
+          .from("students")
+          .select("email, parent_emails, father_phone")
+          .eq("id", student_id)
+          .maybeSingle();
+        if (sRec) {
+          targetParentEmail = sRec.parent_emails?.[0] || sRec.email;
+        }
+      } catch (e) {}
+    }
+
+    if (targetParentEmail) {
+      sendClassScheduleEmail({
+        parentEmail: targetParentEmail,
+        studentName: student_name,
+        courseName: updatedSlot.course_name,
+        dayOfWeek: updatedSlot.day_of_week,
+        timeSlot: updatedSlot.time_slot,
+        room: updatedSlot.room,
+        teacherName: updatedSlot.teacher_name,
+        location: updatedSlot.location
+      }).catch(e => console.warn("Email dispatch note:", e));
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Student '${student_name}' successfully assigned to schedule slot '${updatedSlot.course_name} (${updatedSlot.day_of_week} ${updatedSlot.time_slot})'.`,
+      data: updatedSlot
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // 1. Endpoint to allocate a new class with active conflict checks
 router.post("/allocate", async (req, res): Promise<any> => {
   const { 

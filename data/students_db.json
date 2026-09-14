@@ -1,5 +1,392 @@
 [
   {
+    "id": "9181fd23-325b-4565-971c-96009dee49ef",
+    "studentCode": "TG-STU-2026-5062-B",
+    "fullName": "Dahlia Smith",
+    "firstName": "Dahlia",
+    "lastName": "Smith",
+    "email": "dahlia.5062b@student.topgrade.edu",
+    "dob": "2016-01-01",
+    "age": 10,
+    "school": "Rogers",
+    "grade": "Grade 5",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 832 275 5298",
+    "studentPhones": [
+      "+1 832 275 5298"
+    ],
+    "parentPhones": [
+      "+1 832 275 5298"
+    ],
+    "studentEmails": [
+      "dahlia.5062b@student.topgrade.edu"
+    ],
+    "parentEmails": [
+      "dahlia.5062b@student.topgrade.edu"
+    ],
+    "fatherName": "Annie Smith",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Afterschool",
+    "teacher": "",
+    "residentialAddress": "",
+    "studentAddress": "",
+    "alternateAddress": "",
+    "examDate": "",
+    "purchasedHours": 20,
+    "feePlan": "Standard Plan",
+    "allocatedCourses": [
+      {
+        "courseName": "Afterschool",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "20392aa0-8712-4695-b230-9ac2588e38e2",
+    "studentCode": "TG-STU-2026-5059-B",
+    "fullName": "Kalena Morgan",
+    "firstName": "Kalena",
+    "lastName": "Morgan",
+    "email": "kalena.5059b@student.topgrade.edu",
+    "dob": "2019-01-01",
+    "age": 7,
+    "school": "Wilder elem",
+    "grade": "Grade 2",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 936 414 7009",
+    "studentPhones": [
+      "+1 936 414 7009"
+    ],
+    "parentPhones": [
+      "+1 936 414 7009"
+    ],
+    "studentEmails": [
+      "kalena.5059b@student.topgrade.edu"
+    ],
+    "parentEmails": [
+      "kalena.5059b@student.topgrade.edu"
+    ],
+    "fatherName": "Lakeshia Morgan",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Reading & Math",
+    "teacher": "",
+    "residentialAddress": "",
+    "studentAddress": "",
+    "alternateAddress": "",
+    "examDate": "",
+    "purchasedHours": 20,
+    "feePlan": "Standard Plan",
+    "allocatedCourses": [
+      {
+        "courseName": "Reading & Math",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "4c6db21f-d790-4b53-8470-880eef9fde54",
+    "studentCode": "TG-STU-2026-5058-B",
+    "fullName": "Bezaleel Pappan",
+    "firstName": "Bezaleel",
+    "lastName": "Pappan",
+    "email": "bezaleel.5058b@student.topgrade.edu",
+    "dob": "2014-01-01",
+    "age": 12,
+    "school": "PJHW",
+    "grade": "Grade 7",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 832 746 7799",
+    "studentPhones": [
+      "+1 832 746 7799"
+    ],
+    "parentPhones": [
+      "+1 832 746 7799"
+    ],
+    "studentEmails": [
+      "bezaleel.5058b@student.topgrade.edu"
+    ],
+    "parentEmails": [
+      "bezaleel.5058b@student.topgrade.edu"
+    ],
+    "fatherName": "Soosan Pappan",
+    "motherName": "",
+    "guardianName": "",
+    "program": "ESL",
+    "teacher": "",
+    "residentialAddress": "",
+    "studentAddress": "",
+    "alternateAddress": "",
+    "examDate": "",
+    "purchasedHours": 20,
+    "feePlan": "Standard Plan",
+    "allocatedCourses": [
+      {
+        "courseName": "ESL",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "a002bcca-7ab0-4216-831d-a0c96de2a3f9",
+    "studentCode": "TG-STU-2026-5054-B",
+    "fullName": "Julia Buaku",
+    "firstName": "Julia",
+    "lastName": "Buaku",
+    "email": "julia.5054b@student.topgrade.edu",
+    "dob": "2015-01-01",
+    "age": 11,
+    "school": "Rogers",
+    "grade": "Grade 6",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 734 709 1718",
+    "studentPhones": [
+      "+1 734 709 1718"
+    ],
+    "parentPhones": [
+      "+1 734 709 1718"
+    ],
+    "studentEmails": [
+      "julia.5054b@student.topgrade.edu"
+    ],
+    "parentEmails": [
+      "julia.5054b@student.topgrade.edu"
+    ],
+    "fatherName": "Florence Buaku",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Afterschool",
+    "teacher": "",
+    "residentialAddress": "",
+    "studentAddress": "",
+    "alternateAddress": "",
+    "examDate": "",
+    "purchasedHours": 20,
+    "feePlan": "Standard Plan",
+    "allocatedCourses": [
+      {
+        "courseName": "Afterschool",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "90b77245-27bf-4080-8cac-2882bcb8bf16",
+    "studentCode": "TG-STU-2026-5034-B",
+    "fullName": "Kiaan Gupta",
+    "firstName": "Kiaan",
+    "lastName": "Gupta",
+    "email": "kiaan.5034b@student.topgrade.edu",
+    "dob": "2012-01-01",
+    "age": 14,
+    "school": "Top Grade Academy",
+    "grade": "Grade 9",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 312 497 0695",
+    "studentPhones": [
+      "+1 312 497 0695"
+    ],
+    "parentPhones": [
+      "+1 312 497 0695"
+    ],
+    "studentEmails": [
+      "kiaan.5034b@student.topgrade.edu"
+    ],
+    "parentEmails": [
+      "kiaan.5034b@student.topgrade.edu"
+    ],
+    "fatherName": "Anvita Gupta",
+    "motherName": "",
+    "guardianName": "",
+    "program": "General Track",
+    "teacher": "",
+    "residentialAddress": "",
+    "studentAddress": "",
+    "alternateAddress": "",
+    "examDate": "",
+    "purchasedHours": 20,
+    "feePlan": "Standard Plan",
+    "allocatedCourses": [
+      {
+        "courseName": "General Track",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "404d8a36-5e35-4292-be90-66f78c3bf4e4",
+    "studentCode": "TG-STU-2026-5030-B",
+    "fullName": "Aarshiv Desai",
+    "firstName": "Aarshiv",
+    "lastName": "Desai",
+    "email": "aarshiv.5030b@student.topgrade.edu",
+    "dob": "2022-01-01",
+    "age": 4,
+    "school": "Glen York elem",
+    "grade": "Pre-K",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 713 894 4018",
+    "studentPhones": [
+      "+1 713 894 4018"
+    ],
+    "parentPhones": [
+      "+1 713 894 4018"
+    ],
+    "studentEmails": [
+      "aarshiv.5030b@student.topgrade.edu"
+    ],
+    "parentEmails": [
+      "aarshiv.5030b@student.topgrade.edu"
+    ],
+    "fatherName": "Dhara Desai",
+    "motherName": "",
+    "guardianName": "",
+    "program": "GT prep/ Math & Reading",
+    "teacher": "",
+    "residentialAddress": "",
+    "studentAddress": "",
+    "alternateAddress": "",
+    "examDate": "",
+    "purchasedHours": 20,
+    "feePlan": "Standard Plan",
+    "allocatedCourses": [
+      {
+        "courseName": "GT prep/ Math & Reading",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "99688e31-31de-4eb0-b4e3-55b833fc306d",
+    "studentCode": "TG-STU-2026-5027-B",
+    "fullName": "Robert Mora",
+    "firstName": "Robert",
+    "lastName": "Mora",
+    "email": "robert.mora.5027b@student.topgrade.edu",
+    "dob": "2015-01-01",
+    "age": 11,
+    "school": "Nolan Ryan",
+    "grade": "Grade 6",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 832 941 8419",
+    "studentPhones": [
+      "+1 832 941 8419"
+    ],
+    "parentPhones": [
+      "+1 832 941 8419"
+    ],
+    "studentEmails": [
+      "robert.mora.5027b@student.topgrade.edu"
+    ],
+    "parentEmails": [
+      "robert.mora.5027b@student.topgrade.edu"
+    ],
+    "fatherName": "marisol penaloza",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Afterschool",
+    "teacher": "",
+    "residentialAddress": "",
+    "studentAddress": "",
+    "alternateAddress": "",
+    "examDate": "",
+    "purchasedHours": 20,
+    "feePlan": "Standard Plan",
+    "allocatedCourses": [
+      {
+        "courseName": "Afterschool",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "7fa727f8-0f16-48e1-a5f5-fe2a1741b996",
+    "studentCode": "TG-STU-2026-5023-B",
+    "fullName": "Elias Chaiban",
+    "firstName": "Elias",
+    "lastName": "Chaiban",
+    "email": "elias.5023b@student.topgrade.edu",
+    "dob": "2021-01-01",
+    "age": 5,
+    "school": "Red Duke",
+    "grade": "Kindergarten",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 504 495 3594",
+    "studentPhones": [
+      "+1 504 495 3594"
+    ],
+    "parentPhones": [
+      "+1 504 495 3594"
+    ],
+    "studentEmails": [
+      "elias.5023b@student.topgrade.edu"
+    ],
+    "parentEmails": [
+      "elias.5023b@student.topgrade.edu"
+    ],
+    "fatherName": "Natalie Chaiban",
+    "motherName": "",
+    "guardianName": "",
+    "program": "summer camp",
+    "teacher": "",
+    "residentialAddress": "",
+    "studentAddress": "",
+    "alternateAddress": "",
+    "examDate": "",
+    "purchasedHours": 20,
+    "feePlan": "Standard Plan",
+    "allocatedCourses": [
+      {
+        "courseName": "summer camp",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "d762b029-ddd5-4aa7-a3c1-1bca6e8ba5e9",
+    "studentCode": "TG-STU-2026-5007-B",
+    "fullName": "Cara Mercado",
+    "firstName": "Cara",
+    "lastName": "Mercado",
+    "email": "cara.5007b@student.topgrade.edu",
+    "dob": "2019-01-01",
+    "age": 7,
+    "school": "Silverlake",
+    "grade": "Grade 2",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 713 319 8985",
+    "studentPhones": [
+      "+1 713 319 8985"
+    ],
+    "parentPhones": [
+      "+1 713 319 8985"
+    ],
+    "studentEmails": [
+      "cara.5007b@student.topgrade.edu"
+    ],
+    "parentEmails": [
+      "cara.5007b@student.topgrade.edu"
+    ],
+    "fatherName": "Lani Mercado",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Afterschool",
+    "teacher": "",
+    "residentialAddress": "",
+    "studentAddress": "",
+    "alternateAddress": "",
+    "examDate": "",
+    "purchasedHours": 20,
+    "feePlan": "Standard Plan",
+    "allocatedCourses": [
+      {
+        "courseName": "Afterschool",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
     "id": "d2c2b0ad-18ab-42ea-b807-78c69da81149",
     "studentCode": "TG-STU-2026-3044",
     "fullName": "Pari Upadhyaya",
@@ -298,14 +685,14 @@
   {
     "id": "08ff00f0-bf81-4149-ad78-5d3bda30f026",
     "studentCode": "TG-STU-2026-5062",
-    "fullName": "Sophie, Dahlia",
-    "firstName": "Sophie,",
-    "lastName": "Dahlia",
-    "email": "sophie.dahlia.5062@student.topgrade.edu",
-    "dob": "2005-01-01",
-    "age": 10,
-    "school": "Turner, Rogers",
-    "grade": "Grades 9 & 5",
+    "fullName": "Sophie Smith",
+    "firstName": "Sophie",
+    "lastName": "Smith",
+    "email": "sophie.5062@student.topgrade.edu",
+    "dob": "2012-01-01",
+    "age": 14,
+    "school": "Turner",
+    "grade": "Grade 9",
     "status": "ACTIVE",
     "primaryMobile": "+1 832 275 5298",
     "studentPhones": [
@@ -315,10 +702,10 @@
       "+1 832 275 5298"
     ],
     "studentEmails": [
-      "sophie.dahlia.5062@student.topgrade.edu"
+      "sophie.5062@student.topgrade.edu"
     ],
     "parentEmails": [
-      "sophie.dahlia.5062@student.topgrade.edu"
+      "sophie.5062@student.topgrade.edu"
     ],
     "fatherName": "Annie Smith",
     "motherName": "",
@@ -427,14 +814,14 @@
   {
     "id": "ffa38a2e-96a5-4b72-ac7f-d1809242f0ff",
     "studentCode": "TG-STU-2026-5059",
-    "fullName": "Kaliyah, Kalena",
-    "firstName": "Kaliyah,",
-    "lastName": "Kalena",
-    "email": "kaliyah.kalena.5059@student.topgrade.edu",
-    "dob": "2005-01-01",
-    "age": 7,
+    "fullName": "Kaliyah Morgan",
+    "firstName": "Kaliyah",
+    "lastName": "Morgan",
+    "email": "kaliyah.5059@student.topgrade.edu",
+    "dob": "2017-01-01",
+    "age": 9,
     "school": "Wilder elem",
-    "grade": "grades 4 & 2",
+    "grade": "Grade 4",
     "status": "ACTIVE",
     "primaryMobile": "+1 936 414 7009",
     "studentPhones": [
@@ -444,10 +831,10 @@
       "+1 936 414 7009"
     ],
     "studentEmails": [
-      "kaliyah.kalena.5059@student.topgrade.edu"
+      "kaliyah.5059@student.topgrade.edu"
     ],
     "parentEmails": [
-      "kaliyah.kalena.5059@student.topgrade.edu"
+      "kaliyah.5059@student.topgrade.edu"
     ],
     "fatherName": "Lakeshia Morgan",
     "motherName": "",
@@ -470,13 +857,13 @@
   {
     "id": "a35e0009-0b1f-4b6d-9ef8-fd2ab94cacca",
     "studentCode": "TG-STU-2026-5058",
-    "fullName": "Nehemiah & Bezaleel",
+    "fullName": "Nehemiah Pappan",
     "firstName": "Nehemiah",
-    "lastName": "& Bezaleel",
-    "email": "nehemiah.bezaleel.5058@student.topgrade.edu",
-    "dob": "2005-01-01",
+    "lastName": "Pappan",
+    "email": "nehemiah.5058@student.topgrade.edu",
+    "dob": "2015-01-01",
     "age": 11,
-    "school": "Sablatura, PJHW",
+    "school": "Sablatura",
     "grade": "Grade 6",
     "status": "ACTIVE",
     "primaryMobile": "+1 832 746 7799",
@@ -487,10 +874,10 @@
       "+1 832 746 7799"
     ],
     "studentEmails": [
-      "nehemiah.bezaleel.5058@student.topgrade.edu"
+      "nehemiah.5058@student.topgrade.edu"
     ],
     "parentEmails": [
-      "nehemiah.bezaleel.5058@student.topgrade.edu"
+      "nehemiah.5058@student.topgrade.edu"
     ],
     "fatherName": "Soosan Pappan",
     "motherName": "",
@@ -638,14 +1025,14 @@
   {
     "id": "27157b65-a5a6-4404-9b7c-2d44f51ddb6b",
     "studentCode": "TG-STU-2026-5054",
-    "fullName": "Isabelle & Julia Buaku",
+    "fullName": "Isabelle Buaku",
     "firstName": "Isabelle",
-    "lastName": "& Julia Buaku",
-    "email": "isabelle.julia.buaku.5054@student.topgrade.edu",
-    "dob": "2005-01-01",
+    "lastName": "Buaku",
+    "email": "isabelle.5054@student.topgrade.edu",
+    "dob": "2018-01-01",
     "age": 8,
-    "school": "Silvercrest & Rogers",
-    "grade": "Grades 3 & 6",
+    "school": "Silvercrest",
+    "grade": "Grade 3",
     "status": "ACTIVE",
     "primaryMobile": "+1 734 709 1718",
     "studentPhones": [
@@ -655,10 +1042,10 @@
       "+1 734 709 1718"
     ],
     "studentEmails": [
-      "isabelle.julia.buaku.5054@student.topgrade.edu"
+      "isabelle.5054@student.topgrade.edu"
     ],
     "parentEmails": [
-      "isabelle.julia.buaku.5054@student.topgrade.edu"
+      "isabelle.5054@student.topgrade.edu"
     ],
     "fatherName": "Florence Buaku",
     "motherName": "",
@@ -1463,12 +1850,12 @@
   {
     "id": "deac1925-34c5-4c72-a366-e312e7cab7e6",
     "studentCode": "TG-STU-2026-5034",
-    "fullName": "Noshi & Kiaan",
+    "fullName": "Noshi Gupta",
     "firstName": "Noshi",
-    "lastName": "& Kiaan",
-    "email": "noshi.kiaan.5034@student.topgrade.edu",
-    "dob": "2005-01-01",
-    "age": 6,
+    "lastName": "Gupta",
+    "email": "noshi.5034@student.topgrade.edu",
+    "dob": "2010-01-01",
+    "age": 16,
     "school": "Top Grade Academy",
     "grade": "Grade 11",
     "status": "ACTIVE",
@@ -1480,15 +1867,15 @@
       "+1 312 497 0695"
     ],
     "studentEmails": [
-      "noshi.kiaan.5034@student.topgrade.edu"
+      "noshi.5034@student.topgrade.edu"
     ],
     "parentEmails": [
-      "noshi.kiaan.5034@student.topgrade.edu"
+      "noshi.5034@student.topgrade.edu"
     ],
     "fatherName": "Anvita Gupta",
     "motherName": "",
     "guardianName": "",
-    "program": "",
+    "program": "General Track",
     "teacher": "",
     "residentialAddress": "",
     "studentAddress": "",
@@ -1496,7 +1883,12 @@
     "examDate": "",
     "purchasedHours": 20,
     "feePlan": "Standard Plan",
-    "allocatedCourses": []
+    "allocatedCourses": [
+      {
+        "courseName": "General Track",
+        "duration": "3 Months"
+      }
+    ]
   },
   {
     "id": "a3a10d93-f01a-452f-b695-91e648146a54",
@@ -1625,12 +2017,12 @@
   {
     "id": "05ea6e62-0b51-48d7-962a-45cf1c2ce3ec",
     "studentCode": "TG-STU-2026-5030",
-    "fullName": "Dhyana & Aarshiv",
+    "fullName": "Dhyana Desai",
     "firstName": "Dhyana",
-    "lastName": "& Aarshiv",
-    "email": "dhyana.aarshiv.5030@student.topgrade.edu",
-    "dob": "2005-01-01",
-    "age": 4,
+    "lastName": "Desai",
+    "email": "dhyana.5030@student.topgrade.edu",
+    "dob": "2019-01-01",
+    "age": 7,
     "school": "Glen York elem",
     "grade": "Grade 2",
     "status": "ACTIVE",
@@ -1642,10 +2034,10 @@
       "+1 713 894 4018"
     ],
     "studentEmails": [
-      "dhyana.aarshiv.5030@student.topgrade.edu"
+      "dhyana.5030@student.topgrade.edu"
     ],
     "parentEmails": [
-      "dhyana.aarshiv.5030@student.topgrade.edu"
+      "dhyana.5030@student.topgrade.edu"
     ],
     "fatherName": "Dhara Desai",
     "motherName": "",
@@ -1754,13 +2146,13 @@
   {
     "id": "3385160b-4248-4f62-8f9c-b768b6f5415d",
     "studentCode": "TG-STU-2026-5027",
-    "fullName": "eric penaloza & Robert Mora",
-    "firstName": "eric",
-    "lastName": "penaloza & Robert Mora",
-    "email": "eric.penaloza.robert.mora.5027@student.topgrade.edu",
-    "dob": "2005-01-01",
+    "fullName": "Eric Penaloza",
+    "firstName": "Eric",
+    "lastName": "Penaloza",
+    "email": "eric.5027@student.topgrade.edu",
+    "dob": "2021-01-01",
     "age": 5,
-    "school": "Mary Marek & Nolan Ryan",
+    "school": "Mary Marek",
     "grade": "Kindergarten",
     "status": "ACTIVE",
     "primaryMobile": "+1 832 941 8419",
@@ -1771,10 +2163,10 @@
       "+1 832 941 8419"
     ],
     "studentEmails": [
-      "eric.penaloza.robert.mora.5027@student.topgrade.edu"
+      "eric.5027@student.topgrade.edu"
     ],
     "parentEmails": [
-      "eric.penaloza.robert.mora.5027@student.topgrade.edu"
+      "eric.5027@student.topgrade.edu"
     ],
     "fatherName": "marisol penaloza",
     "motherName": "",
@@ -1926,11 +2318,11 @@
   {
     "id": "866f9cdc-86af-42a9-b29e-b028f3db7705",
     "studentCode": "TG-STU-2026-5023",
-    "fullName": "Lydia, Elias",
-    "firstName": "Lydia,",
-    "lastName": "Elias",
-    "email": "lydia.elias.5023@student.topgrade.edu",
-    "dob": "2005-01-01",
+    "fullName": "Lydia Chaiban",
+    "firstName": "Lydia",
+    "lastName": "Chaiban",
+    "email": "lydia.5023@student.topgrade.edu",
+    "dob": "2021-01-01",
     "age": 5,
     "school": "Red Duke",
     "grade": "Kindergarten",
@@ -1943,10 +2335,10 @@
       "+1 504 495 3594"
     ],
     "studentEmails": [
-      "lydia.elias.5023@student.topgrade.edu"
+      "lydia.5023@student.topgrade.edu"
     ],
     "parentEmails": [
-      "lydia.elias.5023@student.topgrade.edu"
+      "lydia.5023@student.topgrade.edu"
     ],
     "fatherName": "Natalie Chaiban",
     "motherName": "",
@@ -2599,14 +2991,14 @@
   {
     "id": "3ac44fbb-f6bc-4d28-9251-afdbef215ddc",
     "studentCode": "TG-STU-2026-5007",
-    "fullName": "Kiron & Cara",
+    "fullName": "Kiron Mercado",
     "firstName": "Kiron",
-    "lastName": "& Cara",
-    "email": "kiron.cara.5007@student.topgrade.edu",
-    "dob": "2005-01-01",
-    "age": 7,
+    "lastName": "Mercado",
+    "email": "kiron.5007@student.topgrade.edu",
+    "dob": "2017-01-01",
+    "age": 9,
     "school": "Silverlake",
-    "grade": "GRADES 4 & 2",
+    "grade": "Grade 4",
     "status": "ACTIVE",
     "primaryMobile": "+1 713 319 8985",
     "studentPhones": [
@@ -2616,10 +3008,10 @@
       "+1 713 319 8985"
     ],
     "studentEmails": [
-      "kiron.cara.5007@student.topgrade.edu"
+      "kiron.5007@student.topgrade.edu"
     ],
     "parentEmails": [
-      "kiron.cara.5007@student.topgrade.edu"
+      "kiron.5007@student.topgrade.edu"
     ],
     "fatherName": "Lani Mercado",
     "motherName": "",

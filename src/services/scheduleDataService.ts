@@ -249,7 +249,9 @@ export class ScheduleDataService {
         .order("name", { ascending: true });
 
       if (!error && data && data.length > 0) {
-        return data;
+        return [...data].sort((a, b) =>
+          (a.name || "").localeCompare(b.name || "", undefined, { sensitivity: "base" })
+        );
       }
     } catch (err) {
       console.warn("Supabase getExistingCourses error, fallback check:", err);
@@ -264,7 +266,9 @@ export class ScheduleDataService {
           if (Array.isArray(s.courses)) s.courses.forEach((c: any) => unique.add(typeof c === "string" ? c : c.courseName || c.name));
         });
         if (unique.size > 0) {
-          return Array.from(unique).map((name, idx) => ({ id: `crs-auto-${idx}`, name }));
+          return Array.from(unique)
+            .map((name, idx) => ({ id: `crs-auto-${idx}`, name }))
+            .sort((a, b) => (a.name || "").localeCompare(b.name || "", undefined, { sensitivity: "base" }));
         }
       }
     } catch (e) {
@@ -345,7 +349,27 @@ export class ScheduleDataService {
           .select("*");
 
         const mappedList: ScheduleSlot[] = schedData.map((s: any) => {
-          const students = studentMap ? studentMap.filter((sm: any) => sm.schedule_id === s.id) : [];
+          const sbStudents = studentMap ? studentMap.filter((sm: any) => sm.schedule_id === s.id) : [];
+          const localSlot = localScheduleStore.getScheduleById(s.id);
+          const localStudents = localSlot?.students || [];
+
+          const combinedMap = new Map<string, any>();
+          localStudents.forEach((st: any) => combinedMap.set(st.student_id, st));
+          sbStudents.forEach((sm: any) => {
+            combinedMap.set(sm.student_id, {
+              id: sm.id,
+              schedule_id: sm.schedule_id,
+              student_id: sm.student_id,
+              student_name: sm.student_name,
+              student_code: sm.student_code,
+              created_at: sm.created_at
+            });
+          });
+
+          const mergedStudents = Array.from(combinedMap.values()).sort((a: any, b: any) =>
+            (a.student_name || "").localeCompare(b.student_name || "", undefined, { sensitivity: "base" })
+          );
+
           return {
             id: s.id,
             course_id: s.course_id,
@@ -360,27 +384,24 @@ export class ScheduleDataService {
             location: s.location || "Main Campus",
             max_capacity: s.max_capacity || 15,
             is_active: s.is_active !== false,
-            students: students.map((sm: any) => ({
-              id: sm.id,
-              schedule_id: sm.schedule_id,
-              student_id: sm.student_id,
-              student_name: sm.student_name,
-              student_code: sm.student_code,
-              created_at: sm.created_at
-            })),
+            students: mergedStudents,
             created_at: s.created_at,
             updated_at: s.updated_at
           };
         });
 
-        return mappedList;
+        return mappedList.sort((a, b) =>
+          (a.course_name || "").localeCompare(b.course_name || "", undefined, { sensitivity: "base" })
+        );
       }
     } catch (err) {
       console.warn("Supabase schedules query fallback to local store:", err);
     }
 
     // 2. Return from local persistent store
-    return localScheduleStore.getAllSchedules();
+    return localScheduleStore.getAllSchedules().sort((a, b) =>
+      (a.course_name || "").localeCompare(b.course_name || "", undefined, { sensitivity: "base" })
+    );
   }
 
   /**
@@ -667,6 +688,97 @@ export class ScheduleDataService {
       console.warn("Supabase schedule delete notice:", err);
     }
     return true;
+  }
+
+  /**
+   * Assign / enroll a student directly into a specific schedule slot
+   */
+  static async assignStudentToSlot(payload: {
+    schedule_id: string;
+    student_id: string;
+    student_name: string;
+    student_code?: string;
+  }): Promise<ScheduleSlot> {
+    const all = await this.listSchedules();
+    const slot = all.find(s => s.id === payload.schedule_id);
+    if (!slot) {
+      throw new Error(`Schedule slot '${payload.schedule_id}' not found.`);
+    }
+
+    const currentStudents = slot.students || [];
+    const existingIdx = currentStudents.findIndex(
+      s => s.student_id === payload.student_id || (payload.student_code && s.student_code === payload.student_code)
+    );
+
+    let updatedStudents = [...currentStudents];
+    if (existingIdx >= 0 && updatedStudents[existingIdx]) {
+      const existing = updatedStudents[existingIdx]!;
+      updatedStudents[existingIdx] = {
+        id: existing.id,
+        schedule_id: existing.schedule_id,
+        created_at: existing.created_at,
+        student_id: payload.student_id,
+        student_name: payload.student_name,
+        student_code: payload.student_code || existing.student_code
+      };
+    } else {
+      const nowIso = new Date().toISOString();
+      const newStudentEntry: ScheduleStudent = {
+        id: `sch-stu-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        schedule_id: slot.id,
+        student_id: payload.student_id,
+        student_name: payload.student_name,
+        student_code: payload.student_code,
+        created_at: nowIso
+      };
+      updatedStudents = [...currentStudents, newStudentEntry].sort((a, b) =>
+        (a.student_name || "").localeCompare(b.student_name || "", undefined, { sensitivity: "base" })
+      );
+    }
+
+    const updatedSlot: ScheduleSlot = {
+      ...slot,
+      students: updatedStudents,
+      updated_at: new Date().toISOString()
+    };
+
+    localScheduleStore.saveSchedule(updatedSlot);
+
+    // Save to Supabase
+    try {
+      if (existingIdx === -1) {
+        await supabaseAdmin.from("schedule_students").insert([
+          {
+            schedule_id: slot.id,
+            student_id: payload.student_id,
+            student_name: payload.student_name,
+            student_code: payload.student_code
+          }
+        ]);
+      }
+    } catch (err) {
+      console.warn("Supabase schedule_student insert notice:", err);
+    }
+
+    // Append to Student History
+    this.appendHistoryItem({
+      student_id: payload.student_id,
+      student_name: payload.student_name,
+      event_type: "SCHEDULE_ASSIGNMENT",
+      title: `Enrolled in Class: ${slot.course_name}`,
+      description: `Class on ${slot.day_of_week}s (${slot.time_slot}) at ${slot.room} with faculty ${slot.teacher_name}.`,
+      metadata: {
+        schedule_id: slot.id,
+        course_name: slot.course_name,
+        day_of_week: slot.day_of_week,
+        time_slot: slot.time_slot,
+        room: slot.room,
+        teacher_name: slot.teacher_name
+      },
+      actor: "Academic Registrar"
+    });
+
+    return updatedSlot;
   }
 
   /**

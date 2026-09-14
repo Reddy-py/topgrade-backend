@@ -3,6 +3,7 @@ import { supabaseAdmin } from "../supabase.js";
 import { inMemoryTeachers } from "./teachers.js";
 import { inMemoryStudentStore } from "../services/studentService.js";
 import { autoGenerateAttendanceSessionsForCourse, removeAttendanceSessionsForCourse } from "../services/sessionAttendanceService.js";
+import { localScheduleStore } from "../services/scheduleDataService.js";
 
 const router = express.Router();
 
@@ -85,30 +86,65 @@ export const getCoursesHandler = async (req: express.Request, res: express.Respo
     const { data: sbCourses, error } = await supabaseAdmin
       .from("courses")
       .select("*")
-      .order("created_at", { ascending: false });
+      .order("name", { ascending: true });
 
     if (!error && sbCourses) {
-      list = sbCourses.map((c: any) => ({
-        id: c.id,
-        course_code: c.course_code || "",
-        name: c.name || "",
-        description: c.description || "",
-        category: c.required_teacher_skills || "STEM & Technology",
-        grade_category: c.age_group || "All Grades",
-        age_group: c.age_group || "All Grades",
-        grade_eligibility: [],
-        duration: c.duration || "6 Months",
-        fee: Number(c.fee) || 0,
-        max_students: Number(c.max_students) || 20,
-        enrolled_students: 0,
-        status: c.status || "Active",
-        assigned_teachers: [],
-        mapped_students: [],
-        schedule: []
-      }));
+      list = sbCourses.map((c: any) => {
+        let materialObj: any = {};
+        if (c.course_material) {
+          try {
+            materialObj = typeof c.course_material === "string" ? JSON.parse(c.course_material) : c.course_material;
+          } catch (e) {}
+        }
+
+        return {
+          id: c.id,
+          course_code: c.course_code || "",
+          name: c.name || "",
+          description: c.description || "",
+          category: c.required_teacher_skills || "STEM & Technology",
+          grade_category: c.age_group || "All Grades",
+          age_group: c.age_group || "All Grades",
+          grade_eligibility: [],
+          duration: c.duration || "6 Months",
+          fee: Number(c.fee) || 0,
+          max_students: Number(c.max_students) || 20,
+          enrolled_students: 0,
+          status: c.status || "Active",
+          assigned_teachers: Array.isArray(materialObj.assigned_teachers) ? materialObj.assigned_teachers : [],
+          mapped_students: Array.isArray(materialObj.mapped_students) ? materialObj.mapped_students : [],
+          schedule: Array.isArray(materialObj.schedule) ? materialObj.schedule : []
+        };
+      });
     }
   } catch (err) {
     console.warn("Backend getCoursesHandler Supabase query notice:", err);
+  }
+
+  const { teacherId, teacherEmail, teacherName } = req.query;
+  if (teacherId || teacherEmail || teacherName) {
+    const tId = (teacherId as string)?.toLowerCase();
+    const tEmail = (teacherEmail as string)?.toLowerCase();
+    const tName = (teacherName as string)?.toLowerCase();
+    const schedulesList = localScheduleStore.getAllSchedules();
+
+    list = list.filter(c => {
+      const teachers = c.assigned_teachers || [];
+      const hasAssigned = teachers.some((t: any) => 
+        (tId && (t.teacherId?.toLowerCase() === tId || t.teacherCode?.toLowerCase() === tId)) ||
+        (tEmail && t.email?.toLowerCase() === tEmail) ||
+        (tName && t.name?.toLowerCase().includes(tName))
+      );
+      const hasInSched = (c.schedule || []).some((s: any) =>
+        (tId && s.teacherId?.toLowerCase() === tId) ||
+        (tName && s.teacherName?.toLowerCase().includes(tName))
+      );
+      const hasInSchedulesDb = schedulesList.some(s =>
+        (s.course_id === c.id || s.course_name?.toLowerCase() === c.name?.toLowerCase()) &&
+        ((tId && s.teacher_id?.toLowerCase() === tId) || (tName && s.teacher_name?.toLowerCase().includes(tName)))
+      );
+      return hasAssigned || hasInSched || hasInSchedulesDb;
+    });
   }
 
   if (grade && grade !== "ALL" && grade !== "All Grades") {
@@ -126,6 +162,8 @@ export const getCoursesHandler = async (req: express.Request, res: express.Respo
   if (gradeCategory && gradeCategory !== "ALL") {
     list = list.filter(c => c.grade_category === gradeCategory);
   }
+
+  list.sort((a, b) => (a.name || "").localeCompare(b.name || "", undefined, { sensitivity: "base" }));
 
   res.status(200).json({ success: true, data: list });
 };

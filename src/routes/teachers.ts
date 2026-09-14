@@ -41,14 +41,20 @@ export let inMemoryTeachers: any[] = OFFICIAL_TEACHERS.map((t, idx) => ({
 // GET: List all teachers with fail-safe fallback
 export const getTeachersHandler = async (_req: express.Request, res: express.Response) => {
   try {
-    const { data, error } = await supabaseAdmin.from("teachers").select("*");
+    const { data, error } = await supabaseAdmin.from("teachers").select("*").order("name", { ascending: true });
     if (!error && data && data.length > 0) {
-      return res.status(200).json({ success: true, count: data.length, data });
+      const sorted = [...data].sort((a: any, b: any) =>
+        (a.name || "").localeCompare(b.name || "", undefined, { sensitivity: "base" })
+      );
+      return res.status(200).json({ success: true, count: sorted.length, data: sorted });
     }
   } catch (err) {
     console.warn("Notice querying Supabase teachers in getTeachersHandler:", err);
   }
-  res.status(200).json({ success: true, count: inMemoryTeachers.length, data: inMemoryTeachers });
+  const sortedInMemory = [...inMemoryTeachers].sort((a: any, b: any) =>
+    (a.name || "").localeCompare(b.name || "", undefined, { sensitivity: "base" })
+  );
+  res.status(200).json({ success: true, count: sortedInMemory.length, data: sortedInMemory });
 };
 
 router.get("/list", getTeachersHandler);

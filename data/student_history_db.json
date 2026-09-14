@@ -376,5 +376,77 @@
     "actor": "Admin / Faculty",
     "id": "hist-1789030154293-mxvk",
     "created_at": "2026-09-10T08:49:14.293Z"
+  },
+  {
+    "student_id": "test-stu-1789388317104",
+    "student_name": "Alexander Hamilton",
+    "event_type": "SCHEDULE_ASSIGNMENT",
+    "title": "Enrolled in Class: 3D Printing",
+    "description": "Class on Mondays (10:00 AM - 11:30 AM) at Lab-A with faculty Dr. Ramesh Kumar.",
+    "metadata": {
+      "schedule_id": "sch-1789369659096-yz7f",
+      "course_name": "3D Printing",
+      "day_of_week": "Monday",
+      "time_slot": "10:00 AM - 11:30 AM",
+      "room": "Lab-A",
+      "teacher_name": "Dr. Ramesh Kumar"
+    },
+    "actor": "Academic Registrar",
+    "id": "hist-1789388319810-vo5h",
+    "created_at": "2026-09-14T12:18:39.810Z"
+  },
+  {
+    "student_id": "test-stu-1789388362890",
+    "student_name": "Alexander Hamilton",
+    "event_type": "SCHEDULE_ASSIGNMENT",
+    "title": "Enrolled in Class: 3D Printing",
+    "description": "Class on Mondays (10:00 AM - 11:30 AM) at Lab-A with faculty Dr. Ramesh Kumar.",
+    "metadata": {
+      "schedule_id": "sch-1789369659096-yz7f",
+      "course_name": "3D Printing",
+      "day_of_week": "Monday",
+      "time_slot": "10:00 AM - 11:30 AM",
+      "room": "Lab-A",
+      "teacher_name": "Dr. Ramesh Kumar"
+    },
+    "actor": "Academic Registrar",
+    "id": "hist-1789388363380-rfxp",
+    "created_at": "2026-09-14T12:19:23.380Z"
+  },
+  {
+    "student_id": "test-stu-1789388415813",
+    "student_name": "Alexander Hamilton",
+    "event_type": "SCHEDULE_ASSIGNMENT",
+    "title": "Enrolled in Class: 3D Printing",
+    "description": "Class on Mondays (10:00 AM - 11:30 AM) at Lab-A with faculty Dr. Ramesh Kumar.",
+    "metadata": {
+      "schedule_id": "sch-1789369659096-yz7f",
+      "course_name": "3D Printing",
+      "day_of_week": "Monday",
+      "time_slot": "10:00 AM - 11:30 AM",
+      "room": "Lab-A",
+      "teacher_name": "Dr. Ramesh Kumar"
+    },
+    "actor": "Academic Registrar",
+    "id": "hist-1789388416501-r34k",
+    "created_at": "2026-09-14T12:20:16.501Z"
+  },
+  {
+    "student_id": "test-stu-1789388479310",
+    "student_name": "Alexander Hamilton",
+    "event_type": "SCHEDULE_ASSIGNMENT",
+    "title": "Enrolled in Class: 3D Printing",
+    "description": "Class on Mondays (10:00 AM - 11:30 AM) at Lab-A with faculty Dr. Ramesh Kumar.",
+    "metadata": {
+      "schedule_id": "sch-1789369659096-yz7f",
+      "course_name": "3D Printing",
+      "day_of_week": "Monday",
+      "time_slot": "10:00 AM - 11:30 AM",
+      "room": "Lab-A",
+      "teacher_name": "Dr. Ramesh Kumar"
+    },
+    "actor": "Academic Registrar",
+    "id": "hist-1789388480329-2hv2",
+    "created_at": "2026-09-14T12:21:20.329Z"
   }
 ]
