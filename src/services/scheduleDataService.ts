@@ -335,6 +335,8 @@ export class ScheduleDataService {
    * List all schedule slots with mapped students
    */
   static async listSchedules(): Promise<ScheduleSlot[]> {
+    let baseList: ScheduleSlot[] = [];
+
     // 1. Attempt Supabase fetch
     try {
       const { data: schedData, error: schedErr } = await supabaseAdmin
@@ -348,7 +350,7 @@ export class ScheduleDataService {
           .from("schedule_students")
           .select("*");
 
-        const mappedList: ScheduleSlot[] = schedData.map((s: any) => {
+        baseList = schedData.map((s: any) => {
           const sbStudents = studentMap ? studentMap.filter((sm: any) => sm.schedule_id === s.id) : [];
           const localSlot = localScheduleStore.getScheduleById(s.id);
           const localStudents = localSlot?.students || [];
@@ -389,17 +391,84 @@ export class ScheduleDataService {
             updated_at: s.updated_at
           };
         });
-
-        return mappedList.sort((a, b) =>
-          (a.course_name || "").localeCompare(b.course_name || "", undefined, { sensitivity: "base" })
-        );
       }
     } catch (err) {
       console.warn("Supabase schedules query fallback to local store:", err);
     }
 
-    // 2. Return from local persistent store
-    return localScheduleStore.getAllSchedules().sort((a, b) =>
+    // Fallback to local persistent store if baseList empty
+    if (baseList.length === 0) {
+      baseList = localScheduleStore.getAllSchedules();
+    }
+
+    // 2. Synchronize active Course timetable slots into the schedule list
+    try {
+      const { data: coursesData } = await supabaseAdmin
+        .from("courses")
+        .select("id, name, course_material, assigned_teachers");
+
+      if (coursesData && coursesData.length > 0) {
+        coursesData.forEach((crs: any) => {
+          let scheduleArr: any[] = [];
+          if (crs.course_material) {
+            try {
+              const meta = typeof crs.course_material === "string" ? JSON.parse(crs.course_material) : crs.course_material;
+              if (Array.isArray(meta.schedule)) scheduleArr = meta.schedule;
+            } catch {
+              // ignore parse errors
+            }
+          }
+          if (Array.isArray(crs.schedule)) {
+            scheduleArr = [...scheduleArr, ...crs.schedule];
+          }
+
+          scheduleArr.forEach((cSlot: any) => {
+            if (!cSlot || !cSlot.day) return;
+            const slotId = cSlot.id || `sch-course-${crs.id}-${cSlot.day}-${cSlot.startTime || cSlot.slot || "slot"}`;
+            const timeSlotStr = cSlot.slot || (cSlot.startTime && cSlot.endTime ? `${cSlot.startTime} - ${cSlot.endTime}` : "09:00 AM - 10:30 AM");
+            const startTimeStr = cSlot.startTime || (timeSlotStr.split("-")[0] || "09:00 AM").trim();
+            const endTimeStr = cSlot.endTime || (timeSlotStr.split("-")[1] || "10:30 AM").trim();
+
+            const existingIdx = baseList.findIndex(s => s.id === slotId);
+            const matchedSlot = existingIdx >= 0 ? baseList[existingIdx] : undefined;
+            const existingStudents: ScheduleStudent[] = (matchedSlot && Array.isArray(matchedSlot.students)) ? matchedSlot.students : [];
+
+            const synthesizedSlot: ScheduleSlot = {
+              id: slotId,
+              course_id: crs.id,
+              course_name: crs.name,
+              teacher_id: cSlot.teacherId || "",
+              teacher_name: cSlot.teacherName || "Staff Faculty",
+              day_of_week: cSlot.day,
+              start_time: startTimeStr,
+              end_time: endTimeStr,
+              time_slot: timeSlotStr,
+              room: cSlot.room || "Computer Lab 1",
+              location: "Main Academic Center",
+              max_capacity: 15,
+              is_active: true,
+              students: existingStudents,
+              created_at: new Date().toISOString()
+            };
+
+            if (existingIdx >= 0 && baseList[existingIdx]) {
+              baseList[existingIdx] = {
+                ...baseList[existingIdx]!,
+                ...synthesizedSlot,
+                students: existingStudents
+              };
+            } else {
+              baseList.push(synthesizedSlot);
+              localScheduleStore.saveSchedule(synthesizedSlot);
+            }
+          });
+        });
+      }
+    } catch (courseSyncErr) {
+      console.warn("Course schedule sync notice:", courseSyncErr);
+    }
+
+    return baseList.sort((a, b) =>
       (a.course_name || "").localeCompare(b.course_name || "", undefined, { sensitivity: "base" })
     );
   }
@@ -684,6 +753,26 @@ export class ScheduleDataService {
     try {
       await supabaseAdmin.from("schedule_students").delete().eq("schedule_id", id);
       await supabaseAdmin.from("schedules").delete().eq("id", id);
+
+      // Also clean from course_material.schedule if present
+      const { data: coursesData } = await supabaseAdmin.from("courses").select("id, course_material");
+      if (coursesData) {
+        for (const crs of coursesData) {
+          if (crs.course_material) {
+            try {
+              const meta = typeof crs.course_material === "string" ? JSON.parse(crs.course_material) : crs.course_material;
+              if (Array.isArray(meta.schedule) && meta.schedule.some((s: any) => s.id === id)) {
+                meta.schedule = meta.schedule.filter((s: any) => s.id !== id);
+                await supabaseAdmin.from("courses").update({
+                  course_material: JSON.stringify(meta)
+                }).eq("id", crs.id);
+              }
+            } catch {
+              // ignore parse errors
+            }
+          }
+        }
+      }
     } catch (err) {
       console.warn("Supabase schedule delete notice:", err);
     }

@@ -24,6 +24,7 @@ import alertsRouter from "./routes/alerts.js";
 import notificationsRouter from "./routes/notifications.js";
 import { initializeAutomatedEmailScheduler } from "./services/automatedEmailService.js";
 import { reloadStudentsService } from "./services/studentService.js";
+import { dispatchMultiChannelNotification } from "./services/notificationService.js";
 
 dotenv.config();
 
@@ -116,6 +117,26 @@ app.post("/api/auth/provision-credentials", async (req, res) => {
         authUserId = created.user.id;
       } else if (createErr) {
         console.warn("Notice admin.createUser:", createErr.message);
+
+        // If user already exists, update user to ensure email_confirm is true and password is set
+        try {
+          const { data: usersList } = await supabaseAdmin.auth.admin.listUsers();
+          const existingUser = usersList?.users?.find(u => u.email?.toLowerCase() === cleanEmail);
+          if (existingUser) {
+            authUserId = existingUser.id;
+            await supabaseAdmin.auth.admin.updateUserById(existingUser.id, {
+              password: cleanPassword,
+              email_confirm: true,
+              user_metadata: {
+                full_name: fullName || existingUser.user_metadata?.full_name || "",
+                role: assignedRole,
+                ...(metadata || {})
+              }
+            });
+          }
+        } catch (updateErr: any) {
+          console.warn("Notice updating existing auth user:", updateErr?.message);
+        }
       }
     } catch (e: any) {
       console.warn("admin.createUser exception:", e?.message);
@@ -135,6 +156,38 @@ app.post("/api/auth/provision-credentials", async (req, res) => {
       await supabaseAdmin.from("profiles").upsert(profileRow, { onConflict: "email" });
     } catch (pErr: any) {
       console.warn("Profiles upsert notice:", pErr?.message);
+    }
+
+    // Dispatch Direct Welcome Credentials Email via Gmail SMTP
+    try {
+      const appUrl = process.env.APP_URL || "http://localhost:5174/login";
+      const htmlEmailMessage = `
+        <div style="font-family: 'Segoe UI', Tahoma, sans-serif; color: #1e293b; line-height: 1.6;">
+          <p>Dear <strong>${fullName || cleanEmail.split("@")[0]}</strong>,</p>
+          <p>Welcome to <strong>Top Grade Learning</strong>! Your official institutional account has been successfully created and verified.</p>
+          <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px; margin: 20px 0;">
+            <p style="margin: 0 0 10px 0; font-size: 15px; font-weight: bold; color: #004ac6;">🔑 Account Login Details:</p>
+            <p style="margin: 6px 0;"><strong>Role:</strong> <span style="background:#e0e7ff; color:#3730a3; padding:2px 8px; border-radius:6px; font-weight:bold; font-size:12px;">${assignedRole}</span></p>
+            <p style="margin: 6px 0;"><strong>Portal Login Email:</strong> <code style="font-size:14px; color:#0f172a;">${cleanEmail}</code></p>
+            <p style="margin: 6px 0;"><strong>Password:</strong> <code style="background:#f1f5f9; padding:3px 8px; border-radius:4px; font-weight:bold; color:#0f172a; font-size:14px;">${cleanPassword}</code></p>
+            <p style="margin: 6px 0;"><strong>Portal Access Link:</strong> <a href="${appUrl}" style="color:#004ac6; font-weight:bold;">${appUrl}</a></p>
+          </div>
+          <p>You can immediately log in to access your course schedules, academic reports, and learning resources without waiting for email verification.</p>
+          <p style="font-size: 12px; color: #64748b; margin-top: 25px;">For security, please change your password after your first login if desired.</p>
+        </div>
+      `;
+
+      await dispatchMultiChannelNotification({
+        eventType: "ADMISSION_APPROVED",
+        subject: `🔐 Your Top Grade Learning Login Credentials (${assignedRole})`,
+        message: htmlEmailMessage,
+        recipients: [
+          { role: assignedRole as any, email: cleanEmail, name: fullName || assignedRole }
+        ],
+        actionUrl: appUrl
+      });
+    } catch (emailErr: any) {
+      console.warn("Notice dispatching credentials email:", emailErr?.message);
     }
 
     return res.status(200).json({ success: true, email: cleanEmail, role: assignedRole, authUserId });

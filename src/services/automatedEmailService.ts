@@ -200,8 +200,115 @@ export async function sendExamGoodLuckWishes(student: StudentDossier, examDate: 
   }
 }
 
+export function parseDobMonthAndDay(dobStr?: string): { month: number; day: number } | null {
+  if (!dobStr || typeof dobStr !== "string") return null;
+  const clean = dobStr.trim();
+  if (!clean) return null;
+
+  // 1. Try YYYY-MM-DD or YYYY/MM/DD
+  const isoMatch = clean.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (isoMatch && isoMatch[2] && isoMatch[3]) {
+    const month = parseInt(isoMatch[2], 10);
+    const day = parseInt(isoMatch[3], 10);
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      return { month, day };
+    }
+  }
+
+  // 2. Try MM/DD/YYYY or MM-DD-YYYY
+  const usMatch = clean.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+  if (usMatch && usMatch[1] && usMatch[2]) {
+    const month = parseInt(usMatch[1], 10);
+    const day = parseInt(usMatch[2], 10);
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      return { month, day };
+    }
+  }
+
+  // 3. Fallback: JS Date parsing
+  const parsed = new Date(clean);
+  if (!isNaN(parsed.getTime())) {
+    return { month: parsed.getUTCMonth() + 1, day: parsed.getUTCDate() };
+  }
+
+  return null;
+}
+
 /**
- * Scans all student records to trigger automated Birthday and Exam Good Luck greetings
+ * Builds HTML template for Teacher Birthday greetings
+ */
+function buildTeacherBirthdayHtml(teacherName: string): string {
+  return `
+    <div style="font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0fdf4; padding: 25px; border-radius: 18px; border: 2px solid #4ade80;">
+      <div style="text-align: center; margin-bottom: 20px;">
+        <span style="font-size: 48px;">🎉 🎂 💐</span>
+        <h1 style="color: #15803d; margin: 10px 0 5px 0; font-size: 26px;">Happy Birthday, ${teacherName}!</h1>
+        <p style="color: #166534; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; font-size: 12px; margin: 0;">Warmest Wishes from the Top Grade Learning Family</p>
+      </div>
+      <div style="background: #ffffff; padding: 25px; border-radius: 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); color: #334155; line-height: 1.7; font-size: 14px;">
+        <p>Dear <strong>${teacherName}</strong>,</p>
+        <p>Today, all of us at <strong>Top Grade Learning</strong> celebrate you! 🌟 Thank you for your tireless dedication, passion for education, and the extraordinary inspiration you bring to your students each and every day.</p>
+        <p>May this new year of your life bring you abundant happiness, health, fulfillment, and great success in all your personal and professional endeavors.</p>
+        <div style="margin: 20px 0; padding: 16px; background: #f0fdf4; border-left: 4px solid #22c55e; border-radius: 8px; font-style: italic; color: #14532d;">
+          "A great teacher inspires hope, ignites the imagination, and instills a love of learning." — We are honored to have you on our team!
+        </div>
+        <p>Enjoy your special day to the fullest!</p>
+        <p style="margin-top: 25px; font-weight: bold; color: #004ac6;">
+          With Deep Gratitude & Warm Regards,<br/>
+          <strong>Top Grade Learning Leadership Team</strong><br/>
+          <span style="font-size: 12px; color: #64748b; font-weight: normal;">topgradelearning101@gmail.com</span>
+        </p>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Dispatches an automated birthday email to a teacher
+ */
+export async function sendTeacherBirthdayGreetings(teacher: { id: string; name: string; email: string; phone?: string }): Promise<boolean> {
+  const currentYear = new Date().getFullYear();
+  const todayStr: string = new Date().toISOString().split("T")[0] || "";
+
+  if (!teacher.email) return false;
+
+  try {
+    await dispatchMultiChannelNotification({
+      eventType: "ADMISSION_APPROVED",
+      subject: `🎂 Happy Birthday, ${teacher.name}! Warmest Wishes from Top Grade Learning 🎉`,
+      message: buildTeacherBirthdayHtml(teacher.name),
+      recipients: [
+        {
+          role: "TEACHER",
+          email: teacher.email,
+          name: teacher.name,
+          phone: teacher.phone || ""
+        }
+      ]
+    });
+
+    sentLogs.push({
+      studentId: teacher.id,
+      studentCode: teacher.id,
+      type: "BIRTHDAY",
+      dateSent: todayStr,
+      year: currentYear,
+      recipientEmails: [teacher.email]
+    });
+    saveSentLogs();
+    return true;
+  } catch (err: any) {
+    console.error(`Failed to dispatch teacher birthday email for ${teacher.name}:`, err.message);
+    return false;
+  }
+}
+
+export function getBirthdayLogs() {
+  return sentLogs;
+}
+
+/**
+ * Scans all student and teacher records across Supabase & in-memory store to trigger automated Birthday and Exam Good Luck greetings
  */
 export async function runAutomatedEmailScan(): Promise<{ birthdaysSent: number; examWishesSent: number; details: string[] }> {
   const today = new Date();
@@ -214,48 +321,74 @@ export async function runAutomatedEmailScan(): Promise<{ birthdaysSent: number; 
   let examWishesSent = 0;
   const details: string[] = [];
 
-  // Iterate over inMemoryStudentStore
-  for (const student of inMemoryStudentStore) {
+  // 1. Gather all students from in-memory store + live Supabase table
+  const allStudentsMap = new Map<string, StudentDossier>();
+  inMemoryStudentStore.forEach(s => {
+    const key = (s.id || s.studentCode || s.email || "").toLowerCase();
+    if (key) allStudentsMap.set(key, s);
+  });
+
+  try {
+    const { data: sbStudents } = await supabaseAdmin.from("students").select("*");
+    if (sbStudents && Array.isArray(sbStudents)) {
+      sbStudents.forEach((st: any) => {
+        const key = (st.id || st.student_id_code || st.email || "").toLowerCase();
+        const existing = allStudentsMap.get(key);
+        const merged: StudentDossier = {
+          id: st.id || existing?.id || "",
+          studentCode: st.student_id_code || existing?.studentCode || "",
+          fullName: st.name || existing?.fullName || "Student",
+          email: st.email || existing?.email || "",
+          primaryMobile: st.primary_mobile || existing?.primaryMobile || "",
+          dob: st.dob || existing?.dob || "",
+          examDate: (st.medical_notes && st.medical_notes.startsWith("EXAM_DATE:")) 
+            ? st.medical_notes.replace("EXAM_DATE:", "") 
+            : (st.exam_date || existing?.examDate || ""),
+          studentEmails: st.email ? [st.email] : (existing?.studentEmails || []),
+          parentEmails: st.parent_email ? [st.parent_email] : (existing?.parentEmails || []),
+          school: st.school || existing?.school || "TopGrade Partner School",
+          program: st.program || existing?.program || "Academic Coaching",
+          status: st.status || existing?.status || "ACTIVE"
+        };
+        allStudentsMap.set(key, merged);
+      });
+    }
+  } catch (err: any) {
+    console.warn("Notice querying Supabase students for birthday scan:", err.message);
+  }
+
+  // Iterate over all students
+  for (const student of allStudentsMap.values()) {
     const studentIdentifier = student.id || student.studentCode;
     if (!studentIdentifier) continue;
 
-    // 1. Birthday Check
+    // A. Student Birthday Check
     if (student.dob) {
-      try {
-        const dobParts = student.dob.split("-");
-        if (dobParts.length === 3 && dobParts[1] && dobParts[2]) {
-          const dobMonth = parseInt(dobParts[1], 10);
-          const dobDay = parseInt(dobParts[2], 10);
+      const parsed = parseDobMonthAndDay(student.dob);
+      if (parsed && parsed.month === currentMonth && parsed.day === currentDay) {
+        const alreadySent = sentLogs.some(
+          l => (l.studentId === studentIdentifier || l.studentCode === student.studentCode) &&
+               l.type === "BIRTHDAY" &&
+               l.year === currentYear
+        );
 
-          if (dobMonth === currentMonth && dobDay === currentDay) {
-            // Check if already sent this year
-            const alreadySent = sentLogs.some(
-              l => (l.studentId === studentIdentifier || l.studentCode === student.studentCode) &&
-                   l.type === "BIRTHDAY" &&
-                   l.year === currentYear
-            );
-
-            if (!alreadySent) {
-              const ok = await sendBirthdayGreetings(student);
-              if (ok) {
-                birthdaysSent++;
-                details.push(`🎂 Birthday email sent to ${student.fullName} (${student.studentCode})`);
-              }
-            }
+        if (!alreadySent) {
+          const ok = await sendBirthdayGreetings(student);
+          if (ok) {
+            birthdaysSent++;
+            details.push(`🎂 Birthday email sent to student ${student.fullName} (${student.studentCode || student.email})`);
           }
         }
-      } catch (e) {}
+      }
     }
 
-    // 2. Exam Date Check
-    const examDate = student.examDate || (student as any).exam_date;
+    // B. Exam Date Check
+    const examDate = student.examDate;
     if (examDate) {
       try {
-        // If exam is today or in the next 1-2 days
         const examDt = new Date(examDate);
         if (!isNaN(examDt.getTime())) {
           const diffDays = Math.ceil((examDt.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-          // If exam is today (0) or tomorrow (1) or in 2 days
           if (diffDays >= 0 && diffDays <= 2) {
             const alreadySent = sentLogs.some(
               l => (l.studentId === studentIdentifier || l.studentCode === student.studentCode) &&
@@ -272,8 +405,41 @@ export async function runAutomatedEmailScan(): Promise<{ birthdaysSent: number; 
             }
           }
         }
-      } catch (e) {}
+      } catch {}
     }
+  }
+
+  // 2. Scan Teachers for Birthdays
+  try {
+    const { data: teachersData } = await supabaseAdmin.from("teachers").select("*");
+    if (teachersData && Array.isArray(teachersData)) {
+      for (const t of teachersData) {
+        const teacherDob = t.dob || t.date_of_birth || t.birth_date;
+        if (teacherDob && t.email) {
+          const parsed = parseDobMonthAndDay(teacherDob);
+          if (parsed && parsed.month === currentMonth && parsed.day === currentDay) {
+            const alreadySent = sentLogs.some(
+              l => l.studentId === t.id && l.type === "BIRTHDAY" && l.year === currentYear
+            );
+
+            if (!alreadySent) {
+              const ok = await sendTeacherBirthdayGreetings({
+                id: t.id,
+                name: t.name || "Faculty Member",
+                email: t.email,
+                phone: t.phone || ""
+              });
+              if (ok) {
+                birthdaysSent++;
+                details.push(`🎉 Birthday email sent to teacher ${t.name} (${t.email})`);
+              }
+            }
+          }
+        }
+      }
+    }
+  } catch (tErr: any) {
+    console.warn("Notice querying Supabase teachers for birthday scan:", tErr.message);
   }
 
   return { birthdaysSent, examWishesSent, details };
@@ -285,12 +451,10 @@ export function initializeAutomatedEmailScheduler() {
   if (scanInterval) clearInterval(scanInterval);
 
   console.log("⏰ Automated Birthday & Exam Email Scanner initialized (Checking every 12 hours)...");
-  // Run once on startup after 5 seconds delay
   setTimeout(() => {
     runAutomatedEmailScan().catch(err => console.warn("Initial automated email scan notice:", err));
   }, 5000);
 
-  // Check every 12 hours
   scanInterval = setInterval(() => {
     runAutomatedEmailScan().catch(err => console.warn("Automated email scan interval notice:", err));
   }, 12 * 60 * 60 * 1000);

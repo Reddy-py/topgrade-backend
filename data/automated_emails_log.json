@@ -1,0 +1,13 @@
+[
+  {
+    "studentId": "TEST-101",
+    "studentCode": "TEST-101",
+    "type": "EXAM_GOOD_LUCK",
+    "dateSent": "2026-09-15",
+    "year": 2026,
+    "recipientEmails": [
+      "test-alex@topgradelearning.com",
+      "test-parent@topgradelearning.com"
+    ]
+  }
+]
