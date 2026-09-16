@@ -396,11 +396,6 @@ export class ScheduleDataService {
       console.warn("Supabase schedules query fallback to local store:", err);
     }
 
-    // Fallback to local persistent store if baseList empty
-    if (baseList.length === 0) {
-      baseList = localScheduleStore.getAllSchedules();
-    }
-
     // 2. Synchronize active Course timetable slots into the schedule list
     try {
       const { data: coursesData } = await supabaseAdmin
@@ -408,7 +403,7 @@ export class ScheduleDataService {
         .select("id, name, course_material");
 
       if (coursesData && coursesData.length > 0) {
-        const coursesWithSlots = new Set<string>();
+        const courseSchedules: ScheduleSlot[] = [];
 
         coursesData.forEach((crs: any) => {
           let scheduleArr: any[] = [];
@@ -426,10 +421,6 @@ export class ScheduleDataService {
             scheduleArr = [...scheduleArr, ...crs.schedule];
           }
 
-          if (scheduleArr.length > 0 && crs.name) {
-            coursesWithSlots.add(crs.name.trim().toLowerCase());
-          }
-
           const defaultTeacherName = assignedTeachersArr[0]?.name || "Staff Faculty";
           const defaultTeacherId = assignedTeachersArr[0]?.teacherId || "";
 
@@ -440,9 +431,8 @@ export class ScheduleDataService {
             const startTimeStr = cSlot.startTime || (timeSlotStr.split("-")[0] || "09:00 AM").trim();
             const endTimeStr = cSlot.endTime || (timeSlotStr.split("-")[1] || "10:30 AM").trim();
 
-            const existingIdx = baseList.findIndex(s => s.id === slotId);
-            const matchedSlot = existingIdx >= 0 ? baseList[existingIdx] : undefined;
-            const existingStudents: ScheduleStudent[] = (matchedSlot && Array.isArray(matchedSlot.students)) ? matchedSlot.students : [];
+            const existingSlot = localScheduleStore.getScheduleById(slotId) || baseList.find(s => s.id === slotId);
+            const existingStudents: ScheduleStudent[] = (existingSlot && Array.isArray(existingSlot.students)) ? existingSlot.students : [];
 
             const synthesizedSlot: ScheduleSlot = {
               id: slotId,
@@ -462,25 +452,12 @@ export class ScheduleDataService {
               created_at: new Date().toISOString()
             };
 
-            if (existingIdx >= 0 && baseList[existingIdx]) {
-              baseList[existingIdx] = {
-                ...baseList[existingIdx]!,
-                ...synthesizedSlot,
-                students: existingStudents
-              };
-            } else {
-              baseList.push(synthesizedSlot);
-              localScheduleStore.saveSchedule(synthesizedSlot);
-            }
+            courseSchedules.push(synthesizedSlot);
+            localScheduleStore.saveSchedule(synthesizedSlot);
           });
         });
 
-        // Prune stale mock slots for courses that have live timetable slots in Supabase
-        baseList = baseList.filter(s => {
-          const cName = (s.course_name || "").trim().toLowerCase();
-          if (!coursesWithSlots.has(cName)) return true;
-          return !s.id.includes("-yz7f") && !s.id.includes("-o5h5") && !s.id.includes("-3fvv");
-        });
+        baseList = courseSchedules;
       }
     } catch (courseSyncErr) {
       console.warn("Course schedule sync notice:", courseSyncErr);
