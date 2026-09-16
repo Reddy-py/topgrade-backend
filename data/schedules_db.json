@@ -32,5 +32,22 @@
     "is_active": true,
     "students": [],
     "created_at": "2026-09-16T04:53:18.777Z"
+  },
+  {
+    "id": "sch-1789534632287",
+    "course_id": "39915e34-eca1-42b4-9383-6695b48f9835",
+    "course_name": "3D Printing",
+    "teacher_id": "c717847c-2e46-4d80-82bb-a0ec51edc364",
+    "teacher_name": "Shahrazad Polk",
+    "day_of_week": "Tuesday",
+    "start_time": "10:00 AM",
+    "end_time": "11:00 AM",
+    "time_slot": "10:00 AM - 11:00 AM",
+    "room": "Computer Lab 1",
+    "location": "Main Academic Center",
+    "max_capacity": 15,
+    "is_active": true,
+    "students": [],
+    "created_at": "2026-09-16T04:58:04.838Z"
   }
 ]
