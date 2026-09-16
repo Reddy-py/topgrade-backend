@@ -282,7 +282,7 @@ export class ScheduleDataService {
    * Check for collisions: Teacher, Room, and Students
    */
   static async checkCollisions(params: {
-    scheduleIdToExclude?: string;
+    scheduleIdToExclude?: string | undefined;
     day_of_week: string;
     start_time: string;
     end_time: string;
@@ -405,15 +405,19 @@ export class ScheduleDataService {
     try {
       const { data: coursesData } = await supabaseAdmin
         .from("courses")
-        .select("id, name, course_material, assigned_teachers");
+        .select("id, name, course_material");
 
       if (coursesData && coursesData.length > 0) {
+        const coursesWithSlots = new Set<string>();
+
         coursesData.forEach((crs: any) => {
           let scheduleArr: any[] = [];
+          let assignedTeachersArr: any[] = [];
           if (crs.course_material) {
             try {
               const meta = typeof crs.course_material === "string" ? JSON.parse(crs.course_material) : crs.course_material;
-              if (Array.isArray(meta.schedule)) scheduleArr = meta.schedule;
+              if (Array.isArray(meta?.schedule)) scheduleArr = meta.schedule;
+              if (Array.isArray(meta?.assigned_teachers)) assignedTeachersArr = meta.assigned_teachers;
             } catch {
               // ignore parse errors
             }
@@ -421,6 +425,13 @@ export class ScheduleDataService {
           if (Array.isArray(crs.schedule)) {
             scheduleArr = [...scheduleArr, ...crs.schedule];
           }
+
+          if (scheduleArr.length > 0 && crs.name) {
+            coursesWithSlots.add(crs.name.trim().toLowerCase());
+          }
+
+          const defaultTeacherName = assignedTeachersArr[0]?.name || "Staff Faculty";
+          const defaultTeacherId = assignedTeachersArr[0]?.teacherId || "";
 
           scheduleArr.forEach((cSlot: any) => {
             if (!cSlot || !cSlot.day) return;
@@ -437,8 +448,8 @@ export class ScheduleDataService {
               id: slotId,
               course_id: crs.id,
               course_name: crs.name,
-              teacher_id: cSlot.teacherId || "",
-              teacher_name: cSlot.teacherName || "Staff Faculty",
+              teacher_id: cSlot.teacherId || defaultTeacherId,
+              teacher_name: cSlot.teacherName || defaultTeacherName,
               day_of_week: cSlot.day,
               start_time: startTimeStr,
               end_time: endTimeStr,
@@ -463,6 +474,13 @@ export class ScheduleDataService {
             }
           });
         });
+
+        // Prune stale mock slots for courses that have live timetable slots in Supabase
+        baseList = baseList.filter(s => {
+          const cName = (s.course_name || "").trim().toLowerCase();
+          if (!coursesWithSlots.has(cName)) return true;
+          return !s.id.includes("-yz7f") && !s.id.includes("-o5h5") && !s.id.includes("-3fvv");
+        });
       }
     } catch (courseSyncErr) {
       console.warn("Course schedule sync notice:", courseSyncErr);
@@ -474,9 +492,69 @@ export class ScheduleDataService {
   }
 
   /**
+   * Synchronize slot into Supabase course_material.schedule
+   */
+  static async syncSlotToSupabaseCourse(slot: ScheduleSlot) {
+    try {
+      const { data: courses } = await supabaseAdmin
+        .from("courses")
+        .select("id, name, course_material");
+      if (!courses || courses.length === 0) return;
+
+      const targetCourse = courses.find((c: any) =>
+        c.id === slot.course_id ||
+        (c.name && slot.course_name && c.name.trim().toLowerCase() === slot.course_name.trim().toLowerCase())
+      );
+      if (!targetCourse) return;
+
+      let meta: any = {};
+      try {
+        meta = typeof targetCourse.course_material === "string"
+          ? JSON.parse(targetCourse.course_material)
+          : (targetCourse.course_material || {});
+      } catch {
+        meta = {};
+      }
+
+      let curSchedule: any[] = Array.isArray(meta.schedule) ? meta.schedule : [];
+      const existingIdx = curSchedule.findIndex((s: any) =>
+        s.id === slot.id ||
+        (s.day === slot.day_of_week && (s.slot === slot.time_slot || (s.startTime === slot.start_time && s.endTime === slot.end_time)))
+      );
+
+      const slotCourseMeta = {
+        id: slot.id,
+        day: slot.day_of_week,
+        startTime: slot.start_time,
+        endTime: slot.end_time,
+        slot: slot.time_slot,
+        room: slot.room || "Computer Lab 1",
+        programTrack: "Core Foundations & Concepts",
+        teacherName: slot.teacher_name,
+        teacherId: slot.teacher_id
+      };
+
+      if (existingIdx >= 0) {
+        curSchedule[existingIdx] = { ...curSchedule[existingIdx], ...slotCourseMeta };
+      } else {
+        curSchedule.push(slotCourseMeta);
+      }
+
+      meta.schedule = curSchedule;
+
+      await supabaseAdmin.from("courses").update({
+        course_material: JSON.stringify(meta)
+      }).eq("id", targetCourse.id);
+    } catch (err) {
+      console.warn("syncSlotToSupabaseCourse notice:", err);
+    }
+  }
+
+  /**
    * Create a schedule slot
    */
   static async createSchedule(payload: {
+    id?: string;
     course_id: string;
     course_name: string;
     teacher_id: string;
@@ -491,8 +569,9 @@ export class ScheduleDataService {
   }): Promise<ScheduleSlot> {
     const studentIds = (payload.students || []).map(s => s.student_id);
 
-    // Run collision check
+    // Run collision check (exclude self if payload.id provided)
     const conflict = await this.checkCollisions({
+      scheduleIdToExclude: payload.id,
       day_of_week: payload.day_of_week,
       start_time: payload.start_time,
       end_time: payload.end_time,
@@ -506,7 +585,7 @@ export class ScheduleDataService {
     }
 
     const timeSlot = `${payload.start_time} - ${payload.end_time}`;
-    const scheduleId = `sch-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const scheduleId = payload.id || `sch-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     const nowIso = new Date().toISOString();
 
     const mappedStudents: ScheduleStudent[] = (payload.students || []).map(st => ({
@@ -539,6 +618,9 @@ export class ScheduleDataService {
 
     // Save to local store
     localScheduleStore.saveSchedule(newSlot);
+
+    // Bi-directional sync into Supabase course_material.schedule
+    await this.syncSlotToSupabaseCourse(newSlot);
 
     // Attempt Supabase insert
     try {
@@ -706,6 +788,9 @@ export class ScheduleDataService {
     };
 
     localScheduleStore.saveSchedule(updatedSlot);
+
+    // Bi-directional sync into Supabase course_material.schedule
+    await this.syncSlotToSupabaseCourse(updatedSlot);
 
     // Update in Supabase
     try {

@@ -104,6 +104,7 @@ const createScheduleSlotHandler = async (req: Request, res: Response): Promise<a
     }
 
     const createdSlot = await ScheduleDataService.createSchedule({
+      id: req.body.id,
       course_id: course_id || `crs-${Date.now()}`,
       course_name,
       teacher_id: teacher_id || "tchr-1",
