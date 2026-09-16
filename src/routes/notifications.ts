@@ -124,4 +124,64 @@ router.post("/send-exam-wishes", async (req, res): Promise<any> => {
   }
 });
 
+/**
+ * POST /api/notifications/send-birthday-wish/:studentId
+ * Send immediate birthday greeting to specific student and parents from topgradelearning101@gmail.com
+ */
+/**
+ * POST /api/notifications/send-birthday-wish/:studentId
+ * POST /api/notifications/send-birthday-wishes
+ * POST /api/notifications/send-birthday-wish
+ * Send immediate birthday greeting to student & parents from topgradelearning101@gmail.com
+ */
+const sendBirthdayWishHandler = async (req: express.Request, res: express.Response): Promise<any> => {
+  try {
+    const studentId = req.params?.studentId || req.body?.studentId;
+    const { studentName, studentEmail, parentEmail, dob } = req.body || {};
+    let student = inMemoryStudentStore.find(s => (studentId && (s.id === studentId || s.studentCode === studentId)) || (studentEmail && s.email && s.email.toLowerCase() === studentEmail.toLowerCase()));
+
+    if (!student && (studentEmail || studentName)) {
+      student = {
+        id: studentId || `stu-${Date.now()}`,
+        studentCode: studentId || "TG-STU",
+        fullName: studentName || "Student",
+        email: studentEmail || "",
+        studentEmails: studentEmail ? [studentEmail] : [],
+        parentEmails: parentEmail ? [parentEmail] : [],
+        dob: dob || "",
+        school: "Top Grade Academy",
+        status: "ACTIVE"
+      };
+    } else if (student) {
+      if (studentEmail && !student.studentEmails?.includes(studentEmail)) {
+        student.studentEmails = [...(student.studentEmails || []), studentEmail];
+      }
+      if (parentEmail && !student.parentEmails?.includes(parentEmail)) {
+        student.parentEmails = [...(student.parentEmails || []), parentEmail];
+      }
+      if (dob) student.dob = dob;
+    }
+
+    if (!student || (!student.email && (!student.studentEmails || student.studentEmails.length === 0))) {
+      return res.status(400).json({ success: false, error: "Student email address is missing." });
+    }
+
+    const ok = await sendBirthdayGreetings(student);
+    return res.status(200).json({
+      success: ok,
+      message: ok
+        ? `🎂 Happy Birthday greeting sent to ${student.fullName} (${student.email}) from topgrade101@gmail.com!`
+        : "Failed to dispatch birthday email."
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+router.post("/send-birthday-wish/:studentId", sendBirthdayWishHandler);
+router.post("/send-birthday-wish", sendBirthdayWishHandler);
+router.post("/send-birthday-wishes", sendBirthdayWishHandler);
+
+
+
 export default router;

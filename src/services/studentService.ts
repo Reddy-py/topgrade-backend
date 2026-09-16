@@ -584,9 +584,9 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
     throw new Error(`Student with ID or Code '${id}' not found.`);
   }
 
-  const firstName = payload.firstName !== undefined ? payload.firstName.trim() : existing.firstName;
-  const lastName = payload.lastName !== undefined ? payload.lastName.trim() : existing.lastName;
-  const fullName = (firstName || lastName) ? `${firstName || ""} ${lastName || ""}`.trim() : (payload.fullName || existing.fullName);
+  const firstName = payload.firstName !== undefined ? payload.firstName.trim() : (payload.fullName ? payload.fullName.split(" ")[0] : existing.firstName);
+  const lastName = payload.lastName !== undefined ? payload.lastName.trim() : (payload.fullName ? payload.fullName.split(" ").slice(1).join(" ") : existing.lastName);
+  const fullName = payload.fullName ? payload.fullName.trim() : ((firstName || lastName) ? `${firstName || ""} ${lastName || ""}`.trim() : existing.fullName);
 
   const dobStr = payload.dob || existing.dob;
   const age = payload.dob ? calculateAgeFromDOB(dobStr) : (payload.age ?? existing.age);
@@ -609,7 +609,7 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
 
   inMemoryStudentStore[index] = updated;
   saveStudentsToDisk();
-  lastSupabaseStudentFetch = 0;
+  lastSupabaseStudentFetch = Date.now();
 
   // Real-time Supabase Update Sync
   try {
@@ -623,6 +623,8 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
       father_name: updated.fatherName || null,
       mother_name: updated.motherName || null,
       guardian: updated.guardianName || null,
+      father_phone: (updated.parentPhones && updated.parentPhones[0]) || updated.primaryMobile || null,
+      school: updated.school || null,
       address: updated.residentialAddress || "",
       alternate_address: updated.studentAddress || updated.alternateAddress || "",
       purchased_hours: updated.purchasedHours || 0,
@@ -631,7 +633,10 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
       teacher: updated.teacher || "Unassigned",
       status: updated.status || "Active"
     };
-    await supabaseAdmin.from("students").update(updateFields).eq("student_id_code", updated.studentCode);
+    await supabaseAdmin
+      .from("students")
+      .update(updateFields)
+      .or(`id.eq.${id},student_id_code.eq.${updated.studentCode},student_id_code.eq.${id}`);
 
     if (updated.examDate && updated.examDate !== existing.examDate) {
       sendExamGoodLuckWishes(updated, updated.examDate).catch(err =>
@@ -763,8 +768,8 @@ export async function changeStudentPasswordService(params: {
       subject: `🔑 Security Alert: Student Password Updated — ${student.fullName} (${student.studentCode})`,
       message: `Dear Administrator & Accountant,\n\nStudent ${student.fullName} (ID: ${student.studentCode}, Email: ${student.email}) has updated their portal login password.\n\nTime: ${new Date().toLocaleString()}\nStatus: 1-Time Self Service Used (Future changes require Admin reset)\n\nTopGrade Security Center`,
       recipients: [
-        { role: "ADMIN", email: "sivareddy683970@gmail.com", name: "System Administrator" },
-        { role: "ACCOUNTANT", email: "accountant@topgrade.edu", name: "Lead Accountant" }
+        { role: "ADMIN", email: process.env.ADMIN_EMAIL || "topgrade101@gmail.com", name: "System Administrator" },
+        { role: "ACCOUNTANT", email: process.env.ACCOUNTANT_EMAIL || "sivareddy683970@gmail.com", name: "Lead Accountant" }
       ]
     });
   } catch (emailErr) {
@@ -811,8 +816,8 @@ export async function requestPasswordResetService(params: {
       subject: `⚠️ Action Required: Password Reset Requested — ${targetName} (${targetCode})`,
       message: `Dear Administrator & Accountant,\n\nStudent ${targetName} (ID: ${targetCode}, Email: ${targetEmail}) has requested a secondary password reset after using their 1-time password change limit.\n\nPlease log in to the Admin Portal to manage their credentials.\n\nTopGrade Security Management`,
       recipients: [
-        { role: "ADMIN", email: "sivareddy683970@gmail.com", name: "System Administrator" },
-        { role: "ACCOUNTANT", email: "accountant@topgrade.edu", name: "Lead Accountant" }
+        { role: "ADMIN", email: process.env.ADMIN_EMAIL || "topgrade101@gmail.com", name: "System Administrator" },
+        { role: "ACCOUNTANT", email: process.env.ACCOUNTANT_EMAIL || "sivareddy683970@gmail.com", name: "Lead Accountant" }
       ]
     });
   } catch (err) {
@@ -872,23 +877,15 @@ export async function verifyLoginRoleService(emailOrCode: string) {
     return {
       success: true,
       role: "STUDENT",
-      student: {
-        id: matchingStudent.id,
-        studentCode: matchingStudent.studentCode,
-        fullName: matchingStudent.fullName,
-        email: matchingStudent.email,
-        school: matchingStudent.school,
-        grade: matchingStudent.grade,
-        hasChangedPassword: !!matchingStudent.hasChangedPassword,
-        passwordChangedCount: matchingStudent.passwordChangedCount || 0
-      }
+      student: matchingStudent
     };
   }
 
-  // 3. Parent match
+  // 2. Check Parent Database
   const matchingParent = inMemoryStudentStore.find(
-    s => (s.parentEmails || []).some(e => e.toLowerCase() === query)
+    s => s.parentEmails?.some(e => e.toLowerCase() === query)
   );
+
   if (matchingParent) {
     return {
       success: true,
@@ -897,12 +894,14 @@ export async function verifyLoginRoleService(emailOrCode: string) {
     };
   }
 
-  // 4. System Roles
-  if (query.includes("teacher")) return { success: true, role: "TEACHER" };
-  if (query.includes("accountant")) return { success: true, role: "ACCOUNTANT" };
-  if (query === "admin@topgrade.edu" || query.startsWith("admin@") || query.includes("admin_") || query === "admin") {
+  // 3. System Roles
+  if (query === "topgrade101@gmail.com" || query === "topgradelearning101@gmail.com" || query === "admin@topgrade.edu" || query.startsWith("admin@") || query.includes("admin_") || query === "admin") {
     return { success: true, role: "ADMIN" };
   }
+  if (query === "sivareddy683970@gmail.com" || query === "sivareddy68397@gmail.com" || query === "accountant@topgrade.edu" || query.includes("accountant")) {
+    return { success: true, role: "ACCOUNTANT" };
+  }
+  if (query.includes("teacher")) return { success: true, role: "TEACHER" };
 
   // Any other registered student email
   return { success: true, role: "STUDENT" };

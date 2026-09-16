@@ -247,7 +247,7 @@
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
-    "examDate": "",
+    "examDate": "2026-11-20",
     "purchasedHours": 20,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
@@ -255,7 +255,8 @@
         "courseName": "GT prep/ Math & Reading",
         "duration": "3 Months"
       }
-    ]
+    ],
+    "updatedAt": "2026-09-16T06:57:25.028Z"
   },
   {
     "id": "99688e31-31de-4eb0-b4e3-55b833fc306d",
@@ -3356,11 +3357,11 @@
     "motherName": "Lakshmi",
     "guardianName": "",
     "program": "General Academic Track",
-    "teacher": "Unassigned",
-    "residentialAddress": "",
-    "studentAddress": "",
-    "alternateAddress": "",
-    "examDate": "",
+    "teacher": "Tamara Gipson",
+    "residentialAddress": "JRG, AP 534447",
+    "studentAddress": "JRG, AP 534447",
+    "alternateAddress": "JRG, AP 534447",
+    "examDate": "2026-09-16",
     "purchasedHours": 20,
     "feePlan": "Standard Plan",
     "allocatedCourses": [

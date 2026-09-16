@@ -140,6 +140,8 @@ export const updateStudentHandler = async (req: AuthenticatedRequest, res: expre
 
 router.put("/:id", updateStudentHandler);
 router.put("/edit/:id", updateStudentHandler);
+router.post("/update/:id", updateStudentHandler);
+router.post("/edit/:id", updateStudentHandler);
 
 /**
  * DELETE /api/students/:id
@@ -217,7 +219,7 @@ router.post("/de-enroll/request", authenticateJwt, async (req: AuthenticatedRequ
     message: `De-enrollment request submitted for ${studentName} (${courseName || "General Course"}). Reason: ${reason}. Awaiting Admin Approval.`,
     recipients: [
       { role: "PARENT", email: "parent@topgrade.edu", name: "Parent", phone: "" },
-      { role: "ADMIN", email: "admin@topgrade.edu", name: "System Administrator", phone: "" }
+      { role: "ADMIN", email: process.env.ADMIN_EMAIL || "topgradelearning101@gmail.com", name: "System Administrator", phone: "" }
     ]
   });
 

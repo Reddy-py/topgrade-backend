@@ -9,5 +9,86 @@
       "test-alex@topgradelearning.com",
       "test-parent@topgradelearning.com"
     ]
+  },
+  {
+    "studentId": "test-id",
+    "studentCode": "test-id",
+    "type": "BIRTHDAY",
+    "dateSent": "2026-09-16",
+    "year": 2026,
+    "recipientEmails": [
+      "student@example.com",
+      "parent@example.com"
+    ]
+  },
+  {
+    "studentId": "ec40d0c0-c9b4-436a-9e73-f3e34d424fab",
+    "studentCode": "TG-STU-2026-3632",
+    "type": "BIRTHDAY",
+    "dateSent": "2026-09-16",
+    "year": 2026,
+    "recipientEmails": [
+      "sivareddy683970@gmail.com"
+    ]
+  },
+  {
+    "studentId": "ec40d0c0-c9b4-436a-9e73-f3e34d424fab",
+    "studentCode": "TG-STU-2026-3632",
+    "type": "EXAM_GOOD_LUCK",
+    "dateSent": "2026-09-16",
+    "year": 2026,
+    "recipientEmails": [
+      "sivareddy683970@gmail.com"
+    ]
+  },
+  {
+    "studentId": "ec40d0c0-c9b4-436a-9e73-f3e34d424fab",
+    "studentCode": "TG-STU-2026-3632",
+    "type": "EXAM_GOOD_LUCK",
+    "dateSent": "2026-09-16",
+    "year": 2026,
+    "recipientEmails": [
+      "sivareddy683970@gmail.com"
+    ]
+  },
+  {
+    "studentId": "ec40d0c0-c9b4-436a-9e73-f3e34d424fab",
+    "studentCode": "TG-STU-2026-3632",
+    "type": "EXAM_GOOD_LUCK",
+    "dateSent": "2026-09-16",
+    "year": 2026,
+    "recipientEmails": [
+      "sivareddy683970@gmail.com"
+    ]
+  },
+  {
+    "studentId": "ec40d0c0-c9b4-436a-9e73-f3e34d424fab",
+    "studentCode": "TG-STU-2026-3632",
+    "type": "BIRTHDAY",
+    "dateSent": "2026-09-16",
+    "year": 2026,
+    "recipientEmails": [
+      "sivareddy683970@gmail.com"
+    ]
+  },
+  {
+    "studentId": "ec40d0c0-c9b4-436a-9e73-f3e34d424fab",
+    "studentCode": "TG-STU-2026-3632",
+    "type": "BIRTHDAY",
+    "dateSent": "2026-09-16",
+    "year": 2026,
+    "recipientEmails": [
+      "sivareddy683970@gmail.com"
+    ]
+  },
+  {
+    "studentId": "404d8a36-5e35-4292-be90-66f78c3bf4e4",
+    "studentCode": "TG-STU-2026-5030-B",
+    "type": "EXAM_GOOD_LUCK",
+    "dateSent": "2026-09-16",
+    "year": 2026,
+    "recipientEmails": [
+      "aarshiv.5030b@student.topgrade.edu"
+    ]
   }
 ]

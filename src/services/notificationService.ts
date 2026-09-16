@@ -102,10 +102,12 @@ export async function dispatchMultiChannelNotification(payload: NotificationPayl
   const { transporter, gmailUser } = getTransporter();
 
   for (const recipient of payload.recipients) {
-    // If recipient email is missing or dummy topgrade.edu address, default to gmailUser so admin receives copy
+    // If recipient email is missing or dummy topgrade.edu address, route to configured admin / accountant
     let emailTarget = recipient.email;
     if (!emailTarget || emailTarget.endsWith("@topgrade.edu")) {
-      emailTarget = gmailUser;
+      emailTarget = recipient.role === "ACCOUNTANT"
+        ? (process.env.ACCOUNTANT_EMAIL || "sivareddy683970@gmail.com")
+        : (process.env.ADMIN_EMAIL || "topgrade101@gmail.com");
     }
 
     const phoneTarget = recipient.phone || "+1 555 019 9999";
@@ -114,7 +116,7 @@ export async function dispatchMultiChannelNotification(payload: NotificationPayl
     // Real Gmail Send if Transporter configured
     if (transporter && emailTarget) {
       try {
-        const senderAddress = process.env.GMAIL_SENDER_EMAIL || "topgradelearning101@gmail.com";
+        const senderAddress = process.env.GMAIL_SENDER_EMAIL || "topgrade101@gmail.com";
         const isRawHtml = (payload.message || "").trim().startsWith("<");
         const htmlContent = isRawHtml ? payload.message : buildHtmlEmailTemplate(
           payload.subject,

@@ -448,5 +448,41 @@
     "actor": "Academic Registrar",
     "id": "hist-1789388480329-2hv2",
     "created_at": "2026-09-14T12:21:20.329Z"
+  },
+  {
+    "student_id": "ec40d0c0-c9b4-436a-9e73-f3e34d424fab",
+    "student_name": "Siva Reddy",
+    "event_type": "SCHEDULE_ASSIGNMENT",
+    "title": "Enrolled in Class: 3D Printing",
+    "description": "Class on Tuesdays (05:00 PM - 06:00 PM) at Computer Lab 1 with faculty Tamara Gipson.",
+    "metadata": {
+      "schedule_id": "sch-1789536766680-tuesday-854",
+      "course_name": "3D Printing",
+      "day_of_week": "Tuesday",
+      "time_slot": "05:00 PM - 06:00 PM",
+      "room": "Computer Lab 1",
+      "teacher_name": "Tamara Gipson"
+    },
+    "actor": "Academic Registrar",
+    "id": "hist-1789539819332-fz4b",
+    "created_at": "2026-09-16T06:23:39.332Z"
+  },
+  {
+    "student_id": "ec40d0c0-c9b4-436a-9e73-f3e34d424fab",
+    "student_name": "Siva Reddy",
+    "event_type": "SCHEDULE_ASSIGNMENT",
+    "title": "Enrolled in Class: 3D Printing",
+    "description": "Class on Tuesdays (05:00 PM - 06:00 PM) at Computer Lab 1 with faculty Tamara Gipson.",
+    "metadata": {
+      "schedule_id": "sch-1789536766680-tuesday-854",
+      "course_name": "3D Printing",
+      "day_of_week": "Tuesday",
+      "time_slot": "05:00 PM - 06:00 PM",
+      "room": "Computer Lab 1",
+      "teacher_name": "Tamara Gipson"
+    },
+    "actor": "Academic Registrar",
+    "id": "hist-1789539889397-5sgu",
+    "created_at": "2026-09-16T06:24:49.397Z"
   }
 ]
