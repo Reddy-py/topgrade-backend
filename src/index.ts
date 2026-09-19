@@ -269,6 +269,9 @@ app.get("/api/crm-info", (_req, res) => {
 app.get("/", (req, res) => {
   res.json({ status: "online", system: "Topgrade CRM API Engine v1.0.0" });
 });
+app.get("/api/health", (req, res) => {
+  res.json({ status: "online", system: "Topgrade CRM API Engine v1.0.0" });
+});
 
 // Start listening
 if (process.env.NODE_ENV !== "test") {

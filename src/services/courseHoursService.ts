@@ -34,6 +34,10 @@ export interface StudentCourseBalanceRecord {
   totalPurchasedHours: number;
   availableHours: number;
   usedHours: number;
+  tokens_remaining?: number; // Granular Hour-as-Token: Prepaid hours available
+  tokens_consumed?: number;  // Granular Hour-as-Token: Hours deducted upon attendance (1:1)
+  hourly_rate?: number;      // Granular token rate ($/hr or INR/hr)
+  max_hours?: number;        // Course ceiling limit (e.g. 25 hrs)
   status: "ACTIVE" | "EXHAUSTED" | "EXPIRED";
   quotaWarningTriggered: boolean;
   teacherWarningMessage?: string | undefined;
@@ -72,6 +76,10 @@ export const studentCourseBalancesStore: StudentCourseBalanceRecord[] = [
     totalPurchasedHours: 50,
     availableHours: 34,
     usedHours: 16,
+    tokens_remaining: 34,
+    tokens_consumed: 16,
+    hourly_rate: 40.00,
+    max_hours: 25,
     status: "ACTIVE",
     quotaWarningTriggered: false,
     updatedAt: new Date().toISOString()
@@ -86,9 +94,13 @@ export const studentCourseBalancesStore: StudentCourseBalanceRecord[] = [
     totalPurchasedHours: 20,
     availableHours: 2, // Low capacity threshold for warning test
     usedHours: 18,
+    tokens_remaining: 2,
+    tokens_consumed: 18,
+    hourly_rate: 40.00,
+    max_hours: 25,
     status: "ACTIVE",
     quotaWarningTriggered: true,
-    teacherWarningMessage: "⚠️ Quota Warning: Student has <= 2 sessions remaining!",
+    teacherWarningMessage: "⚠️ Low Token Warning: 2 hours left",
     updatedAt: new Date().toISOString()
   }
 ];
@@ -111,6 +123,10 @@ export class CourseHoursService {
     if (balance) {
       balance.totalPurchasedHours += hoursToAdd;
       balance.availableHours += hoursToAdd;
+      balance.tokens_remaining = balance.availableHours;
+      balance.tokens_consumed = balance.usedHours;
+      balance.hourly_rate = balance.hourly_rate || 40.00;
+      balance.max_hours = balance.max_hours || 25;
       balance.status = "ACTIVE";
       balance.updatedAt = nowIso;
     } else {
@@ -124,6 +140,10 @@ export class CourseHoursService {
         totalPurchasedHours: hoursToAdd,
         availableHours: hoursToAdd,
         usedHours: 0,
+        tokens_remaining: hoursToAdd,
+        tokens_consumed: 0,
+        hourly_rate: 40.00,
+        max_hours: 25,
         status: "ACTIVE",
         quotaWarningTriggered: false,
         updatedAt: nowIso
@@ -132,9 +152,9 @@ export class CourseHoursService {
     }
 
     // 2. Check Quota Warning Threshold (availableHours <= 2)
-    if (balance.availableHours <= 2) {
+    if ((balance.tokens_remaining ?? 0) <= 2) {
       balance.quotaWarningTriggered = true;
-      balance.teacherWarningMessage = `⚠️ Quota Warning: Student '${input.studentName}' has only ${balance.availableHours} session(s) remaining!`;
+      balance.teacherWarningMessage = `⚠️ Low Token Warning: ${balance.tokens_remaining ?? 0} hours left`;
     } else {
       balance.quotaWarningTriggered = false;
       balance.teacherWarningMessage = undefined;
@@ -231,8 +251,151 @@ export class CourseHoursService {
   public static getTeacherRosterView() {
     return studentCourseBalancesStore.map(b => ({
       ...b,
-      remainingClassesText: `${b.availableHours} classes remaining`,
-      isLowQuotaWarning: b.availableHours <= 2
+      remainingClassesText: `${b.tokens_remaining ?? b.availableHours} classes remaining`,
+      isLowQuotaWarning: (b.tokens_remaining ?? b.availableHours) <= 2
     }));
+  }
+
+  /**
+   * 3. Get Student Course Balance by studentId and course identifier
+   */
+  public static getStudentCourseBalance(studentId: string, courseIdOrName?: string): StudentCourseBalanceRecord | undefined {
+    if (!studentId) return undefined;
+    const cleanStudentId = studentId.trim().toLowerCase();
+    const cleanCourse = (courseIdOrName || "").trim().toLowerCase();
+
+    // Direct match
+    let match = studentCourseBalancesStore.find(b => {
+      const bStudent = b.studentId.toLowerCase();
+      const bCourseId = b.courseId.toLowerCase();
+      const bCourseName = b.courseName.toLowerCase();
+      const studentMatches = bStudent === cleanStudentId || b.id.toLowerCase() === cleanStudentId;
+      if (!studentMatches) return false;
+      if (!cleanCourse) return true;
+      return bCourseId === cleanCourse || bCourseName === cleanCourse || cleanCourse.includes(bCourseName) || bCourseName.includes(cleanCourse);
+    });
+
+    if (match) return match;
+
+    // Fallback: match by studentId alone if single course enrollment exists
+    return studentCourseBalancesStore.find(b => b.studentId.toLowerCase() === cleanStudentId);
+  }
+
+  /**
+   * 4. Deduct 1 Token on Attendance Roll-Call (1:1 deduction when marked PRESENT)
+   */
+  public static deductTokenOnAttendance(studentId: string, courseIdOrName?: string) {
+    let balance = this.getStudentCourseBalance(studentId, courseIdOrName);
+    const nowIso = new Date().toISOString();
+
+    if (!balance) {
+      // Initialize dynamic balance on first attendance if not previously created
+      balance = {
+        id: `bal-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        studentId,
+        studentName: "Enrolled Student",
+        courseId: courseIdOrName || "crs-active",
+        courseName: courseIdOrName || "Active Course Track",
+        pricingModel: "HOURLY_CREDIT_PACKAGE",
+        totalPurchasedHours: 20,
+        availableHours: 20,
+        usedHours: 0,
+        tokens_remaining: 20,
+        tokens_consumed: 0,
+        hourly_rate: 40.00,
+        max_hours: 25,
+        status: "ACTIVE",
+        quotaWarningTriggered: false,
+        updatedAt: nowIso
+      };
+      studentCourseBalancesStore.unshift(balance);
+    }
+
+    // Granular token deduction 1:1
+    balance.tokens_remaining = Math.max(0, (balance.tokens_remaining ?? balance.availableHours ?? 0) - 1);
+    balance.tokens_consumed = (balance.tokens_consumed ?? balance.usedHours ?? 0) + 1;
+    balance.availableHours = balance.tokens_remaining;
+    balance.usedHours = balance.tokens_consumed;
+    balance.updatedAt = nowIso;
+
+    // Check low quota threshold (<= 2 tokens remaining)
+    if (balance.tokens_remaining <= 2) {
+      balance.quotaWarningTriggered = true;
+      balance.teacherWarningMessage = `⚠️ Low Token Warning: ${balance.tokens_remaining} hours left`;
+    } else {
+      balance.quotaWarningTriggered = false;
+      balance.teacherWarningMessage = undefined;
+    }
+
+    if (balance.tokens_remaining === 0) {
+      balance.status = "EXHAUSTED";
+    }
+
+    return {
+      success: true,
+      tokens_remaining: balance.tokens_remaining,
+      tokens_consumed: balance.tokens_consumed,
+      isLowQuotaWarning: balance.tokens_remaining <= 2,
+      warningMessage: balance.teacherWarningMessage,
+      balance
+    };
+  }
+
+  /**
+   * 5. Granular Token Credit upon UPI / Online Verification
+   */
+  public static creditTokens(input: {
+    studentId: string;
+    studentName?: string;
+    courseId: string;
+    courseName?: string;
+    tokensPurchased: number;
+    hourlyRate?: number;
+    maxHours?: number;
+  }) {
+    const hoursToAdd = Number(input.tokensPurchased) || 1;
+    const nowIso = new Date().toISOString();
+
+    let balance = this.getStudentCourseBalance(input.studentId, input.courseId || input.courseName);
+    if (balance) {
+      balance.totalPurchasedHours += hoursToAdd;
+      balance.availableHours += hoursToAdd;
+      balance.tokens_remaining = balance.availableHours;
+      balance.hourly_rate = input.hourlyRate || balance.hourly_rate || 40.00;
+      balance.max_hours = input.maxHours || balance.max_hours || 25;
+      balance.status = "ACTIVE";
+      balance.updatedAt = nowIso;
+    } else {
+      balance = {
+        id: `bal-${Date.now()}`,
+        studentId: input.studentId,
+        studentName: input.studentName || "Student",
+        courseId: input.courseId,
+        courseName: input.courseName || "Course Track",
+        pricingModel: "HOURLY_CREDIT_PACKAGE",
+        totalPurchasedHours: hoursToAdd,
+        availableHours: hoursToAdd,
+        usedHours: 0,
+        tokens_remaining: hoursToAdd,
+        tokens_consumed: 0,
+        hourly_rate: input.hourlyRate || 40.00,
+        max_hours: input.maxHours || 25,
+        status: "ACTIVE",
+        quotaWarningTriggered: false,
+        updatedAt: nowIso
+      };
+      studentCourseBalancesStore.unshift(balance);
+    }
+
+    // Clear low token warning if quota restored
+    if ((balance.tokens_remaining ?? 0) > 2) {
+      balance.quotaWarningTriggered = false;
+      balance.teacherWarningMessage = undefined;
+    } else {
+      balance.quotaWarningTriggered = true;
+      balance.teacherWarningMessage = `⚠️ Low Token Warning: ${balance.tokens_remaining ?? 0} hours left`;
+    }
+
+    return balance;
   }
 }

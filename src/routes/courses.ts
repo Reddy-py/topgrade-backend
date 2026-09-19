@@ -28,6 +28,8 @@ export interface CourseData {
   grade_eligibility: string[];
   duration: string;
   fee: number;
+  hourly_rate?: number;
+  max_hours?: number;
   max_students: number;
   enrolled_students: number;
   status: "Active" | "Upcoming" | "Completed";
@@ -69,6 +71,8 @@ export let inMemoryCourses: CourseData[] = OFFICIAL_COURSES.map((c, idx) => ({
   grade_eligibility: [c.age_group],
   duration: c.duration,
   fee: c.fee,
+  hourly_rate: 40.00,
+  max_hours: 25,
   max_students: c.max_students,
   enrolled_students: 0,
   status: "Active",
@@ -108,6 +112,8 @@ export const getCoursesHandler = async (req: express.Request, res: express.Respo
           grade_eligibility: [],
           duration: c.duration || "6 Months",
           fee: Number(c.fee) || 0,
+          hourly_rate: Number(materialObj.hourly_rate) || 40.00,
+          max_hours: Number(materialObj.max_hours) || 25,
           max_students: Number(c.max_students) || 20,
           enrolled_students: 0,
           status: c.status || "Active",
@@ -268,6 +274,8 @@ export const editCourseHandler = async (req: express.Request, res: express.Respo
     grade_eligibility: Array.isArray(c.gradeEligibility) ? c.gradeEligibility : (c.grade_eligibility !== undefined ? c.grade_eligibility : currentCourse.grade_eligibility),
     duration: c.duration !== undefined ? c.duration : currentCourse.duration,
     fee: c.fee !== undefined ? parseFloat(c.fee) : currentCourse.fee,
+    hourly_rate: c.hourly_rate !== undefined ? parseFloat(c.hourly_rate) : (currentCourse.hourly_rate || 40.00),
+    max_hours: c.max_hours !== undefined ? parseInt(c.max_hours) : (currentCourse.max_hours || 25),
     max_students: c.maxStudents !== undefined ? parseInt(c.maxStudents) : (c.max_students !== undefined ? parseInt(c.max_students) : currentCourse.max_students),
     enrolled_students: currentCourse.enrolled_students,
     status: c.status !== undefined ? c.status : currentCourse.status,

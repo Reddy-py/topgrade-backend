@@ -41,14 +41,31 @@ router.get("/list", authenticateJwt, authorizePermission("fees.view"), async (re
       query = query.in("student_id", studentIds);
     }
 
-    const { data, error } = await query.order("created_at", { ascending: false });
+    const { data, error } = await query.order("payment_date", { ascending: false });
 
-    if (error || !data || data.length === 0) {
-      res.status(200).json({ success: true, data: inMemoryPayments });
-      return;
+    const formattedDbFees = (data || []).map((f: any) => ({
+      id: f.id,
+      receipt_number: `REC-${(f.id || "").slice(0, 8).toUpperCase()}`,
+      student_id: f.student_id,
+      student_name: f.student_name,
+      original_amount: Number(f.amount_paid) || 0,
+      discount_amount: 0,
+      amount_paid: Number(f.amount_paid) || 0,
+      final_payable_amount: Number(f.amount_paid) || 0,
+      payment_method: "bank_transfer_neft",
+      fee_type: f.fee_type || "Tuition Fee",
+      payment_date: f.payment_date || f.created_at,
+      status: f.status || "Completed"
+    }));
+
+    const allFees = [...formattedDbFees];
+    for (const mem of inMemoryPayments) {
+      if (!allFees.some(f => f.id === mem.id)) {
+        allFees.push(mem);
+      }
     }
 
-    res.status(200).json({ success: true, data });
+    res.status(200).json({ success: true, data: allFees });
   } catch (error: any) {
     res.status(200).json({ success: true, data: inMemoryPayments });
   }
@@ -70,7 +87,7 @@ router.post("/pay", authenticateJwt, authorizePermission("fees.pay"), async (req
     const paymentRecord = {
       id: `pay-${Date.now()}`,
       receipt_number: receiptNumber,
-      student_id: p.studentId || "std-1",
+      student_id: p.studentId || null,
       student_name: p.studentName || "Student",
       original_amount: originalAmount,
       discount_amount: discountAmount,
@@ -94,19 +111,36 @@ router.post("/pay", authenticateJwt, authorizePermission("fees.pay"), async (req
 
     let savedData = paymentRecord;
 
+    // Persist directly into Supabase 'fees' table
     try {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(p.studentId || "");
+      const supabaseFeeRow = {
+        student_id: isUuid ? p.studentId : null,
+        student_name: p.studentName || "Student",
+        fee_type: p.feeType || "Tuition Fee",
+        amount_paid: finalPayable,
+        payment_date: new Date().toISOString(),
+        status: isCheque ? "Pending Clearance" : "Completed"
+      };
+
       const { data, error } = await supabaseAdmin
-        .from("payments")
-        .insert([paymentRecord])
+        .from("fees")
+        .insert([supabaseFeeRow])
         .select()
         .single();
 
       if (!error && data) {
-        savedData = data;
+        savedData = {
+          ...paymentRecord,
+          id: data.id,
+          receipt_number: receiptNumber
+        };
       } else {
+        console.warn("Notice: Supabase fee insert fallback:", error?.message);
         inMemoryPayments.unshift(paymentRecord);
       }
-    } catch (err) {
+    } catch (err: any) {
+      console.warn("Supabase fee insert caught:", err?.message);
       inMemoryPayments.unshift(paymentRecord);
     }
 

@@ -5,6 +5,7 @@ import { inMemoryStudentStore } from "../services/studentService.js";
 import { supabaseAdmin } from "../supabase.js";
 import { sendDailyAttendanceRollCallEmail, sendMonthlyAttendanceSummaryEmail } from "../services/notificationService.js";
 import { ScheduleDataService } from "../services/scheduleDataService.js";
+import { CourseHoursService } from "../services/courseHoursService.js";
 
 const router = express.Router();
 
@@ -151,11 +152,30 @@ router.post("/daily-rollcall", async (req, res): Promise<any> => {
         }).catch(err => console.warn("Roll-call parent email warning:", err));
       }
 
+      // 4. Granular Token Deduction on Attendance Roll-Call (1:1 deduction if PRESENT)
+      let tokenDeduction: any = null;
+      if (status === "PRESENT") {
+        tokenDeduction = CourseHoursService.deductTokenOnAttendance(studentId, courseName || scheduleId);
+      } else {
+        const bal = CourseHoursService.getStudentCourseBalance(studentId, courseName || scheduleId);
+        tokenDeduction = {
+          success: true,
+          tokens_remaining: bal ? (bal.tokens_remaining ?? bal.availableHours ?? 0) : 0,
+          tokens_consumed: bal ? (bal.tokens_consumed ?? bal.usedHours ?? 0) : 0,
+          isLowQuotaWarning: bal ? ((bal.tokens_remaining ?? bal.availableHours ?? 0) <= 2) : true,
+          warningMessage: bal?.teacherWarningMessage
+        };
+      }
+
       processedRecords.push({
         studentId,
         studentName,
         status,
-        attendancePercentage
+        attendancePercentage,
+        tokens_remaining: tokenDeduction.tokens_remaining,
+        tokens_consumed: tokenDeduction.tokens_consumed,
+        isLowQuotaWarning: tokenDeduction.isLowQuotaWarning,
+        warningMessage: tokenDeduction.warningMessage
       });
     }
 

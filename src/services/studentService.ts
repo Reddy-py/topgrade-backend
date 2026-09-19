@@ -147,21 +147,21 @@ export async function getStudentsService(params: {
   currentUser?: { id?: string | undefined; email?: string | undefined; role?: string | undefined } | undefined;
 }) {
   const page = params.page || 1;
-  const limit = params.limit || 50;
+  const limit = params.limit ? Number(params.limit) : 500;
   const search = (params.search || "").trim().toLowerCase();
   const statusFilter = (params.status || "ALL").toUpperCase();
   const gradeFilter = (params.grade || "ALL");
   const user = params.currentUser;
 
-  if (params.refresh || Date.now() - lastSupabaseStudentFetch > 10000 || inMemoryStudentStore.length === 0) {
+  if (params.refresh || Date.now() - lastSupabaseStudentFetch > 3000 || inMemoryStudentStore.length === 0) {
     try {
-      const { data, error } = await supabaseAdmin.from("students").select("*").order("created_at", { ascending: false });
+      const { data, error } = await supabaseAdmin.from("students").select("*").order("name", { ascending: true });
       if (!error && data && data.length > 0) {
         lastSupabaseStudentFetch = Date.now();
         inMemoryStudentStore = data.map((s: any) => {
-          const rawSchool = s.school || (s.address && s.address.startsWith("School: ") ? s.address.replace("School: ", "") : "");
-          const rawGrade = s.grade || (s.nationality && s.nationality.startsWith("Grade: ") ? s.nationality.replace("Grade: ", "") : (s.nationality || "Grade 10"));
-          const cleanAddress = s.address && !s.address.startsWith("School: ") ? s.address : "";
+          const rawSchool = s.school || (s.address && s.address.includes("School: ") ? s.address.split("School: ")[1]?.trim() : (s.address && s.address.startsWith("School: ") ? s.address.replace("School: ", "").trim() : ""));
+          const rawGrade = s.grade || (s.nationality && s.nationality.startsWith("Grade: ") ? s.nationality.replace("Grade: ", "").trim() : (s.nationality || (s.age ? `Grade ${s.age > 12 ? 12 : s.age}` : "Grade 10")));
+          const cleanAddress = s.address ? s.address.split(" | School: ")[0]?.replace(/^School:.*$/, "").trim() : "";
           const studentAddress = s.student_address || s.alternate_address || "";
           const examDate = s.exam_date || (s.medical_notes && s.medical_notes.startsWith("EXAM_DATE:") ? s.medical_notes.replace("EXAM_DATE:", "") : "");
           const purchasedHours = Number(s.purchased_hours) || 20;
@@ -506,6 +506,13 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
       }
     }
 
+    const sbAddress = newStudent.residentialAddress
+      ? (newStudent.school ? `${newStudent.residentialAddress} | School: ${newStudent.school}` : newStudent.residentialAddress)
+      : (newStudent.school ? `School: ${newStudent.school}` : "");
+    const sbNationality = newStudent.grade
+      ? (newStudent.grade.startsWith("Grade") ? newStudent.grade : `Grade: ${newStudent.grade}`)
+      : null;
+
     const studentRow: any = {
       name: newStudent.fullName,
       student_id_code: newStudent.studentCode,
@@ -518,13 +525,14 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
       mother_name: newStudent.motherName || null,
       guardian: newStudent.guardianName || null,
       father_phone: cleanParentPhones[0] || null,
-      address: newStudent.residentialAddress || "",
+      nationality: sbNationality,
+      address: sbAddress,
       alternate_address: newStudent.studentAddress || newStudent.alternateAddress || "",
       purchased_hours: newStudent.purchasedHours || 20,
       medical_notes: newStudent.examDate ? `EXAM_DATE:${newStudent.examDate}` : null,
       program: newStudent.program || "General Academic Track",
       teacher: newStudent.teacher || "Unassigned",
-      status: newStudent.status || "Active"
+      status: newStudent.status || "ACTIVE"
     };
     if (authUserId) studentRow.user_id = authUserId;
 
@@ -578,7 +586,60 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
  * Service method to update an existing student dossier by ID with real-time disk persistence.
  */
 export async function updateStudentService(id: string, payload: Partial<StudentDossier>): Promise<StudentDossier> {
-  const index = inMemoryStudentStore.findIndex(s => s.id === id || s.studentCode === id);
+  let index = inMemoryStudentStore.findIndex(s => s.id === id || s.studentCode === id);
+  if (index === -1) {
+    // If not found in memory, try looking up in Supabase
+    try {
+      const { data: sbRow } = await supabaseAdmin
+        .from("students")
+        .select("*")
+        .or(`id.eq.${id},student_id_code.eq.${id}`)
+        .maybeSingle();
+
+      if (sbRow) {
+        const rawSchool = sbRow.school || (sbRow.address && sbRow.address.includes("School: ") ? sbRow.address.split("School: ")[1]?.trim() : (sbRow.address && sbRow.address.startsWith("School: ") ? sbRow.address.replace("School: ", "").trim() : ""));
+        const rawGrade = sbRow.grade || (sbRow.nationality && sbRow.nationality.startsWith("Grade: ") ? sbRow.nationality.replace("Grade: ", "").trim() : (sbRow.nationality || (sbRow.age ? `Grade ${sbRow.age > 12 ? 12 : sbRow.age}` : "Grade 10")));
+        const cleanAddress = sbRow.address ? sbRow.address.split(" | School: ")[0]?.replace(/^School:.*$/, "").trim() : "";
+        const examDate = sbRow.exam_date || (sbRow.medical_notes && sbRow.medical_notes.startsWith("EXAM_DATE:") ? sbRow.medical_notes.replace("EXAM_DATE:", "") : "");
+
+        const restored: StudentDossier = {
+          id: sbRow.id,
+          studentCode: sbRow.student_id_code || `TG-STU-${sbRow.id?.slice(0, 4)}`,
+          fullName: sbRow.name || "Student",
+          firstName: (sbRow.name || "").split(" ")[0] || "Student",
+          lastName: (sbRow.name || "").split(" ").slice(1).join(" ") || "",
+          email: sbRow.email,
+          dob: sbRow.dob || "2005-01-01",
+          age: sbRow.age || 18,
+          school: rawSchool || "Top Grade Academy",
+          grade: rawGrade || "Grade 10",
+          status: (sbRow.status || "ACTIVE").toUpperCase(),
+          primaryMobile: sbRow.phone || "",
+          studentPhones: sbRow.phone ? [sbRow.phone] : [],
+          parentPhones: sbRow.father_phone ? [sbRow.father_phone] : [],
+          studentEmails: sbRow.email ? [sbRow.email] : [],
+          parentEmails: sbRow.email ? [sbRow.email] : [],
+          fatherName: sbRow.father_name || "",
+          motherName: sbRow.mother_name || "",
+          guardianName: sbRow.guardian || "",
+          program: sbRow.program || "",
+          teacher: sbRow.teacher || "",
+          residentialAddress: cleanAddress,
+          studentAddress: sbRow.alternate_address || "",
+          alternateAddress: sbRow.alternate_address || "",
+          examDate: examDate,
+          purchasedHours: Number(sbRow.purchased_hours) || 20,
+          feePlan: sbRow.fee_plan || "Standard Plan",
+          allocatedCourses: sbRow.program ? [{ courseName: sbRow.program, duration: "3 Months" }] : []
+        };
+        inMemoryStudentStore.push(restored);
+        index = inMemoryStudentStore.length - 1;
+      }
+    } catch (findErr: any) {
+      console.warn("Supabase student find notice:", findErr?.message);
+    }
+  }
+
   const existing = inMemoryStudentStore[index];
   if (index === -1 || !existing) {
     throw new Error(`Student with ID or Code '${id}' not found.`);
@@ -609,10 +670,17 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
 
   inMemoryStudentStore[index] = updated;
   saveStudentsToDisk();
-  lastSupabaseStudentFetch = Date.now();
+  lastSupabaseStudentFetch = 0; // Invalidate cache so fresh data is read immediately
 
   // Real-time Supabase Update Sync
   try {
+    const sbAddress = updated.residentialAddress
+      ? (updated.school ? `${updated.residentialAddress} | School: ${updated.school}` : updated.residentialAddress)
+      : (updated.school ? `School: ${updated.school}` : "");
+    const sbNationality = updated.grade
+      ? (updated.grade.startsWith("Grade") ? updated.grade : `Grade: ${updated.grade}`)
+      : null;
+
     const updateFields: any = {
       name: updated.fullName,
       gender: updated.gender || "Male",
@@ -624,14 +692,14 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
       mother_name: updated.motherName || null,
       guardian: updated.guardianName || null,
       father_phone: (updated.parentPhones && updated.parentPhones[0]) || updated.primaryMobile || null,
-      school: updated.school || null,
-      address: updated.residentialAddress || "",
+      nationality: sbNationality,
+      address: sbAddress,
       alternate_address: updated.studentAddress || updated.alternateAddress || "",
       purchased_hours: updated.purchasedHours || 0,
       medical_notes: updated.examDate ? `EXAM_DATE:${updated.examDate}` : null,
       program: updated.program || "General Academic Track",
       teacher: updated.teacher || "Unassigned",
-      status: updated.status || "Active"
+      status: (updated.status || "ACTIVE").toUpperCase()
     };
     await supabaseAdmin
       .from("students")

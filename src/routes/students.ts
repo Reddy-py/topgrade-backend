@@ -68,7 +68,7 @@ router.post("/request-password-reset", requestPasswordResetHandler);
 export const getStudentsHandler = async (req: AuthenticatedRequest, res: express.Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 50;
+    const limit = parseInt(req.query.limit as string) || 500;
     const search = (req.query.search as string) || (req.query.q as string) || "";
     const status = (req.query.status as string) || "ALL";
     const grade = (req.query.grade as string) || "ALL";

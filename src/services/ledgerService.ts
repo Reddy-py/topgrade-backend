@@ -9,7 +9,7 @@ export interface InvoiceCreationInput {
 export interface PaymentProcessingInput {
   invoiceId: string;
   amountPaid: number;
-  paymentMethod: "CREDIT_CARD" | "CASH" | "BANK_TRANSFER" | "CHEQUE";
+  paymentMethod: "CREDIT_CARD" | "CASH" | "BANK_TRANSFER" | "CHEQUE" | "UPI";
   chequeNumber?: string | undefined;
   bankName?: string | undefined;
   clearanceRef?: string | undefined;
