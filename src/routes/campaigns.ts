@@ -56,7 +56,7 @@ router.post("/broadcast", authenticateJwt, authorizePermission("students.edit"),
     });
 
     // 3. Resolve Target Email Addresses
-    const adminEmail = process.env.GMAIL_USER || "sivareddy683970@gmail.com";
+    const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_SENDER_EMAIL || "topgradelearning101@gmail.com";
     const targetEmails: Array<{ role: "STUDENT" | "PARENT" | "ADMIN"; email: string; name: string }> = [
       { role: "ADMIN", email: adminEmail, name: "Campaign Administrator" }
     ];

@@ -81,7 +81,7 @@ const handleAdmissionSubmission = async (req: express.Request, res: express.Resp
     inMemoryAdmissions.unshift(newInquiry);
   }
 
-  const adminEmail = process.env.GMAIL_USER || "sivareddy683970@gmail.com";
+  const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_SENDER_EMAIL || "topgradelearning101@gmail.com";
 
   // Build Notification Recipients list
   const recipients: Array<{ role: "STUDENT" | "PARENT" | "ADMIN"; email: string; name: string }> = [
@@ -140,8 +140,8 @@ router.get("/list", authenticateJwt, authorizePermission("students.view"), async
 // 3. PROTECTED: Admin Approve Admission Inquiry
 router.post("/approve/:id", authenticateJwt, authorizePermission("students.create"), async (req: AuthenticatedRequest, res) => {
   const { id } = req.params;
-  const adminEmail = process.env.GMAIL_USER || "sivareddy683970@gmail.com";
-  const accountantEmail = process.env.ACCOUNTANT_EMAIL || adminEmail;
+  const adminEmail = process.env.ADMIN_EMAIL || "topgradelearning101@gmail.com";
+  const accountantEmail = process.env.ACCOUNTANT_EMAIL || "sivareddy683970@gmail.com";
 
   let targetInquiry: any = null;
 
@@ -213,7 +213,7 @@ router.post("/approve/:id", authenticateJwt, authorizePermission("students.creat
 // 4. PROTECTED: Admin Reject Admission Inquiry
 router.post("/reject/:id", authenticateJwt, authorizePermission("students.create"), async (req: AuthenticatedRequest, res) => {
   const { id } = req.params;
-  const adminEmail = process.env.GMAIL_USER || "sivareddy683970@gmail.com";
+  const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_SENDER_EMAIL || "topgradelearning101@gmail.com";
 
   let targetInquiry: any = null;
 

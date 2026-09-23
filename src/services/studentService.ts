@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { dispatchMultiChannelNotification } from "./notificationService.js";
-import { sendExamGoodLuckWishes } from "./automatedEmailService.js";
+import { sendExamGoodLuckWishes, sendBirthdayGreetings } from "./automatedEmailService.js";
 import { inMemoryTeachers } from "../routes/teachers.js";
 import { supabaseAdmin } from "../supabase.js";
 
@@ -551,6 +551,25 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
     );
   }
 
+  // Automatic Birthday Wish Email Trigger if Birthday is today
+  if (newStudent.dob) {
+    const today = new Date();
+    const curMonth = today.getMonth() + 1;
+    const curDay = today.getDate();
+    const parts = newStudent.dob.split(/[-/]/).map(Number);
+    let isBirthdayToday = false;
+    const [p0, p1, p2] = parts;
+    if (p0 !== undefined && p1 !== undefined && p2 !== undefined) {
+      if (p0 > 1900 && p1 === curMonth && p2 === curDay) isBirthdayToday = true;
+      else if (p2 > 1900 && p1 === curMonth && p0 === curDay) isBirthdayToday = true;
+    }
+    if (isBirthdayToday) {
+      sendBirthdayGreetings(newStudent).catch(err =>
+        console.warn("Auto birthday greeting error:", err)
+      );
+    }
+  }
+
   // Multi-Email Dispatch Notification to Respected Student & Parent Email Addresses
   try {
     const recipients: Array<{ role: "STUDENT" | "PARENT" | "TEACHER" | "ACCOUNTANT" | "ADMIN"; email: string; name: string; phone: string }> = [];
@@ -567,7 +586,11 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
       recipients.push({ role: "STUDENT", email: newStudent.email, name: newStudent.fullName, phone: newStudent.primaryMobile || "" });
     }
 
-    recipients.push({ role: "ADMIN", email: "sivareddy683970@gmail.com", name: "System Administrator", phone: "" });
+    const adminEmail = process.env.ADMIN_EMAIL || "topgradelearning101@gmail.com";
+    const accountantEmail = process.env.ACCOUNTANT_EMAIL || "sivareddy683970@gmail.com";
+
+    recipients.push({ role: "ADMIN", email: adminEmail, name: "System Administrator", phone: "" });
+    recipients.push({ role: "ACCOUNTANT", email: accountantEmail, name: "Accountant", phone: "" });
 
     await dispatchMultiChannelNotification({
       eventType: "PAYMENT_COMPLETED",
@@ -836,7 +859,7 @@ export async function changeStudentPasswordService(params: {
       subject: `🔑 Security Alert: Student Password Updated — ${student.fullName} (${student.studentCode})`,
       message: `Dear Administrator & Accountant,\n\nStudent ${student.fullName} (ID: ${student.studentCode}, Email: ${student.email}) has updated their portal login password.\n\nTime: ${new Date().toLocaleString()}\nStatus: 1-Time Self Service Used (Future changes require Admin reset)\n\nTopGrade Security Center`,
       recipients: [
-        { role: "ADMIN", email: process.env.ADMIN_EMAIL || "topgrade101@gmail.com", name: "System Administrator" },
+        { role: "ADMIN", email: process.env.ADMIN_EMAIL || "topgradelearning101@gmail.com", name: "System Administrator" },
         { role: "ACCOUNTANT", email: process.env.ACCOUNTANT_EMAIL || "sivareddy683970@gmail.com", name: "Lead Accountant" }
       ]
     });
@@ -884,7 +907,7 @@ export async function requestPasswordResetService(params: {
       subject: `⚠️ Action Required: Password Reset Requested — ${targetName} (${targetCode})`,
       message: `Dear Administrator & Accountant,\n\nStudent ${targetName} (ID: ${targetCode}, Email: ${targetEmail}) has requested a secondary password reset after using their 1-time password change limit.\n\nPlease log in to the Admin Portal to manage their credentials.\n\nTopGrade Security Management`,
       recipients: [
-        { role: "ADMIN", email: process.env.ADMIN_EMAIL || "topgrade101@gmail.com", name: "System Administrator" },
+        { role: "ADMIN", email: process.env.ADMIN_EMAIL || "topgradelearning101@gmail.com", name: "System Administrator" },
         { role: "ACCOUNTANT", email: process.env.ACCOUNTANT_EMAIL || "sivareddy683970@gmail.com", name: "Lead Accountant" }
       ]
     });

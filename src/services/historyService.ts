@@ -316,7 +316,7 @@ export class HistoryService {
       }
     }
 
-    const adminEmail = process.env.GMAIL_USER || "sivareddy683970@gmail.com";
+    const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_SENDER_EMAIL || "topgradelearning101@gmail.com";
 
     // Dispatch Re-enrollment Invitation Email
     await dispatchMultiChannelNotification({

@@ -219,7 +219,7 @@ export class AlertsService {
     customMessage?: string;
     metadata?: Record<string, any>;
   }) {
-    const adminEmail = process.env.GMAIL_USER || "sivareddy683970@gmail.com";
+    const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_SENDER_EMAIL || "topgradelearning101@gmail.com";
     const nowIso = new Date().toISOString();
 
     const targetStudents = input.studentId 

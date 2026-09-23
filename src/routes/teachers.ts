@@ -156,7 +156,7 @@ export const createTeacherHandler = async (req: express.Request, res: express.Re
   // Automatic Email Dispatch to Teacher, Admin, and Accountant
   try {
     const recipients: Array<{ role: "TEACHER" | "ADMIN" | "ACCOUNTANT"; email: string; name: string }> = [
-      { role: "ADMIN", email: process.env.ADMIN_EMAIL || "topgrade101@gmail.com", name: "TopGrade Admin" },
+      { role: "ADMIN", email: process.env.ADMIN_EMAIL || "topgradelearning101@gmail.com", name: "TopGrade Admin" },
       { role: "ACCOUNTANT", email: process.env.ACCOUNTANT_EMAIL || "sivareddy683970@gmail.com", name: "TopGrade Accountant" }
     ];
 

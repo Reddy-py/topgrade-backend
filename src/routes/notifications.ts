@@ -170,7 +170,7 @@ const sendBirthdayWishHandler = async (req: express.Request, res: express.Respon
     return res.status(200).json({
       success: ok,
       message: ok
-        ? `🎂 Happy Birthday greeting sent to ${student.fullName} (${student.email}) from topgrade101@gmail.com!`
+        ? `🎂 Happy Birthday greeting sent to ${student.fullName} (${student.email}) from topgradelearning101@gmail.com!`
         : "Failed to dispatch birthday email."
     });
   } catch (err: any) {

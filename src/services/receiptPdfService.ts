@@ -138,7 +138,7 @@ export class ReceiptPdfService {
    * 2. Automated Confirmation Email Dispatcher with Receipt Attachment
    */
   public static async dispatchReceiptEmail(data: ReceiptDataInput): Promise<void> {
-    const adminEmail = process.env.GMAIL_USER || "sivareddy683970@gmail.com";
+    const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_SENDER_EMAIL || "topgradelearning101@gmail.com";
     const receiptHtml = this.generateReceiptHtml(data);
 
     const recipients: Array<{ role: any; email: string; name: string }> = [

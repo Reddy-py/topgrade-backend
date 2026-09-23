@@ -443,7 +443,7 @@ router.post("/upi/verify", async (req, res): Promise<any> => {
     const emailRecipients: Array<{ role: "STUDENT" | "PARENT" | "ADMIN"; email: string; name: string }> = [
       { role: "PARENT", email: pEmail, name: pName },
       { role: "STUDENT", email: sEmail, name: sName },
-      { role: "ADMIN", email: process.env.ADMIN_EMAIL || "topgrade101@gmail.com", name: "System Administrator" }
+      { role: "ADMIN", email: process.env.ADMIN_EMAIL || "topgradelearning101@gmail.com", name: "System Administrator" }
     ];
 
     const confirmationHtml = `
@@ -493,7 +493,7 @@ router.post("/upi/verify", async (req, res): Promise<any> => {
           <p style="margin-top: 20px; font-weight: bold; color: #004ac6;">
             Warmest Regards,<br/>
             <strong>Top Grade Learning Accounts &amp; Admissions Division</strong><br/>
-            <span style="font-size: 11px; color: #64748b; font-weight: normal;">topgrade101@gmail.com</span>
+            <span style="font-size: 11px; color: #64748b; font-weight: normal;">topgradelearning101@gmail.com</span>
           </p>
         </div>
       </div>

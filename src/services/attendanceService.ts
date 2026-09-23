@@ -83,7 +83,7 @@ export class AttendanceService {
       r => r.studentId === studentInfo.studentId && r.date === todayStr && !r.checkOutTime
     );
 
-    const adminEmail = process.env.GMAIL_USER || "sivareddy683970@gmail.com";
+    const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_SENDER_EMAIL || "topgradelearning101@gmail.com";
     const parentEmail = studentInfo.parentEmail || adminEmail;
 
     if (openRecord) {
