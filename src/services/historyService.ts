@@ -306,7 +306,7 @@ export class HistoryService {
     customNote?: string;
   }) {
     const student = inMemoryStudentStore.find(s => s.id === input.studentId);
-    const targetEmail = student?.email || "sivareddy683970@gmail.com";
+    const targetEmail = student?.email || "sivareddy68397@gmail.com";
     const discount = input.offerDiscountCode || "RE-ENROLL-15";
 
     if (input.programType === "TUTORING") {
@@ -316,7 +316,7 @@ export class HistoryService {
       }
     }
 
-    const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_SENDER_EMAIL || "topgradelearning101@gmail.com";
+    const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_SENDER_EMAIL || "tglbiz101@gmail.com";
 
     // Dispatch Re-enrollment Invitation Email
     await dispatchMultiChannelNotification({

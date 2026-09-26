@@ -81,7 +81,7 @@ router.post("/send-exam-wish/:studentId", async (req, res): Promise<any> => {
 
 /**
  * POST /api/notifications/send-exam-wishes
- * Send immediate good luck wish to student and parent from topgradelearning101@gmail.com
+ * Send immediate good luck wish to student and parent from tglbiz101@gmail.com
  */
 router.post("/send-exam-wishes", async (req, res): Promise<any> => {
   try {
@@ -117,7 +117,7 @@ router.post("/send-exam-wishes", async (req, res): Promise<any> => {
     const ok = await sendExamGoodLuckWishes(student, dateToUse);
     return res.status(200).json({
       success: ok,
-      message: ok ? `Exam good luck email sent to ${student.fullName} and parents from topgradelearning101@gmail.com.` : "Failed to send exam email."
+      message: ok ? `Exam good luck email sent to ${student.fullName} and parents from tglbiz101@gmail.com.` : "Failed to send exam email."
     });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message });
@@ -126,13 +126,13 @@ router.post("/send-exam-wishes", async (req, res): Promise<any> => {
 
 /**
  * POST /api/notifications/send-birthday-wish/:studentId
- * Send immediate birthday greeting to specific student and parents from topgradelearning101@gmail.com
+ * Send immediate birthday greeting to specific student and parents from tglbiz101@gmail.com
  */
 /**
  * POST /api/notifications/send-birthday-wish/:studentId
  * POST /api/notifications/send-birthday-wishes
  * POST /api/notifications/send-birthday-wish
- * Send immediate birthday greeting to student & parents from topgradelearning101@gmail.com
+ * Send immediate birthday greeting to student & parents from tglbiz101@gmail.com
  */
 const sendBirthdayWishHandler = async (req: express.Request, res: express.Response): Promise<any> => {
   try {
@@ -170,7 +170,7 @@ const sendBirthdayWishHandler = async (req: express.Request, res: express.Respon
     return res.status(200).json({
       success: ok,
       message: ok
-        ? `🎂 Happy Birthday greeting sent to ${student.fullName} (${student.email}) from topgradelearning101@gmail.com!`
+        ? `🎂 Happy Birthday greeting sent to ${student.fullName} (${student.email}) from tglbiz101@gmail.com!`
         : "Failed to dispatch birthday email."
     });
   } catch (err: any) {

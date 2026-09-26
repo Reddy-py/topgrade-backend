@@ -156,8 +156,8 @@ export const createTeacherHandler = async (req: express.Request, res: express.Re
   // Automatic Email Dispatch to Teacher, Admin, and Accountant
   try {
     const recipients: Array<{ role: "TEACHER" | "ADMIN" | "ACCOUNTANT"; email: string; name: string }> = [
-      { role: "ADMIN", email: process.env.ADMIN_EMAIL || "topgradelearning101@gmail.com", name: "TopGrade Admin" },
-      { role: "ACCOUNTANT", email: process.env.ACCOUNTANT_EMAIL || "sivareddy683970@gmail.com", name: "TopGrade Accountant" }
+      { role: "ADMIN", email: process.env.ADMIN_EMAIL || "tglbiz101@gmail.com", name: "TopGrade Admin" },
+      { role: "ACCOUNTANT", email: process.env.ACCOUNTANT_EMAIL || "sivareddy68397@gmail.com", name: "TopGrade Accountant" }
     ];
 
     if (newTeacher.email && newTeacher.email.includes("@")) {
@@ -361,7 +361,7 @@ router.post("/assign-course", authenticateJwt, authorizePermission("teachers.edi
     message: `Dear ${teacherName},\nYou have been assigned to teach course "${courseName}". Please accept or decline this course assignment in your TopGrade Portal.\n\nWorkload Quota Status: ${assignedSessions + sessionsToAdd} / ${maxWeekly} sessions used.${warningMessage ? `\n⚠️ Warning: ${warningMessage}` : ""}`,
     recipients: [
       { role: "TEACHER", email: teacherEmail || "teacher@topgrade.edu", name: teacherName },
-      { role: "ADMIN", email: process.env.ADMIN_EMAIL || "topgradelearning101@gmail.com", name: "System Administrator" }
+      { role: "ADMIN", email: process.env.ADMIN_EMAIL || "tglbiz101@gmail.com", name: "System Administrator" }
     ]
   });
 
@@ -394,7 +394,7 @@ router.post("/respond-course/:assignmentId", authenticateJwt, async (req: Authen
     subject: `Teacher Course Response: ${action}`,
     message: `Teacher has ${action} the assigned course assignment (Ref: ${assignmentId}). Schedule updated.`,
     recipients: [
-      { role: "ADMIN", email: process.env.ADMIN_EMAIL || "topgradelearning101@gmail.com", name: "System Administrator" }
+      { role: "ADMIN", email: process.env.ADMIN_EMAIL || "tglbiz101@gmail.com", name: "System Administrator" }
     ]
   });
 

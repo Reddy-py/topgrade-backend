@@ -145,8 +145,8 @@ router.post("/pay", authenticateJwt, authorizePermission("fees.pay"), async (req
     }
 
     // Auto-dispatch Branded HTML Gmail Payment Receipt
-    const adminEmail = process.env.ADMIN_EMAIL || "topgradelearning101@gmail.com";
-    const accountantEmail = process.env.ACCOUNTANT_EMAIL || "sivareddy683970@gmail.com";
+    const adminEmail = process.env.ADMIN_EMAIL || "tglbiz101@gmail.com";
+    const accountantEmail = process.env.ACCOUNTANT_EMAIL || "sivareddy68397@gmail.com";
     const recipientEmail = p.parentEmail || p.studentEmail || adminEmail;
 
     await dispatchMultiChannelNotification({

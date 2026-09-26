@@ -27,7 +27,7 @@ export interface NotificationPayload {
  */
 function getTransporter(): { transporter: nodemailer.Transporter | null; gmailUser: string } {
   dotenv.config();
-  const gmailUser = process.env.GMAIL_USER || process.env.GMAIL_SENDER_EMAIL || "topgradelearning101@gmail.com";
+  const gmailUser = process.env.GMAIL_USER || process.env.GMAIL_SENDER_EMAIL || "tglbiz101@gmail.com";
   const gmailPass = process.env.GMAIL_APP_PASSWORD || "";
 
   if (gmailUser && gmailPass) {
@@ -106,8 +106,8 @@ export async function dispatchMultiChannelNotification(payload: NotificationPayl
     let emailTarget = recipient.email;
     if (!emailTarget || emailTarget.endsWith("@topgrade.edu")) {
       emailTarget = recipient.role === "ACCOUNTANT"
-        ? (process.env.ACCOUNTANT_EMAIL || "sivareddy683970@gmail.com")
-        : (process.env.ADMIN_EMAIL || "topgradelearning101@gmail.com");
+        ? (process.env.ACCOUNTANT_EMAIL || "sivareddy68397@gmail.com")
+        : (process.env.ADMIN_EMAIL || "tglbiz101@gmail.com");
     }
 
     const phoneTarget = recipient.phone || "+1 555 019 9999";
@@ -116,7 +116,7 @@ export async function dispatchMultiChannelNotification(payload: NotificationPayl
     // Real Gmail Send if Transporter configured
     if (transporter && emailTarget) {
       try {
-        const senderAddress = process.env.GMAIL_SENDER_EMAIL || "topgradelearning101@gmail.com";
+        const senderAddress = process.env.GMAIL_SENDER_EMAIL || "tglbiz101@gmail.com";
         const isRawHtml = (payload.message || "").trim().startsWith("<");
         const htmlContent = isRawHtml ? payload.message : buildHtmlEmailTemplate(
           payload.subject,

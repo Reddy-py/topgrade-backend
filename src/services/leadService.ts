@@ -141,7 +141,7 @@ export class LeadService {
     leadsStore.unshift(newLead);
 
     // Event Hook: Trigger Automated Welcome Email/SMS & Counselor Alert (Non-blocking async dispatch)
-    const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_SENDER_EMAIL || "topgradelearning101@gmail.com";
+    const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_SENDER_EMAIL || "tglbiz101@gmail.com";
     dispatchMultiChannelNotification({
       eventType: "ADMISSION_INQUIRY",
       subject: `🎉 Welcome to TopGrade Learning — Inquiry Received [${source}]`,

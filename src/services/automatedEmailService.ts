@@ -66,7 +66,7 @@ function buildBirthdayHtml(studentName: string): string {
         <p style="margin-top: 25px; font-weight: bold; color: #004ac6;">
           Warmest Regards,<br/>
           <strong>Top Grade Learning Team</strong><br/>
-          <span style="font-size: 12px; color: #64748b; font-weight: normal;">topgradelearning101@gmail.com</span>
+          <span style="font-size: 12px; color: #64748b; font-weight: normal;">tglbiz101@gmail.com</span>
         </p>
       </div>
     </div>
@@ -102,7 +102,7 @@ function buildExamGoodLuckHtml(studentName: string, examDate: string, courseName
         <p style="margin-top: 25px; font-weight: bold; color: #004ac6;">
           Believe in Yourself & Good Luck,<br/>
           <strong>Your Faculty & Top Grade Learning Team</strong><br/>
-          <span style="font-size: 12px; color: #64748b; font-weight: normal;">topgradelearning101@gmail.com</span>
+          <span style="font-size: 12px; color: #64748b; font-weight: normal;">tglbiz101@gmail.com</span>
         </p>
       </div>
     </div>
@@ -256,7 +256,7 @@ function buildTeacherBirthdayHtml(teacherName: string): string {
         <p style="margin-top: 25px; font-weight: bold; color: #004ac6;">
           With Deep Gratitude & Warm Regards,<br/>
           <strong>Top Grade Learning Leadership Team</strong><br/>
-          <span style="font-size: 12px; color: #64748b; font-weight: normal;">topgradelearning101@gmail.com</span>
+          <span style="font-size: 12px; color: #64748b; font-weight: normal;">tglbiz101@gmail.com</span>
         </p>
       </div>
     </div>

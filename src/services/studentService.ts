@@ -586,8 +586,8 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
       recipients.push({ role: "STUDENT", email: newStudent.email, name: newStudent.fullName, phone: newStudent.primaryMobile || "" });
     }
 
-    const adminEmail = process.env.ADMIN_EMAIL || "topgradelearning101@gmail.com";
-    const accountantEmail = process.env.ACCOUNTANT_EMAIL || "sivareddy683970@gmail.com";
+    const adminEmail = process.env.ADMIN_EMAIL || "tglbiz101@gmail.com";
+    const accountantEmail = process.env.ACCOUNTANT_EMAIL || "sivareddy68397@gmail.com";
 
     recipients.push({ role: "ADMIN", email: adminEmail, name: "System Administrator", phone: "" });
     recipients.push({ role: "ACCOUNTANT", email: accountantEmail, name: "Accountant", phone: "" });
@@ -859,8 +859,8 @@ export async function changeStudentPasswordService(params: {
       subject: `🔑 Security Alert: Student Password Updated — ${student.fullName} (${student.studentCode})`,
       message: `Dear Administrator & Accountant,\n\nStudent ${student.fullName} (ID: ${student.studentCode}, Email: ${student.email}) has updated their portal login password.\n\nTime: ${new Date().toLocaleString()}\nStatus: 1-Time Self Service Used (Future changes require Admin reset)\n\nTopGrade Security Center`,
       recipients: [
-        { role: "ADMIN", email: process.env.ADMIN_EMAIL || "topgradelearning101@gmail.com", name: "System Administrator" },
-        { role: "ACCOUNTANT", email: process.env.ACCOUNTANT_EMAIL || "sivareddy683970@gmail.com", name: "Lead Accountant" }
+        { role: "ADMIN", email: process.env.ADMIN_EMAIL || "tglbiz101@gmail.com", name: "System Administrator" },
+        { role: "ACCOUNTANT", email: process.env.ACCOUNTANT_EMAIL || "sivareddy68397@gmail.com", name: "Lead Accountant" }
       ]
     });
   } catch (emailErr) {
@@ -907,8 +907,8 @@ export async function requestPasswordResetService(params: {
       subject: `⚠️ Action Required: Password Reset Requested — ${targetName} (${targetCode})`,
       message: `Dear Administrator & Accountant,\n\nStudent ${targetName} (ID: ${targetCode}, Email: ${targetEmail}) has requested a secondary password reset after using their 1-time password change limit.\n\nPlease log in to the Admin Portal to manage their credentials.\n\nTopGrade Security Management`,
       recipients: [
-        { role: "ADMIN", email: process.env.ADMIN_EMAIL || "topgradelearning101@gmail.com", name: "System Administrator" },
-        { role: "ACCOUNTANT", email: process.env.ACCOUNTANT_EMAIL || "sivareddy683970@gmail.com", name: "Lead Accountant" }
+        { role: "ADMIN", email: process.env.ADMIN_EMAIL || "tglbiz101@gmail.com", name: "System Administrator" },
+        { role: "ACCOUNTANT", email: process.env.ACCOUNTANT_EMAIL || "sivareddy68397@gmail.com", name: "Lead Accountant" }
       ]
     });
   } catch (err) {
@@ -986,10 +986,24 @@ export async function verifyLoginRoleService(emailOrCode: string) {
   }
 
   // 3. System Roles
-  if (query === "topgrade101@gmail.com" || query === "topgradelearning101@gmail.com" || query === "admin@topgrade.edu" || query.startsWith("admin@") || query.includes("admin_") || query === "admin") {
+  const configuredAdmin = (process.env.ADMIN_EMAIL || "").toLowerCase();
+  if (
+    (configuredAdmin && query === configuredAdmin) ||
+    query === "tglbiz101@gmail.com" ||
+    query === "admin@topgrade.edu" ||
+    query.startsWith("admin@") ||
+    query.includes("admin_") ||
+    query === "admin"
+  ) {
     return { success: true, role: "ADMIN" };
   }
-  if (query === "sivareddy683970@gmail.com" || query === "sivareddy68397@gmail.com" || query === "accountant@topgrade.edu" || query.includes("accountant")) {
+  const configuredAccountant = (process.env.ACCOUNTANT_EMAIL || "").toLowerCase();
+  if (
+    (configuredAccountant && query === configuredAccountant) ||
+    query === "sivareddy68397@gmail.com" ||
+    query === "accountant@topgrade.edu" ||
+    query.includes("accountant")
+  ) {
     return { success: true, role: "ACCOUNTANT" };
   }
   if (query.includes("teacher")) return { success: true, role: "TEACHER" };

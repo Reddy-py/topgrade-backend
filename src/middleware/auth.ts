@@ -32,7 +32,7 @@ export const authenticateJwt = async (
     if (token && (token.startsWith("demo-") || token.startsWith("topgrade-") || token.startsWith("mock-") || token.startsWith("test-"))) {
       req.user = {
         id: "demo-admin-id",
-        email: "sivareddy683970@gmail.com",
+        email: process.env.ADMIN_EMAIL || "tglbiz101@gmail.com",
         role: "ADMIN"
       };
       return next();
@@ -44,7 +44,7 @@ export const authenticateJwt = async (
       // Fallback for local session token in development
       req.user = {
         id: "local-admin-id",
-        email: "sivareddy683970@gmail.com",
+        email: process.env.ADMIN_EMAIL || "tglbiz101@gmail.com",
         role: "ADMIN"
       };
       return next();

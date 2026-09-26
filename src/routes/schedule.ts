@@ -421,7 +421,7 @@ router.post("/reschedule", async (req, res): Promise<any> => {
   }
 
   // Trigger Nodemailer Gmail Notifications to Student, Parent & Admin
-  const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_SENDER_EMAIL || "topgradelearning101@gmail.com";
+  const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_SENDER_EMAIL || "tglbiz101@gmail.com";
   const recipients: Array<{ role: "STUDENT" | "PARENT" | "ADMIN"; email: string; name: string }> = [
     { role: "STUDENT", email: student_email || adminEmail, name: student_name || "Student" },
     { role: "ADMIN", email: adminEmail, name: "System Administrator" }
@@ -466,7 +466,7 @@ router.post("/dispatch-offer", async (req, res): Promise<any> => {
     record.status = "escalated_to_admin";
 
     // Urgent Gmail Alert to Admin
-    const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_SENDER_EMAIL || "topgradelearning101@gmail.com";
+    const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_SENDER_EMAIL || "tglbiz101@gmail.com";
     await dispatchMultiChannelNotification({
       eventType: "TEACHER_ASSIGNMENT",
       subject: `🚨 URGENT ADMIN ESCALATION: Scheduling Failed 3 Times (${course_name || "Session"})`,
