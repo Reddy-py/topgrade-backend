@@ -180,5 +180,25 @@
     "recipientEmails": [
       "sivareddy683970@gmail.com"
     ]
+  },
+  {
+    "studentId": "d2c2b0ad-18ab-42ea-b807-78c69da81149",
+    "studentCode": "TG-STU-2026-3044",
+    "type": "BIRTHDAY",
+    "dateSent": "2026-09-26",
+    "year": 2026,
+    "recipientEmails": [
+      "riaupadhyaya3@gmail.com"
+    ]
+  },
+  {
+    "studentId": "ec40d0c0-c9b4-436a-9e73-f3e34d424fab",
+    "studentCode": "TG-STU-2026-3632",
+    "type": "EXAM_GOOD_LUCK",
+    "dateSent": "2026-09-26",
+    "year": 2026,
+    "recipientEmails": [
+      "sivareddy683970@gmail.com"
+    ]
   }
 ]

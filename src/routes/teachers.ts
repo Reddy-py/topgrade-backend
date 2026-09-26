@@ -268,30 +268,37 @@ router.put("/:id", updateTeacherHandler);
 
 // DELETE: Delete faculty teacher profile
 export const deleteTeacherHandler = async (req: express.Request, res: express.Response) => {
-  const teacherId = req.params.id;
+  const teacherId = String(req.params.id);
   if (!teacherId) {
     return res.status(400).json({ success: false, message: "Teacher ID is required." });
   }
 
-  const idx = inMemoryTeachers.findIndex(t => t.id === teacherId || t.teacher_id_code === teacherId);
-  if (idx === -1) {
-    return res.status(404).json({ success: false, message: `Teacher with ID '${teacherId}' not found.` });
-  }
+  const isUUID = (str?: string | null): boolean =>
+    !!str && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
 
-  const deletedTeacher = inMemoryTeachers.splice(idx, 1)[0];
+  const idx = inMemoryTeachers.findIndex(t => t.id === teacherId || t.teacher_id_code === teacherId);
+  const deletedTeacher = idx !== -1 ? inMemoryTeachers.splice(idx, 1)[0] : null;
 
   try {
-    await supabaseAdmin
-      .from("teachers")
-      .delete()
-      .eq("teacher_id_code", deletedTeacher.teacher_id_code || teacherId);
+    if (deletedTeacher?.id && isUUID(deletedTeacher.id)) {
+      await supabaseAdmin.from("teachers").delete().eq("id", deletedTeacher.id);
+    } else if (isUUID(teacherId)) {
+      await supabaseAdmin.from("teachers").delete().eq("id", teacherId);
+    }
+
+    if (deletedTeacher?.teacher_id_code) {
+      await supabaseAdmin.from("teachers").delete().eq("teacher_id_code", deletedTeacher.teacher_id_code);
+    }
+    if (!isUUID(teacherId)) {
+      await supabaseAdmin.from("teachers").delete().eq("teacher_id_code", teacherId);
+    }
   } catch (err: any) {
     console.warn("Supabase teacher delete notice:", err?.message);
   }
 
   res.status(200).json({
     success: true,
-    message: `Teacher '${deletedTeacher.name}' deleted successfully from workspace.`,
+    message: `Teacher '${deletedTeacher?.name || teacherId}' deleted successfully from workspace.`,
     data: deletedTeacher
   });
 };

@@ -449,30 +449,37 @@ router.post("/:id/map-student", mapStudentHandler);
 
 // DELETE: Remove course
 export const deleteCourseHandler = async (req: express.Request, res: express.Response) => {
-  const courseId = req.params.id;
+  const courseId = String(req.params.id);
   if (!courseId) {
     return res.status(400).json({ success: false, message: "Course ID is required." });
   }
 
-  const idx = inMemoryCourses.findIndex(c => c.id === courseId || c.course_code === courseId);
-  if (idx === -1 || !inMemoryCourses[idx]) {
-    return res.status(404).json({ success: false, message: `Course with ID '${courseId}' not found.` });
-  }
+  const isUUID = (str?: string | null): boolean =>
+    !!str && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
 
-  const deletedCourse = inMemoryCourses.splice(idx, 1)[0]!;
+  const idx = inMemoryCourses.findIndex(c => c.id === courseId || c.course_code === courseId);
+  const deletedCourse = idx !== -1 ? inMemoryCourses.splice(idx, 1)[0] : null;
 
   // Remove corresponding attendance sessions
   removeAttendanceSessionsForCourse(String(courseId));
 
   try {
-    await supabaseAdmin.from("courses").delete().eq("id", courseId);
-  } catch {
-    // fallback
+    if (deletedCourse?.id && isUUID(deletedCourse.id)) {
+      await supabaseAdmin.from("courses").delete().eq("id", deletedCourse.id);
+    } else if (isUUID(courseId)) {
+      await supabaseAdmin.from("courses").delete().eq("id", courseId);
+    }
+
+    if (deletedCourse?.name) {
+      await supabaseAdmin.from("courses").delete().eq("name", deletedCourse.name);
+    }
+  } catch (err: any) {
+    console.warn("Supabase course delete notice:", err?.message);
   }
 
   res.status(200).json({
     success: true,
-    message: `Course '${deletedCourse.name}' deleted successfully. Associated attendance sessions removed.`,
+    message: `Course '${deletedCourse?.name || courseId}' deleted successfully. Associated attendance sessions removed.`,
     data: deletedCourse
   });
 };

@@ -1610,44 +1610,6 @@
     ]
   },
   {
-    "id": "867087b6-2914-4efb-8429-660516f2f0a5",
-    "studentCode": "TG-STU-2026-5042",
-    "fullName": "Kaleb Smith",
-    "firstName": "Kaleb",
-    "lastName": "Smith",
-    "email": "kaleb.smith.5042@student.topgrade.edu",
-    "dob": "2005-01-01",
-    "age": 12,
-    "school": "Top Grade Academy",
-    "grade": "Grade 10",
-    "status": "ACTIVE",
-    "primaryMobile": "+1 908 340 2976",
-    "studentPhones": [
-      "+1 908 340 2976"
-    ],
-    "parentPhones": [
-      "+1 908 340 2976"
-    ],
-    "studentEmails": [
-      "kaleb.smith.5042@student.topgrade.edu"
-    ],
-    "parentEmails": [
-      "kaleb.smith.5042@student.topgrade.edu"
-    ],
-    "fatherName": "",
-    "motherName": "",
-    "guardianName": "",
-    "program": "",
-    "teacher": "",
-    "residentialAddress": "",
-    "studentAddress": "",
-    "alternateAddress": "",
-    "examDate": "",
-    "purchasedHours": 20,
-    "feePlan": "Standard Plan",
-    "allocatedCourses": []
-  },
-  {
     "id": "d62ddb95-753b-416b-9292-8f1ce9c8ffad",
     "studentCode": "TG-STU-2026-5041",
     "fullName": "Kaleb Smith",
@@ -1689,6 +1651,44 @@
         "duration": "3 Months"
       }
     ]
+  },
+  {
+    "id": "867087b6-2914-4efb-8429-660516f2f0a5",
+    "studentCode": "TG-STU-2026-5042",
+    "fullName": "Kaleb Smith",
+    "firstName": "Kaleb",
+    "lastName": "Smith",
+    "email": "kaleb.smith.5042@student.topgrade.edu",
+    "dob": "2005-01-01",
+    "age": 12,
+    "school": "Top Grade Academy",
+    "grade": "Grade 10",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 908 340 2976",
+    "studentPhones": [
+      "+1 908 340 2976"
+    ],
+    "parentPhones": [
+      "+1 908 340 2976"
+    ],
+    "studentEmails": [
+      "kaleb.smith.5042@student.topgrade.edu"
+    ],
+    "parentEmails": [
+      "kaleb.smith.5042@student.topgrade.edu"
+    ],
+    "fatherName": "",
+    "motherName": "",
+    "guardianName": "",
+    "program": "",
+    "teacher": "",
+    "residentialAddress": "",
+    "studentAddress": "",
+    "alternateAddress": "",
+    "examDate": "",
+    "purchasedHours": 20,
+    "feePlan": "Standard Plan",
+    "allocatedCourses": []
   },
   {
     "id": "20392aa0-8712-4695-b230-9ac2588e38e2",
@@ -2423,9 +2423,9 @@
     "firstName": "Pari",
     "lastName": "Upadhyaya",
     "email": "riaupadhyaya3@gmail.com",
-    "dob": "2012-09-18",
-    "age": 13,
-    "school": "Top Grade Academy",
+    "dob": "2012-09-26",
+    "age": 14,
+    "school": "Narayana Olympiad School |",
     "grade": "Grade 12",
     "status": "ACTIVE",
     "primaryMobile": "+1 3468228020",
@@ -2447,8 +2447,8 @@
     "program": "English",
     "teacher": "Logan Fenner",
     "residentialAddress": "2615 Sunfish Drive, Pearland, TX 77584",
-    "studentAddress": "2615 Sunfish Drive, Pearland, TX 77584",
-    "alternateAddress": "2615 Sunfish Drive, Pearland, TX 77584",
+    "studentAddress": "2615 Sunfish Drive, Pearland, TX 77584 | School: Narayana Olympiad School",
+    "alternateAddress": "2615 Sunfish Drive, Pearland, TX 77584 | School: Narayana Olympiad School",
     "examDate": "",
     "purchasedHours": 20,
     "feePlan": "Standard Plan",
@@ -2904,9 +2904,9 @@
     "guardianName": "",
     "program": "AP Calculus",
     "teacher": "Tamara Gipson",
-    "residentialAddress": "Near bustand, JRG, AP 534447",
-    "studentAddress": "Near bustand, JRG, AP 534447",
-    "alternateAddress": "Near bustand, JRG, AP 534447",
+    "residentialAddress": "12125 Near bustand, jangareddygudem, JRG, AP 534447",
+    "studentAddress": "12125 Near bustand, jangareddygudem, JRG, AP 534447",
+    "alternateAddress": "12125 Near bustand, jangareddygudem, JRG, AP 534447",
     "examDate": "2026-09-20",
     "purchasedHours": 20,
     "feePlan": "Standard Plan",
@@ -3004,49 +3004,6 @@
     ]
   },
   {
-    "id": "0c662cc1-58e8-44b0-99e5-5d7bde01a5f6",
-    "studentCode": "TG-STU-2026-5038",
-    "fullName": "Sumay",
-    "firstName": "Sumay",
-    "lastName": "",
-    "email": "sumay.5038@student.topgrade.edu",
-    "dob": "2005-01-01",
-    "age": 11,
-    "school": "Top Grade Academy",
-    "grade": "Grade 6",
-    "status": "ACTIVE",
-    "primaryMobile": "+1 662 617 9073",
-    "studentPhones": [
-      "+1 662 617 9073"
-    ],
-    "parentPhones": [
-      "+1 662 617 9073"
-    ],
-    "studentEmails": [
-      "sumay.5038@student.topgrade.edu"
-    ],
-    "parentEmails": [
-      "sumay.5038@student.topgrade.edu"
-    ],
-    "fatherName": "Minny Bhatty",
-    "motherName": "",
-    "guardianName": "",
-    "program": "Writing",
-    "teacher": "",
-    "residentialAddress": "",
-    "studentAddress": "",
-    "alternateAddress": "",
-    "examDate": "",
-    "purchasedHours": 20,
-    "feePlan": "Standard Plan",
-    "allocatedCourses": [
-      {
-        "courseName": "Writing",
-        "duration": "3 Months"
-      }
-    ]
-  },
-  {
     "id": "d77b4589-6273-4b94-aff0-7c9158c7c164",
     "studentCode": "TG-STU-2026-5019",
     "fullName": "Sumay",
@@ -3085,6 +3042,49 @@
     "allocatedCourses": [
       {
         "courseName": "Writing skills",
+        "duration": "3 Months"
+      }
+    ]
+  },
+  {
+    "id": "0c662cc1-58e8-44b0-99e5-5d7bde01a5f6",
+    "studentCode": "TG-STU-2026-5038",
+    "fullName": "Sumay",
+    "firstName": "Sumay",
+    "lastName": "",
+    "email": "sumay.5038@student.topgrade.edu",
+    "dob": "2005-01-01",
+    "age": 11,
+    "school": "Top Grade Academy",
+    "grade": "Grade 6",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 662 617 9073",
+    "studentPhones": [
+      "+1 662 617 9073"
+    ],
+    "parentPhones": [
+      "+1 662 617 9073"
+    ],
+    "studentEmails": [
+      "sumay.5038@student.topgrade.edu"
+    ],
+    "parentEmails": [
+      "sumay.5038@student.topgrade.edu"
+    ],
+    "fatherName": "Minny Bhatty",
+    "motherName": "",
+    "guardianName": "",
+    "program": "Writing",
+    "teacher": "",
+    "residentialAddress": "",
+    "studentAddress": "",
+    "alternateAddress": "",
+    "examDate": "",
+    "purchasedHours": 20,
+    "feePlan": "Standard Plan",
+    "allocatedCourses": [
+      {
+        "courseName": "Writing",
         "duration": "3 Months"
       }
     ]

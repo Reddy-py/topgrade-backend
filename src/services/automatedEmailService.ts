@@ -109,6 +109,75 @@ function buildExamGoodLuckHtml(studentName: string, examDate: string, courseName
   `;
 }
 
+function buildExamScheduledHtml(studentName: string, examDate: string, courseName: string): string {
+  return `
+    <div style="font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0fdf4; padding: 25px; border-radius: 18px; border: 2px solid #22c55e;">
+      <div style="text-align: center; margin-bottom: 20px;">
+        <span style="font-size: 48px;">📅 📝 🎓</span>
+        <h1 style="color: #15803d; margin: 10px 0 5px 0; font-size: 26px;">Exam Date Scheduled: ${courseName}</h1>
+        <p style="color: #166534; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; font-size: 12px; margin: 0;">Official Academic Notification</p>
+      </div>
+      <div style="background: #ffffff; padding: 25px; border-radius: 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); color: #334155; line-height: 1.7; font-size: 14px;">
+        <p>Dear <strong>${studentName}</strong> and Family,</p>
+        <p>This is an official academic notice from <strong>Top Grade Learning</strong> that your examination for <strong>${courseName}</strong> has been officially scheduled:</p>
+        <div style="margin: 20px 0; padding: 18px; background: #f0fdf4; border-left: 4px solid #16a34a; border-radius: 8px; font-size: 16px; font-weight: bold; color: #14532d;">
+          🗓️ Official Exam Date: ${examDate}
+        </div>
+        <p>Please review your course materials, attend your weekly practice slots, and reach out to your faculty instructor if you have any questions or require additional support.</p>
+        <p style="margin-top: 25px; font-weight: bold; color: #004ac6;">
+          Sincerely,<br/>
+          <strong>Top Grade Learning Administration</strong><br/>
+          <span style="font-size: 12px; color: #64748b; font-weight: normal;">tglbiz101@gmail.com</span>
+        </p>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Dispatches an automated exam schedule notice to student and parents
+ */
+export async function sendCourseExamNotification(student: StudentDossier, examDate: string, courseName: string): Promise<boolean> {
+  const recipientEmails = [
+    ...(student.studentEmails || []),
+    student.email,
+    ...(student.parentEmails || [])
+  ].filter(Boolean) as string[];
+
+  const uniqueRecipients = Array.from(new Set(recipientEmails.map(e => e.trim().toLowerCase())));
+  if (uniqueRecipients.length === 0) return false;
+
+  const recipients: any[] = uniqueRecipients.map(e => ({
+    role: "STUDENT",
+    email: e,
+    name: student.fullName,
+    phone: student.primaryMobile || ""
+  }));
+
+  const adminEmail = (process.env.ADMIN_EMAIL || process.env.GMAIL_USER || "tglbiz101@gmail.com").trim().toLowerCase();
+  if (adminEmail && !uniqueRecipients.includes(adminEmail)) {
+    recipients.push({
+      role: "ADMIN",
+      email: adminEmail,
+      name: "System Administrator",
+      phone: ""
+    });
+  }
+
+  try {
+    await dispatchMultiChannelNotification({
+      eventType: "ADMISSION_APPROVED" as any,
+      subject: `📅 Exam Date Scheduled: ${courseName} on ${examDate} — Top Grade Learning`,
+      message: buildExamScheduledHtml(student.fullName, examDate, courseName),
+      recipients
+    });
+    return true;
+  } catch (err: any) {
+    console.error(`Failed to send exam notification email for ${student.fullName}:`, err.message);
+    return false;
+  }
+}
+
 /**
  * Dispatches an automated birthday email to student and parents
  */

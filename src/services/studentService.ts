@@ -119,7 +119,7 @@ function loadStudentsFromDisk(): StudentDossier[] {
   return [];
 }
 
-function saveStudentsToDisk() {
+export function saveStudentsToDisk() {
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -159,42 +159,46 @@ export async function getStudentsService(params: {
       if (!error && data && data.length > 0) {
         lastSupabaseStudentFetch = Date.now();
         inMemoryStudentStore = data.map((s: any) => {
-          const rawSchool = s.school || (s.address && s.address.includes("School: ") ? s.address.split("School: ")[1]?.trim() : (s.address && s.address.startsWith("School: ") ? s.address.replace("School: ", "").trim() : ""));
-          const rawGrade = s.grade || (s.nationality && s.nationality.startsWith("Grade: ") ? s.nationality.replace("Grade: ", "").trim() : (s.nationality || (s.age ? `Grade ${s.age > 12 ? 12 : s.age}` : "Grade 10")));
-          const cleanAddress = s.address ? s.address.split(" | School: ")[0]?.replace(/^School:.*$/, "").trim() : "";
-          const studentAddress = s.student_address || s.alternate_address || "";
-          const examDate = s.exam_date || (s.medical_notes && s.medical_notes.startsWith("EXAM_DATE:") ? s.medical_notes.replace("EXAM_DATE:", "") : "");
-          const purchasedHours = Number(s.purchased_hours) || 20;
+          const existing = inMemoryStudentStore.find(ex => ex.id === s.id || ex.studentCode === s.student_id_code);
+          const rawSchool = s.school || (s.address && s.address.includes("School: ") ? s.address.split("School: ")[1]?.trim() : (s.address && s.address.startsWith("School: ") ? s.address.replace("School: ", "").trim() : (existing?.school || "")));
+          const rawGrade = s.grade || (s.nationality && s.nationality.startsWith("Grade: ") ? s.nationality.replace("Grade: ", "").trim() : (s.nationality || (s.age ? `Grade ${s.age > 12 ? 12 : s.age}` : (existing?.grade || "Grade 10"))));
+          const cleanAddress = s.address ? s.address.split(" | School: ")[0]?.replace(/^School:.*$/, "").trim() : (existing?.residentialAddress || "");
+          const studentAddress = s.student_address || s.alternate_address || existing?.studentAddress || "";
+          const examDate = s.exam_date || (s.medical_notes && s.medical_notes.startsWith("EXAM_DATE:") ? s.medical_notes.replace("EXAM_DATE:", "") : (existing?.examDate || ""));
 
           return {
             id: s.id,
-            studentCode: s.student_id_code || s.studentCode || `TG-STU-${s.id?.slice(0, 4)}`,
-            fullName: s.name || s.full_name || s.fullName || "Student",
-            firstName: (s.name || "").split(" ")[0] || "Student",
-            lastName: (s.name || "").split(" ").slice(1).join(" ") || "",
-            email: s.email,
-            dob: s.dob || "2005-01-01",
-            age: s.age || 18,
+            studentCode: s.student_id_code || s.studentCode || existing?.studentCode || `TG-STU-${s.id?.slice(0, 4)}`,
+            fullName: s.name || s.full_name || s.fullName || existing?.fullName || "Student",
+            firstName: (s.name || "").split(" ")[0] || existing?.firstName || "Student",
+            lastName: (s.name || "").split(" ").slice(1).join(" ") || existing?.lastName || "",
+            email: s.email || existing?.email || "",
+            dob: s.dob || existing?.dob || "2005-01-01",
+            age: s.age || existing?.age || 18,
             school: rawSchool || "Top Grade Academy",
             grade: rawGrade || "Grade 10",
-            status: (s.status || "ACTIVE").toUpperCase(),
-            primaryMobile: s.phone || "",
-            studentPhones: s.phone ? [s.phone] : [],
-            parentPhones: s.father_phone ? [s.father_phone] : (s.phone ? [s.phone] : []),
-            studentEmails: s.email ? [s.email] : [],
-            parentEmails: s.email ? [s.email] : [],
-            fatherName: s.father_name || "",
-            motherName: s.mother_name || "",
-            guardianName: s.guardian || "",
-            program: s.program || "",
-            teacher: s.teacher || "",
+            status: (s.status || existing?.status || "ACTIVE").toUpperCase(),
+            primaryMobile: s.phone || existing?.primaryMobile || "",
+            studentPhones: s.student_phones || existing?.studentPhones || (s.phone ? [s.phone] : []),
+            parentPhones: s.parent_phones || existing?.parentPhones || (s.father_phone ? [s.father_phone] : (s.phone ? [s.phone] : [])),
+            studentWhatsapp: s.student_whatsapp || existing?.studentWhatsapp || s.phone || "",
+            parentWhatsapp: s.parent_whatsapp || existing?.parentWhatsapp || (s.father_phone ? [s.father_phone] : []),
+            studentEmails: s.student_emails || existing?.studentEmails || (s.email ? [s.email] : []),
+            parentEmails: s.parent_emails || existing?.parentEmails || (s.email ? [s.email] : []),
+            fatherName: s.father_name || existing?.fatherName || "",
+            motherName: s.mother_name || existing?.motherName || "",
+            guardianName: s.guardian || existing?.guardianName || "",
+            program: s.program || existing?.program || "",
+            teacher: s.teacher || existing?.teacher || "",
             residentialAddress: cleanAddress,
             studentAddress: studentAddress,
             alternateAddress: studentAddress,
             examDate: examDate,
-            purchasedHours: purchasedHours,
-            feePlan: s.fee_plan || "Standard Plan",
-            allocatedCourses: s.program ? [{ courseName: s.program, duration: "3 Months" }] : []
+            purchasedHours: 0,
+            hoursLeft: 0,
+            daysLeft: 0,
+            feePlan: s.fee_plan || existing?.feePlan || "Standard Plan",
+            allocatedCourses: s.allocated_courses || existing?.allocatedCourses || (s.program ? [{ courseName: s.program, duration: "3 Months" }] : [])
           };
         });
         saveStudentsToDisk();
@@ -259,17 +263,14 @@ export async function getStudentsService(params: {
     });
   }
 
-  // Calculate hours, days left, and apply privacy scrubbing for all matching students
+  // Calculate hours, days left: currently every student must be ZERO as requested
   students = students.map(s => {
     const copy: any = { ...s };
-    const purchased = copy.purchasedHours ? Number(copy.purchasedHours) : 20;
-    const attendedSessions = copy.attendedSessions ? Number(copy.attendedSessions) : 0;
-    const attendedHours = attendedSessions * 1.5;
-    copy.purchasedHours = purchased;
-    copy.attendedSessions = attendedSessions;
-    copy.attendedHours = attendedHours;
-    copy.hoursLeft = Math.max(0, purchased - attendedHours);
-    copy.daysLeft = Math.max(0, Math.ceil(copy.hoursLeft / 1.5));
+    copy.purchasedHours = 0;
+    copy.attendedSessions = 0;
+    copy.attendedHours = 0;
+    copy.hoursLeft = 0;
+    copy.daysLeft = 0;
 
     // STRICT PRIVACY: Tutor cannot see fees, payment plans, invoices or financial details
     if (user && user.role && user.role.toUpperCase() === "TEACHER") {
@@ -724,10 +725,18 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
       teacher: updated.teacher || "Unassigned",
       status: (updated.status || "ACTIVE").toUpperCase()
     };
-    await supabaseAdmin
-      .from("students")
-      .update(updateFields)
-      .or(`id.eq.${id},student_id_code.eq.${updated.studentCode},student_id_code.eq.${id}`);
+    const isUUID = (str?: string | null): boolean =>
+      !!str && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
+
+    if (isUUID(updated.id)) {
+      await supabaseAdmin.from("students").update(updateFields).eq("id", updated.id);
+    } else if (isUUID(id)) {
+      await supabaseAdmin.from("students").update(updateFields).eq("id", id);
+    } else if (updated.studentCode) {
+      await supabaseAdmin.from("students").update(updateFields).eq("student_id_code", updated.studentCode);
+    } else {
+      await supabaseAdmin.from("students").update(updateFields).eq("student_id_code", id);
+    }
 
     if (updated.examDate && updated.examDate !== existing.examDate) {
       sendExamGoodLuckWishes(updated, updated.examDate).catch(err =>
@@ -746,18 +755,29 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
  */
 export async function deleteStudentService(id: string): Promise<boolean> {
   const index = inMemoryStudentStore.findIndex(s => s.id === id || s.studentCode === id);
-  if (index === -1) {
-    throw new Error(`Student with ID '${id}' not found.`);
+  let removed: any = null;
+  if (index !== -1) {
+    removed = inMemoryStudentStore.splice(index, 1)[0];
+    saveStudentsToDisk();
   }
-
-  const removed = inMemoryStudentStore.splice(index, 1)[0];
-  saveStudentsToDisk();
   lastSupabaseStudentFetch = 0;
 
   // Real-time Supabase Delete Sync
   try {
+    const isUUID = (str?: string | null): boolean =>
+      !!str && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
+
+    if (removed?.id && isUUID(removed.id)) {
+      await supabaseAdmin.from("students").delete().eq("id", removed.id);
+    } else if (isUUID(id)) {
+      await supabaseAdmin.from("students").delete().eq("id", id);
+    }
+
     if (removed?.studentCode) {
       await supabaseAdmin.from("students").delete().eq("student_id_code", removed.studentCode);
+    }
+    if (!isUUID(id)) {
+      await supabaseAdmin.from("students").delete().eq("student_id_code", id);
     }
   } catch (e: any) {
     console.warn("Supabase student delete notice:", e?.message);
