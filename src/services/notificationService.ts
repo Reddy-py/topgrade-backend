@@ -1,6 +1,12 @@
 import nodemailer from "nodemailer";
 import dotenv from "dotenv";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const backendEnvPath = path.resolve(__dirname, "../../.env");
+dotenv.config({ path: backendEnvPath });
 dotenv.config();
 
 export interface NotificationPayload {
@@ -26,7 +32,7 @@ export interface NotificationPayload {
  * Dynamic Gmail Transporter Setup (Reads latest GMAIL_USER and GMAIL_APP_PASSWORD from .env)
  */
 function getTransporter(): { transporter: nodemailer.Transporter | null; gmailUser: string } {
-  dotenv.config();
+  dotenv.config({ path: backendEnvPath });
   const gmailUser = process.env.GMAIL_USER || process.env.GMAIL_SENDER_EMAIL || "tglbiz101@gmail.com";
   const gmailPass = process.env.GMAIL_APP_PASSWORD || "";
 
@@ -40,6 +46,7 @@ function getTransporter(): { transporter: nodemailer.Transporter | null; gmailUs
     });
     return { transporter, gmailUser };
   }
+  console.warn(`[NOTIFICATION] Transporter offline: user=${gmailUser}, pass=${gmailPass ? 'PRESENT' : 'MISSING'}`);
   return { transporter: null, gmailUser };
 }
 

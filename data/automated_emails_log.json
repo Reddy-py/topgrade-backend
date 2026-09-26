@@ -170,5 +170,15 @@
     "recipientEmails": [
       "sivareddy683970@gmail.com"
     ]
+  },
+  {
+    "studentId": "ec40d0c0-c9b4-436a-9e73-f3e34d424fab",
+    "studentCode": "TG-STU-2026-3632",
+    "type": "BIRTHDAY",
+    "dateSent": "2026-09-26",
+    "year": 2026,
+    "recipientEmails": [
+      "sivareddy683970@gmail.com"
+    ]
   }
 ]

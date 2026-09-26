@@ -124,12 +124,22 @@ export async function sendBirthdayGreetings(student: StudentDossier): Promise<bo
   const uniqueRecipients = Array.from(new Set(recipientEmails.map(e => e.trim().toLowerCase())));
   if (uniqueRecipients.length === 0) return false;
 
-  const recipients = uniqueRecipients.map(e => ({
+  const recipients: Array<{ role: any; email: string; name: string; phone: string }> = uniqueRecipients.map(e => ({
     role: "STUDENT" as const,
     email: e,
     name: student.fullName,
     phone: student.primaryMobile || ""
   }));
+
+  const adminEmail = (process.env.ADMIN_EMAIL || process.env.GMAIL_USER || "tglbiz101@gmail.com").trim().toLowerCase();
+  if (adminEmail && !uniqueRecipients.includes(adminEmail)) {
+    recipients.push({
+      role: "ADMIN",
+      email: adminEmail,
+      name: "System Administrator",
+      phone: ""
+    });
+  }
 
   try {
     await dispatchMultiChannelNotification({
@@ -169,12 +179,22 @@ export async function sendExamGoodLuckWishes(student: StudentDossier, examDate: 
   const uniqueRecipients = Array.from(new Set(recipientEmails.map(e => e.trim().toLowerCase())));
   if (uniqueRecipients.length === 0) return false;
 
-  const recipients = uniqueRecipients.map(e => ({
+  const recipients: Array<{ role: any; email: string; name: string; phone: string }> = uniqueRecipients.map(e => ({
     role: "STUDENT" as const,
     email: e,
     name: student.fullName,
     phone: student.primaryMobile || ""
   }));
+
+  const adminEmail = (process.env.ADMIN_EMAIL || process.env.GMAIL_USER || "tglbiz101@gmail.com").trim().toLowerCase();
+  if (adminEmail && !uniqueRecipients.includes(adminEmail)) {
+    recipients.push({
+      role: "ADMIN",
+      email: adminEmail,
+      name: "System Administrator",
+      phone: ""
+    });
+  }
 
   try {
     await dispatchMultiChannelNotification({
