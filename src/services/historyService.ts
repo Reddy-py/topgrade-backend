@@ -52,92 +52,10 @@ export interface StudentLifecycleEvent {
   actor: string;
 }
 
-// In-Memory Storage for Historical Records
-export const tutoringPastStore: TutoringPastRecord[] = [
-  {
-    id: "tut-hist-1",
-    studentId: "std-1787565325848-825",
-    studentName: "Siva Reddy",
-    studentCode: "TG-STU-2026-3632",
-    subject: "Advanced Mathematics & Coding Foundations",
-    teacherName: "manikanta",
-    termPeriod: "Jan 2026 - Apr 2026 (Winter Term)",
-    totalHoursCompleted: 36,
-    totalSessionsAttended: 24,
-    finalScorePercentage: 94,
-    curriculumMilestones: [
-      "Algebraic Functions & Quadratics",
-      "Python Data Structures & Syntax",
-      "Problem Solving & Algorithm Design"
-    ],
-    status: "Completed",
-    reenrollmentEligible: true,
-    reenrollmentStatus: "Pending Invitation",
-    completionDate: "2026-04-20"
-  },
-  {
-    id: "tut-hist-2",
-    studentId: "std-1787569238941-822",
-    studentName: "rajesh ganta",
-    studentCode: "TG-STU-2026-4231",
-    subject: "Middle School Science & Robotics Basics",
-    teacherName: "manikanta",
-    termPeriod: "Feb 2026 - May 2026 (Spring Term)",
-    totalHoursCompleted: 28,
-    totalSessionsAttended: 18,
-    finalScorePercentage: 88,
-    curriculumMilestones: [
-      "Physical Sciences & Mechanics",
-      "Introductory Circuitry & Sensors",
-      "Robotics Control Logic"
-    ],
-    status: "Completed",
-    reenrollmentEligible: true,
-    reenrollmentStatus: "Pending Invitation",
-    completionDate: "2026-05-15"
-  }
-];
+// In-Memory Storage for Historical Records (Cleaned of mock demo data)
+export const tutoringPastStore: TutoringPastRecord[] = [];
 
-export const afterschoolPastStore: AfterschoolPastRecord[] = [
-  {
-    id: "aft-hist-1",
-    studentId: "std-1787565325848-825",
-    studentName: "Siva Reddy",
-    studentCode: "TG-STU-2026-3632",
-    programName: "STEM & Robotics Innovation Club",
-    gradeLevel: "Grade 9",
-    termPeriod: "Winter Session 2026",
-    attendanceConsistencyRate: 98,
-    activitiesCompleted: [
-      "Autonomous Rover Navigation",
-      "Logic Puzzles & Algorithmic Games",
-      "Science Fair Project Showcase"
-    ],
-    certificateIssued: true,
-    retentionRecommendation: "High Potential Re-enroll",
-    status: "Completed",
-    endDate: "2026-04-30"
-  },
-  {
-    id: "aft-hist-2",
-    studentId: "std-1787569238941-822",
-    studentName: "rajesh ganta",
-    studentCode: "TG-STU-2026-4231",
-    programName: "Creative Logic & Junior Web Builders",
-    gradeLevel: "Grade 8",
-    termPeriod: "Spring Session 2026",
-    attendanceConsistencyRate: 92,
-    activitiesCompleted: [
-      "Interactive Web Stories (HTML/CSS)",
-      "Math Olympiad Preparation",
-      "Creative Design & Typing Speed Labs"
-    ],
-    certificateIssued: true,
-    retentionRecommendation: "High Potential Re-enroll",
-    status: "Completed",
-    endDate: "2026-05-30"
-  }
-];
+export const afterschoolPastStore: AfterschoolPastRecord[] = [];
 
 export class HistoryService {
   /**
@@ -245,38 +163,7 @@ export class HistoryService {
    * 5. Retrieve Payment Audit History
    */
   public static getPaymentHistory(studentId?: string) {
-    const defaultHistory = [
-      {
-        id: "pay-hist-1",
-        studentId: "std-1787565325848-825",
-        studentName: "Siva Reddy",
-        studentCode: "TG-STU-2026-3632",
-        invoiceNumber: "INV-2026-0089",
-        amountPaid: 450.00,
-        totalInvoiceAmount: 450.00,
-        paymentMode: "Online Transfer (UPI/Card)",
-        transactionRef: "TXN_789423610",
-        paymentDate: "2026-08-24",
-        status: "COMPLETED",
-        notes: "Fall Academic Term Tuition Package (Settled in full)"
-      },
-      {
-        id: "pay-hist-2",
-        studentId: "std-1787569238941-822",
-        studentName: "rajesh ganta",
-        studentCode: "TG-STU-2026-4231",
-        invoiceNumber: "INV-2026-0094",
-        amountPaid: 350.00,
-        totalInvoiceAmount: 350.00,
-        paymentMode: "Direct Card / Terminal",
-        transactionRef: "TXN_987123441",
-        paymentDate: "2026-08-24",
-        status: "COMPLETED",
-        notes: "Middle School STEM & Robotics Lab Fee"
-      }
-    ];
-
-    let list = inMemoryPayments.length > 0 ? inMemoryPayments : defaultHistory;
+    let list = inMemoryPayments || [];
     if (studentId) {
       list = list.filter((p: any) => p.studentId === studentId);
     }

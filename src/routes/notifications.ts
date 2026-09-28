@@ -142,7 +142,43 @@ const sendBirthdayWishHandler = async (req: express.Request, res: express.Respon
   try {
     const studentId = req.params?.studentId || req.body?.studentId;
     const { studentName, studentEmail, parentEmail, dob } = req.body || {};
-    let student = inMemoryStudentStore.find(s => (studentId && (s.id === studentId || s.studentCode === studentId)) || (studentEmail && s.email && s.email.toLowerCase() === studentEmail.toLowerCase()));
+    
+    // 1. Check inMemoryStudentStore
+    let student = inMemoryStudentStore.find(s => 
+      (studentId && (s.id === studentId || s.studentCode === studentId)) || 
+      (studentEmail && s.email && s.email.toLowerCase() === studentEmail.toLowerCase())
+    );
+
+    // 2. Fallback to Supabase if not in memory
+    if (!student && studentId) {
+      try {
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(studentId);
+        let q = supabaseAdmin.from("students").select("*");
+        if (isUUID) {
+          q = q.eq("id", studentId);
+        } else {
+          q = q.eq("student_id_code", studentId);
+        }
+        const { data: sbStu } = await q.maybeSingle();
+        if (sbStu) {
+          student = {
+            id: sbStu.id,
+            studentCode: sbStu.student_id_code || studentId,
+            fullName: sbStu.name || studentName || "Student",
+            email: studentEmail || sbStu.email || "",
+            studentEmails: [studentEmail || sbStu.email].filter(Boolean),
+            parentEmails: [parentEmail || sbStu.father_phone].filter(Boolean),
+            dob: dob || sbStu.dob || "",
+            school: sbStu.school || "Top Grade Academy",
+            status: sbStu.status || "ACTIVE"
+          };
+          inMemoryStudentStore.push(student);
+          saveStudentsToDisk();
+        }
+      } catch (sbErr: any) {
+        console.warn("Supabase lookup in birthday handler notice:", sbErr?.message);
+      }
+    }
 
     if (!student && (studentEmail || studentName)) {
       student = {
@@ -156,14 +192,20 @@ const sendBirthdayWishHandler = async (req: express.Request, res: express.Respon
         school: "Top Grade Academy",
         status: "ACTIVE"
       };
+      inMemoryStudentStore.push(student);
+      saveStudentsToDisk();
     } else if (student) {
-      if (studentEmail && !student.studentEmails?.includes(studentEmail)) {
-        student.studentEmails = [...(student.studentEmails || []), studentEmail];
+      if (studentEmail) {
+        student.email = studentEmail;
+        if (!student.studentEmails?.includes(studentEmail)) {
+          student.studentEmails = [...(student.studentEmails || []), studentEmail];
+        }
       }
       if (parentEmail && !student.parentEmails?.includes(parentEmail)) {
         student.parentEmails = [...(student.parentEmails || []), parentEmail];
       }
       if (dob) student.dob = dob;
+      saveStudentsToDisk();
     }
 
     if (!student || (!student.email && (!student.studentEmails || student.studentEmails.length === 0))) {

@@ -291,21 +291,6 @@ export class AlertsService {
           break;
       }
 
-      // Dispatch Email via nodemailer
-      try {
-        await dispatchMultiChannelNotification({
-          eventType: "ADMISSION_APPROVED",
-          subject,
-          message,
-          recipients: [
-            { role: "STUDENT", email: studentEmail, name: studentName, phone: studentPhone },
-            { role: "ADMIN", email: adminEmail, name: "Administrator" }
-          ]
-        });
-      } catch (err) {
-        console.warn("Notification dispatch warning:", err);
-      }
-
       // Create Audit Log Record
       const logRecord: AlertLogRecord = {
         id: `log-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
@@ -325,6 +310,23 @@ export class AlertsService {
 
       alertLogsStore.unshift(logRecord);
       dispatchedResults.push(logRecord);
+
+      // Asynchronous background email dispatch (non-blocking so API responds immediately)
+      setImmediate(async () => {
+        try {
+          await dispatchMultiChannelNotification({
+            eventType: "ADMISSION_APPROVED",
+            subject,
+            message,
+            recipients: [
+              { role: "STUDENT", email: studentEmail, name: studentName, phone: studentPhone },
+              { role: "ADMIN", email: adminEmail, name: "Administrator" }
+            ]
+          });
+        } catch (err) {
+          console.warn("Notification background dispatch warning:", err);
+        }
+      });
     }
 
     return {

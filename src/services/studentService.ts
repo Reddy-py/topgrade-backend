@@ -610,15 +610,20 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
  * Service method to update an existing student dossier by ID with real-time disk persistence.
  */
 export async function updateStudentService(id: string, payload: Partial<StudentDossier>): Promise<StudentDossier> {
+  const isUUID = (str?: string | null): boolean =>
+    !!str && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
+
   let index = inMemoryStudentStore.findIndex(s => s.id === id || s.studentCode === id);
   if (index === -1) {
     // If not found in memory, try looking up in Supabase
     try {
-      const { data: sbRow } = await supabaseAdmin
-        .from("students")
-        .select("*")
-        .or(`id.eq.${id},student_id_code.eq.${id}`)
-        .maybeSingle();
+      let sbQuery = supabaseAdmin.from("students").select("*");
+      if (isUUID(id)) {
+        sbQuery = sbQuery.eq("id", id);
+      } else {
+        sbQuery = sbQuery.eq("student_id_code", id);
+      }
+      const { data: sbRow } = await sbQuery.maybeSingle();
 
       if (sbRow) {
         const rawSchool = sbRow.school || (sbRow.address && sbRow.address.includes("School: ") ? sbRow.address.split("School: ")[1]?.trim() : (sbRow.address && sbRow.address.startsWith("School: ") ? sbRow.address.replace("School: ", "").trim() : ""));
@@ -694,7 +699,7 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
 
   inMemoryStudentStore[index] = updated;
   saveStudentsToDisk();
-  lastSupabaseStudentFetch = 0; // Invalidate cache so fresh data is read immediately
+  lastSupabaseStudentFetch = Date.now(); // Keep updated memory cache active
 
   // Real-time Supabase Update Sync
   try {
@@ -725,17 +730,38 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
       teacher: updated.teacher || "Unassigned",
       status: (updated.status || "ACTIVE").toUpperCase()
     };
-    const isUUID = (str?: string | null): boolean =>
-      !!str && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
 
-    if (isUUID(updated.id)) {
-      await supabaseAdmin.from("students").update(updateFields).eq("id", updated.id);
-    } else if (isUUID(id)) {
-      await supabaseAdmin.from("students").update(updateFields).eq("id", id);
-    } else if (updated.studentCode) {
-      await supabaseAdmin.from("students").update(updateFields).eq("student_id_code", updated.studentCode);
+    const targetIdToUpdate = isUUID(updated.id) ? updated.id : (isUUID(id) ? id : null);
+    if (targetIdToUpdate) {
+      const { error: sbErr } = await supabaseAdmin.from("students").update(updateFields).eq("id", targetIdToUpdate);
+      if (sbErr) console.warn("Notice updating student by id in Supabase:", sbErr.message);
     } else {
-      await supabaseAdmin.from("students").update(updateFields).eq("student_id_code", id);
+      const codeToUpdate = updated.studentCode || id;
+      const { error: sbErr } = await supabaseAdmin.from("students").update(updateFields).eq("student_id_code", codeToUpdate);
+      if (sbErr) console.warn("Notice updating student by code in Supabase:", sbErr.message);
+    }
+
+    // Update profiles table in Supabase if email exists
+    if (updated.email) {
+      try {
+        if (existing.email && existing.email.toLowerCase() !== updated.email.toLowerCase()) {
+          await supabaseAdmin.from("profiles").update({
+            email: updated.email,
+            full_name: updated.fullName,
+            updated_at: new Date().toISOString()
+          }).eq("email", existing.email);
+        } else {
+          await supabaseAdmin.from("profiles").upsert({
+            email: updated.email,
+            full_name: updated.fullName,
+            role: "STUDENT",
+            status: "Active",
+            updated_at: new Date().toISOString()
+          }, { onConflict: "email" });
+        }
+      } catch (profErr: any) {
+        console.warn("Supabase profiles update notice:", profErr?.message);
+      }
     }
 
     if (updated.examDate && updated.examDate !== existing.examDate) {
@@ -745,6 +771,60 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
     }
   } catch (e: any) {
     console.warn("Supabase student update notice:", e?.message);
+  }
+
+  // Multi-Channel Profile Update Notification Dispatch
+  try {
+    const recipients: Array<{ role: "STUDENT" | "PARENT" | "TEACHER" | "ACCOUNTANT" | "ADMIN"; email: string; name: string; phone: string }> = [];
+    const addedEmails = new Set<string>();
+
+    if (updated.email && !addedEmails.has(updated.email.toLowerCase())) {
+      recipients.push({ role: "STUDENT", email: updated.email, name: updated.fullName, phone: updated.primaryMobile || "" });
+      addedEmails.add(updated.email.toLowerCase());
+    }
+
+    if (existing.email && existing.email.toLowerCase() !== (updated.email || "").toLowerCase() && !addedEmails.has(existing.email.toLowerCase())) {
+      recipients.push({ role: "STUDENT", email: existing.email, name: updated.fullName, phone: existing.primaryMobile || "" });
+      addedEmails.add(existing.email.toLowerCase());
+    }
+
+    (updated.studentEmails || []).forEach(e => {
+      if (e && !addedEmails.has(e.toLowerCase())) {
+        recipients.push({ role: "STUDENT", email: e, name: updated.fullName, phone: updated.primaryMobile || "" });
+        addedEmails.add(e.toLowerCase());
+      }
+    });
+
+    (updated.parentEmails || []).forEach(e => {
+      if (e && !addedEmails.has(e.toLowerCase())) {
+        recipients.push({ role: "PARENT", email: e, name: updated.fatherName || "Parent", phone: (updated.parentPhones && updated.parentPhones[0]) || "" });
+        addedEmails.add(e.toLowerCase());
+      }
+    });
+
+    const adminEmail = process.env.ADMIN_EMAIL || "tglbiz101@gmail.com";
+    const accountantEmail = process.env.ACCOUNTANT_EMAIL || "sivareddy68397@gmail.com";
+    if (!addedEmails.has(adminEmail.toLowerCase())) {
+      recipients.push({ role: "ADMIN", email: adminEmail, name: "System Administrator", phone: "" });
+      addedEmails.add(adminEmail.toLowerCase());
+    }
+    if (!addedEmails.has(accountantEmail.toLowerCase())) {
+      recipients.push({ role: "ACCOUNTANT", email: accountantEmail, name: "Accountant", phone: "" });
+      addedEmails.add(accountantEmail.toLowerCase());
+    }
+
+    const emailChangeWarning = existing.email && updated.email && existing.email.toLowerCase() !== updated.email.toLowerCase()
+      ? `\n\n🔒 **Security Alert**: Primary student email address was updated from **${existing.email}** to **${updated.email}**.\n`
+      : "";
+
+    await dispatchMultiChannelNotification({
+      eventType: "ADMISSION_APPROVED",
+      subject: `📝 Student Profile Updated — ${updated.fullName} (${updated.studentCode})`,
+      message: `Dear ${updated.fullName} & Family,\n\nYour student dossier record at **Top Grade Learning** has been successfully updated.${emailChangeWarning}\n📋 **Updated Dossier Summary**:\n• Student Name: ${updated.fullName}\n• Student ID Code: ${updated.studentCode}\n• Primary Email: ${updated.email}\n• Contact Number: ${updated.primaryMobile || "N/A"}\n• Academic Grade: ${updated.grade}\n• School: ${updated.school}\n• Enrolled Program: ${updated.program || "General Academic Track"}\n• Assigned Faculty: ${updated.teacher || "Unassigned"}\n• Residential Address: ${updated.residentialAddress || "N/A"}\n\nIf you did not authorize these changes, please notify our administrative team immediately at ${adminEmail}.\n\nWarm regards,\nTop Grade Learning Academic Team`,
+      recipients
+    });
+  } catch (notifErr: any) {
+    console.warn("Notice dispatching student profile update notification:", notifErr?.message);
   }
 
   return updated;

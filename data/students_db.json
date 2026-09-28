@@ -18,6 +18,10 @@
     "parentPhones": [
       "+1 713 894 4018"
     ],
+    "studentWhatsapp": "+1 713 894 4018",
+    "parentWhatsapp": [
+      "+1 713 894 4018"
+    ],
     "studentEmails": [
       "aarshiv.5030b@student.topgrade.edu"
     ],
@@ -28,12 +32,14 @@
     "motherName": "",
     "guardianName": "",
     "program": "GT prep/ Math & Reading",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -57,6 +63,8 @@
     "primaryMobile": "",
     "studentPhones": [],
     "parentPhones": [],
+    "studentWhatsapp": "",
+    "parentWhatsapp": [],
     "studentEmails": [
       "abi.bridger.5056@student.topgrade.edu"
     ],
@@ -72,7 +80,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -100,6 +110,10 @@
     "parentPhones": [
       "+1 202 368 3012"
     ],
+    "studentWhatsapp": "+1 202 368 3012",
+    "parentWhatsapp": [
+      "+1 202 368 3012"
+    ],
     "studentEmails": [
       "abigail.rawls.5055@student.topgrade.edu"
     ],
@@ -115,7 +129,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -143,6 +159,10 @@
     "parentPhones": [
       "+1 346 574 4701"
     ],
+    "studentWhatsapp": "+1 346 574 4701",
+    "parentWhatsapp": [
+      "+1 346 574 4701"
+    ],
     "studentEmails": [
       "amir.douhdouh.5029@student.topgrade.edu"
     ],
@@ -158,7 +178,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -186,6 +208,10 @@
     "parentPhones": [
       "+1 713 855 9596"
     ],
+    "studentWhatsapp": "+1 713 855 9596",
+    "parentWhatsapp": [
+      "+1 713 855 9596"
+    ],
     "studentEmails": [
       "amisha.5031@student.topgrade.edu"
     ],
@@ -201,7 +227,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -229,6 +257,10 @@
     "parentPhones": [
       "+1 281 809 6351"
     ],
+    "studentWhatsapp": "+1 281 809 6351",
+    "parentWhatsapp": [
+      "+1 281 809 6351"
+    ],
     "studentEmails": [
       "amudhanmadhan.kumar.5061@student.topgrade.edu"
     ],
@@ -244,7 +276,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -272,6 +306,10 @@
     "parentPhones": [
       "+1 281 736 0945"
     ],
+    "studentWhatsapp": "+1 281 736 0945",
+    "parentWhatsapp": [
+      "+1 281 736 0945"
+    ],
     "studentEmails": [
       "anushka.5039@student.topgrade.edu"
     ],
@@ -287,7 +325,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -315,6 +355,10 @@
     "parentPhones": [
       "+1 832 879 7941"
     ],
+    "studentWhatsapp": "+1 832 879 7941",
+    "parentWhatsapp": [
+      "+1 832 879 7941"
+    ],
     "studentEmails": [
       "ava.5066@student.topgrade.edu"
     ],
@@ -330,7 +374,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -358,6 +404,10 @@
     "parentPhones": [
       "+1 832 746 7799"
     ],
+    "studentWhatsapp": "+1 832 746 7799",
+    "parentWhatsapp": [
+      "+1 832 746 7799"
+    ],
     "studentEmails": [
       "bezaleel.5058b@student.topgrade.edu"
     ],
@@ -373,7 +423,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -401,6 +453,10 @@
     "parentPhones": [
       "+1 901 246 5376"
     ],
+    "studentWhatsapp": "+1 901 246 5376",
+    "parentWhatsapp": [
+      "+1 901 246 5376"
+    ],
     "studentEmails": [
       "brandon.5036@student.topgrade.edu"
     ],
@@ -416,7 +472,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -444,6 +502,10 @@
     "parentPhones": [
       "+1 713 299 8351"
     ],
+    "studentWhatsapp": "+1 713 299 8351",
+    "parentWhatsapp": [
+      "+1 713 299 8351"
+    ],
     "studentEmails": [
       "brooke.5049@student.topgrade.edu"
     ],
@@ -459,7 +521,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -487,6 +551,10 @@
     "parentPhones": [
       "+1 832 276 2098"
     ],
+    "studentWhatsapp": "+1 832 276 2098",
+    "parentWhatsapp": [
+      "+1 832 276 2098"
+    ],
     "studentEmails": [
       "camila.5004@student.topgrade.edu"
     ],
@@ -502,7 +570,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -530,6 +600,10 @@
     "parentPhones": [
       "+1 713 319 8985"
     ],
+    "studentWhatsapp": "+1 713 319 8985",
+    "parentWhatsapp": [
+      "+1 713 319 8985"
+    ],
     "studentEmails": [
       "cara.5007b@student.topgrade.edu"
     ],
@@ -545,7 +619,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -573,6 +649,10 @@
     "parentPhones": [
       "+1 281 614 9093"
     ],
+    "studentWhatsapp": "+1 281 614 9093",
+    "parentWhatsapp": [
+      "+1 281 614 9093"
+    ],
     "studentEmails": [
       "chaitanya.gundapaneni.5048@student.topgrade.edu"
     ],
@@ -588,7 +668,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": []
   },
@@ -611,6 +693,10 @@
     "parentPhones": [
       "+1 713 858 5771"
     ],
+    "studentWhatsapp": "+1 713 858 5771",
+    "parentWhatsapp": [
+      "+1 713 858 5771"
+    ],
     "studentEmails": [
       "chardaet.galvan.5063@student.topgrade.edu"
     ],
@@ -626,7 +712,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": []
   },
@@ -649,6 +737,10 @@
     "parentPhones": [
       "+1 401 743 9608"
     ],
+    "studentWhatsapp": "+1 401 743 9608",
+    "parentWhatsapp": [
+      "+1 401 743 9608"
+    ],
     "studentEmails": [
       "charlie.5068@student.topgrade.edu"
     ],
@@ -664,7 +756,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -692,6 +786,10 @@
     "parentPhones": [
       "+1 713 823 6790"
     ],
+    "studentWhatsapp": "+1 713 823 6790",
+    "parentWhatsapp": [
+      "+1 713 823 6790"
+    ],
     "studentEmails": [
       "charlotte.5067@student.topgrade.edu"
     ],
@@ -707,7 +805,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -735,6 +835,10 @@
     "parentPhones": [
       "+1 304 419 5289"
     ],
+    "studentWhatsapp": "+1 304 419 5289",
+    "parentWhatsapp": [
+      "+1 304 419 5289"
+    ],
     "studentEmails": [
       "chirag.5020@student.topgrade.edu"
     ],
@@ -750,7 +854,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -778,6 +884,10 @@
     "parentPhones": [
       "+1 304 767 2676"
     ],
+    "studentWhatsapp": "+1 304 767 2676",
+    "parentWhatsapp": [
+      "+1 304 767 2676"
+    ],
     "studentEmails": [
       "chirag.motwani.5021@student.topgrade.edu"
     ],
@@ -793,7 +903,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": []
   },
@@ -816,6 +928,10 @@
     "parentPhones": [
       "+1 832 526 2483"
     ],
+    "studentWhatsapp": "+1 832 526 2483",
+    "parentWhatsapp": [
+      "+1 832 526 2483"
+    ],
     "studentEmails": [
       "christopher.habal.5025@student.topgrade.edu"
     ],
@@ -831,7 +947,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -859,6 +977,10 @@
     "parentPhones": [
       "+1 904 226 8065"
     ],
+    "studentWhatsapp": "+1 904 226 8065",
+    "parentWhatsapp": [
+      "+1 904 226 8065"
+    ],
     "studentEmails": [
       "cj.5009@student.topgrade.edu"
     ],
@@ -874,7 +996,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -902,6 +1026,10 @@
     "parentPhones": [
       "+1 713 208 0947"
     ],
+    "studentWhatsapp": "+1 713 208 0947",
+    "parentWhatsapp": [
+      "+1 713 208 0947"
+    ],
     "studentEmails": [
       "conner.kuzniar.5011@student.topgrade.edu"
     ],
@@ -917,7 +1045,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": []
   },
@@ -940,6 +1070,10 @@
     "parentPhones": [
       "+1 832 275 5298"
     ],
+    "studentWhatsapp": "+1 832 275 5298",
+    "parentWhatsapp": [
+      "+1 832 275 5298"
+    ],
     "studentEmails": [
       "dahlia.5062b@student.topgrade.edu"
     ],
@@ -955,7 +1089,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -983,6 +1119,10 @@
     "parentPhones": [
       "+1 832 314 3624"
     ],
+    "studentWhatsapp": "+1 832 314 3624",
+    "parentWhatsapp": [
+      "+1 832 314 3624"
+    ],
     "studentEmails": [
       "deven.5032@student.topgrade.edu"
     ],
@@ -998,7 +1138,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -1026,6 +1168,10 @@
     "parentPhones": [
       "+1 713 894 4018"
     ],
+    "studentWhatsapp": "+1 713 894 4018",
+    "parentWhatsapp": [
+      "+1 713 894 4018"
+    ],
     "studentEmails": [
       "dhyana.5030@student.topgrade.edu"
     ],
@@ -1041,7 +1187,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -1069,6 +1217,10 @@
     "parentPhones": [
       "+1 504 495 3594"
     ],
+    "studentWhatsapp": "+1 504 495 3594",
+    "parentWhatsapp": [
+      "+1 504 495 3594"
+    ],
     "studentEmails": [
       "elias.5023b@student.topgrade.edu"
     ],
@@ -1084,7 +1236,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -1112,6 +1266,10 @@
     "parentPhones": [
       "+1 832 941 8419"
     ],
+    "studentWhatsapp": "+1 832 941 8419",
+    "parentWhatsapp": [
+      "+1 832 941 8419"
+    ],
     "studentEmails": [
       "eric.5027@student.topgrade.edu"
     ],
@@ -1127,7 +1285,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -1155,6 +1315,10 @@
     "parentPhones": [
       "+1 832 344 7553"
     ],
+    "studentWhatsapp": "+1 832 344 7553",
+    "parentWhatsapp": [
+      "+1 832 344 7553"
+    ],
     "studentEmails": [
       "ethan.kuzniar.5010@student.topgrade.edu"
     ],
@@ -1170,7 +1334,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -1198,6 +1364,10 @@
     "parentPhones": [
       "+1 832 288 0435"
     ],
+    "studentWhatsapp": "+1 832 288 0435",
+    "parentWhatsapp": [
+      "+1 832 288 0435"
+    ],
     "studentEmails": [
       "evan.li.5064@student.topgrade.edu"
     ],
@@ -1213,7 +1383,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -1241,6 +1413,10 @@
     "parentPhones": [
       "+1 626 808 2351"
     ],
+    "studentWhatsapp": "+1 626 808 2351",
+    "parentWhatsapp": [
+      "+1 626 808 2351"
+    ],
     "studentEmails": [
       "evelyn.5008@student.topgrade.edu"
     ],
@@ -1256,7 +1432,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -1284,6 +1462,10 @@
     "parentPhones": [
       "+1 346 313 5879"
     ],
+    "studentWhatsapp": "+1 346 313 5879",
+    "parentWhatsapp": [
+      "+1 346 313 5879"
+    ],
     "studentEmails": [
       "faith.5028@student.topgrade.edu"
     ],
@@ -1299,7 +1481,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -1327,6 +1511,10 @@
     "parentPhones": [
       "+1 832 589 3676"
     ],
+    "studentWhatsapp": "+1 832 589 3676",
+    "parentWhatsapp": [
+      "+1 832 589 3676"
+    ],
     "studentEmails": [
       "giselle.5005@student.topgrade.edu"
     ],
@@ -1342,7 +1530,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -1370,6 +1560,10 @@
     "parentPhones": [
       "+1 617 959 3713"
     ],
+    "studentWhatsapp": "+1 617 959 3713",
+    "parentWhatsapp": [
+      "+1 617 959 3713"
+    ],
     "studentEmails": [
       "hari.charan.5045@student.topgrade.edu"
     ],
@@ -1385,7 +1579,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -1413,6 +1609,8 @@
     "parentPhones": [
       "+1 5818585656"
     ],
+    "studentWhatsapp": "+1 5818585656",
+    "parentWhatsapp": [],
     "studentEmails": [
       "std-1788241892654@topgrade.edu"
     ],
@@ -1428,7 +1626,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -1456,6 +1656,10 @@
     "parentPhones": [
       "+1 734 709 1718"
     ],
+    "studentWhatsapp": "+1 734 709 1718",
+    "parentWhatsapp": [
+      "+1 734 709 1718"
+    ],
     "studentEmails": [
       "isabelle.5054@student.topgrade.edu"
     ],
@@ -1471,7 +1675,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -1499,6 +1705,10 @@
     "parentPhones": [
       "+1 832 209 9729"
     ],
+    "studentWhatsapp": "+1 832 209 9729",
+    "parentWhatsapp": [
+      "+1 832 209 9729"
+    ],
     "studentEmails": [
       "jacob.5001@student.topgrade.edu"
     ],
@@ -1514,7 +1724,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -1542,6 +1754,10 @@
     "parentPhones": [
       "+1 919 215 3437"
     ],
+    "studentWhatsapp": "+1 919 215 3437",
+    "parentWhatsapp": [
+      "+1 919 215 3437"
+    ],
     "studentEmails": [
       "joseph.5018@student.topgrade.edu"
     ],
@@ -1557,7 +1773,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -1585,6 +1803,10 @@
     "parentPhones": [
       "+1 734 709 1718"
     ],
+    "studentWhatsapp": "+1 734 709 1718",
+    "parentWhatsapp": [
+      "+1 734 709 1718"
+    ],
     "studentEmails": [
       "julia.5054b@student.topgrade.edu"
     ],
@@ -1600,54 +1822,13 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
         "courseName": "Afterschool",
-        "duration": "3 Months"
-      }
-    ]
-  },
-  {
-    "id": "d62ddb95-753b-416b-9292-8f1ce9c8ffad",
-    "studentCode": "TG-STU-2026-5041",
-    "fullName": "Kaleb Smith",
-    "firstName": "Kaleb",
-    "lastName": "Smith",
-    "email": "kaleb.smith.5041@student.topgrade.edu",
-    "dob": "2005-01-01",
-    "age": 6,
-    "school": "Pearland HS",
-    "grade": "Grade 12",
-    "status": "ACTIVE",
-    "primaryMobile": "+1 973 760 4734",
-    "studentPhones": [
-      "+1 973 760 4734"
-    ],
-    "parentPhones": [
-      "+1 973 760 4734"
-    ],
-    "studentEmails": [
-      "kaleb.smith.5041@student.topgrade.edu"
-    ],
-    "parentEmails": [
-      "kaleb.smith.5041@student.topgrade.edu"
-    ],
-    "fatherName": "Blake Johnson",
-    "motherName": "",
-    "guardianName": "",
-    "program": "SAT prep",
-    "teacher": "",
-    "residentialAddress": "",
-    "studentAddress": "",
-    "alternateAddress": "",
-    "examDate": "",
-    "purchasedHours": 20,
-    "feePlan": "Standard Plan",
-    "allocatedCourses": [
-      {
-        "courseName": "SAT prep",
         "duration": "3 Months"
       }
     ]
@@ -1671,6 +1852,10 @@
     "parentPhones": [
       "+1 908 340 2976"
     ],
+    "studentWhatsapp": "+1 908 340 2976",
+    "parentWhatsapp": [
+      "+1 908 340 2976"
+    ],
     "studentEmails": [
       "kaleb.smith.5042@student.topgrade.edu"
     ],
@@ -1686,9 +1871,60 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": []
+  },
+  {
+    "id": "d62ddb95-753b-416b-9292-8f1ce9c8ffad",
+    "studentCode": "TG-STU-2026-5041",
+    "fullName": "Kaleb Smith",
+    "firstName": "Kaleb",
+    "lastName": "Smith",
+    "email": "kaleb.smith.5041@student.topgrade.edu",
+    "dob": "2005-01-01",
+    "age": 6,
+    "school": "Pearland HS",
+    "grade": "Grade 12",
+    "status": "ACTIVE",
+    "primaryMobile": "+1 973 760 4734",
+    "studentPhones": [
+      "+1 973 760 4734"
+    ],
+    "parentPhones": [
+      "+1 973 760 4734"
+    ],
+    "studentWhatsapp": "+1 973 760 4734",
+    "parentWhatsapp": [
+      "+1 973 760 4734"
+    ],
+    "studentEmails": [
+      "kaleb.smith.5041@student.topgrade.edu"
+    ],
+    "parentEmails": [
+      "kaleb.smith.5041@student.topgrade.edu"
+    ],
+    "fatherName": "Blake Johnson",
+    "motherName": "",
+    "guardianName": "",
+    "program": "SAT prep",
+    "teacher": "",
+    "residentialAddress": "",
+    "studentAddress": "",
+    "alternateAddress": "",
+    "examDate": "",
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
+    "feePlan": "Standard Plan",
+    "allocatedCourses": [
+      {
+        "courseName": "SAT prep",
+        "duration": "3 Months"
+      }
+    ]
   },
   {
     "id": "20392aa0-8712-4695-b230-9ac2588e38e2",
@@ -1709,6 +1945,10 @@
     "parentPhones": [
       "+1 936 414 7009"
     ],
+    "studentWhatsapp": "+1 936 414 7009",
+    "parentWhatsapp": [
+      "+1 936 414 7009"
+    ],
     "studentEmails": [
       "kalena.5059b@student.topgrade.edu"
     ],
@@ -1724,7 +1964,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -1752,6 +1994,10 @@
     "parentPhones": [
       "+1 936 414 7009"
     ],
+    "studentWhatsapp": "+1 936 414 7009",
+    "parentWhatsapp": [
+      "+1 936 414 7009"
+    ],
     "studentEmails": [
       "kaliyah.5059@student.topgrade.edu"
     ],
@@ -1767,7 +2013,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -1795,6 +2043,10 @@
     "parentPhones": [
       "+1 832 322 2239"
     ],
+    "studentWhatsapp": "+1 832 322 2239",
+    "parentWhatsapp": [
+      "+1 832 322 2239"
+    ],
     "studentEmails": [
       "kamauri.hunter.5002@student.topgrade.edu"
     ],
@@ -1810,7 +2062,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -1838,6 +2092,10 @@
     "parentPhones": [
       "+1 346 319 9044"
     ],
+    "studentWhatsapp": "+1 346 319 9044",
+    "parentWhatsapp": [
+      "+1 346 319 9044"
+    ],
     "studentEmails": [
       "kayden.jones.5060@student.topgrade.edu"
     ],
@@ -1853,7 +2111,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -1881,6 +2141,10 @@
     "parentPhones": [
       "+1 312 497 0695"
     ],
+    "studentWhatsapp": "+1 312 497 0695",
+    "parentWhatsapp": [
+      "+1 312 497 0695"
+    ],
     "studentEmails": [
       "kiaan.5034b@student.topgrade.edu"
     ],
@@ -1896,7 +2160,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -1924,6 +2190,10 @@
     "parentPhones": [
       "+1 713 319 8985"
     ],
+    "studentWhatsapp": "+1 713 319 8985",
+    "parentWhatsapp": [
+      "+1 713 319 8985"
+    ],
     "studentEmails": [
       "kiron.5007@student.topgrade.edu"
     ],
@@ -1939,7 +2209,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -1967,6 +2239,10 @@
     "parentPhones": [
       "+1 781 353 1272"
     ],
+    "studentWhatsapp": "+1 781 353 1272",
+    "parentWhatsapp": [
+      "+1 781 353 1272"
+    ],
     "studentEmails": [
       "kirtida.monpara.5040@student.topgrade.edu"
     ],
@@ -1982,7 +2258,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": []
   },
@@ -2005,6 +2283,10 @@
     "parentPhones": [
       "+1 346 391 0006"
     ],
+    "studentWhatsapp": "+1 346 391 0006",
+    "parentWhatsapp": [
+      "+1 346 391 0006"
+    ],
     "studentEmails": [
       "kris.5022@student.topgrade.edu"
     ],
@@ -2020,7 +2302,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -2036,8 +2320,8 @@
     "firstName": "Leandro",
     "lastName": "",
     "email": "leandro.5006@student.topgrade.edu",
-    "dob": "2005-01-01",
-    "age": 9,
+    "dob": "2016-05-15",
+    "age": 10,
     "school": "Silverlake",
     "grade": "Grade 4",
     "status": "ACTIVE",
@@ -2046,6 +2330,10 @@
       "+1 832 431 1633"
     ],
     "parentPhones": [
+      "+1 832 431 1633"
+    ],
+    "studentWhatsapp": "+1 832 431 1633",
+    "parentWhatsapp": [
       "+1 832 431 1633"
     ],
     "studentEmails": [
@@ -2059,11 +2347,13 @@
     "guardianName": "",
     "program": "Afterschool",
     "teacher": "",
-    "residentialAddress": "",
+    "residentialAddress": "123 Main St",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -2091,6 +2381,10 @@
     "parentPhones": [
       "+1 229 854 1224"
     ],
+    "studentWhatsapp": "+1 229 854 1224",
+    "parentWhatsapp": [
+      "+1 229 854 1224"
+    ],
     "studentEmails": [
       "logan.starks.5017@student.topgrade.edu"
     ],
@@ -2106,7 +2400,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -2134,6 +2430,10 @@
     "parentPhones": [
       "+1 504 495 3594"
     ],
+    "studentWhatsapp": "+1 504 495 3594",
+    "parentWhatsapp": [
+      "+1 504 495 3594"
+    ],
     "studentEmails": [
       "lydia.5023@student.topgrade.edu"
     ],
@@ -2149,7 +2449,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -2177,6 +2479,10 @@
     "parentPhones": [
       "+1 832 816 4463"
     ],
+    "studentWhatsapp": "+1 832 816 4463",
+    "parentWhatsapp": [
+      "+1 832 816 4463"
+    ],
     "studentEmails": [
       "madison.carter.5053@student.topgrade.edu"
     ],
@@ -2192,7 +2498,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -2220,6 +2528,10 @@
     "parentPhones": [
       "+1 832 712 3339"
     ],
+    "studentWhatsapp": "+1 832 712 3339",
+    "parentWhatsapp": [
+      "+1 832 712 3339"
+    ],
     "studentEmails": [
       "micah.5065@student.topgrade.edu"
     ],
@@ -2235,7 +2547,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -2263,6 +2577,10 @@
     "parentPhones": [
       "+1 281 617 9583"
     ],
+    "studentWhatsapp": "+1 281 617 9583",
+    "parentWhatsapp": [
+      "+1 281 617 9583"
+    ],
     "studentEmails": [
       "minh.5012@student.topgrade.edu"
     ],
@@ -2278,7 +2596,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -2306,6 +2626,10 @@
     "parentPhones": [
       "+1 832 746 7799"
     ],
+    "studentWhatsapp": "+1 832 746 7799",
+    "parentWhatsapp": [
+      "+1 832 746 7799"
+    ],
     "studentEmails": [
       "nehemiah.5058@student.topgrade.edu"
     ],
@@ -2321,7 +2645,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -2349,6 +2675,10 @@
     "parentPhones": [
       "+1 281 851 5873"
     ],
+    "studentWhatsapp": "+1 281 851 5873",
+    "parentWhatsapp": [
+      "+1 281 851 5873"
+    ],
     "studentEmails": [
       "nikhil.5047@student.topgrade.edu"
     ],
@@ -2364,7 +2694,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -2392,6 +2724,10 @@
     "parentPhones": [
       "+1 312 497 0695"
     ],
+    "studentWhatsapp": "+1 312 497 0695",
+    "parentWhatsapp": [
+      "+1 312 497 0695"
+    ],
     "studentEmails": [
       "noshi.5034@student.topgrade.edu"
     ],
@@ -2407,7 +2743,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -2435,6 +2773,10 @@
     "parentPhones": [
       "+1 2817606386"
     ],
+    "studentWhatsapp": "+1 3468228020",
+    "parentWhatsapp": [
+      "+1 2817606386"
+    ],
     "studentEmails": [
       "riaupadhyaya3@gmail.com"
     ],
@@ -2445,12 +2787,14 @@
     "motherName": "Smita Upadhyaya",
     "guardianName": "",
     "program": "English",
-    "teacher": "Logan Fenner",
+    "teacher": "Jignesh Upadhyaya",
     "residentialAddress": "2615 Sunfish Drive, Pearland, TX 77584",
-    "studentAddress": "2615 Sunfish Drive, Pearland, TX 77584 | School: Narayana Olympiad School",
-    "alternateAddress": "2615 Sunfish Drive, Pearland, TX 77584 | School: Narayana Olympiad School",
+    "studentAddress": "2615 Sunfish Drive, Pearland, TX 77584 | School: Narayana Olympiad School | School: Bhashyam High School | School: Bhashyam High School | School: Bhashyam High School",
+    "alternateAddress": "2615 Sunfish Drive, Pearland, TX 77584 | School: Narayana Olympiad School | School: Bhashyam High School | School: Bhashyam High School | School: Bhashyam High School",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -2478,6 +2822,10 @@
     "parentPhones": [
       "+1 334 372 5625"
     ],
+    "studentWhatsapp": "+1 334 372 5625",
+    "parentWhatsapp": [
+      "+1 334 372 5625"
+    ],
     "studentEmails": [
       "peyton.5014@student.topgrade.edu"
     ],
@@ -2493,7 +2841,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -2521,6 +2871,10 @@
     "parentPhones": [
       "+1 832 754 8223"
     ],
+    "studentWhatsapp": "+1 832 754 8223",
+    "parentWhatsapp": [
+      "+1 832 754 8223"
+    ],
     "studentEmails": [
       "raina.5035@student.topgrade.edu"
     ],
@@ -2536,7 +2890,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -2564,6 +2920,8 @@
     "parentPhones": [
       "+1 1234567894"
     ],
+    "studentWhatsapp": "+1 1234567894",
+    "parentWhatsapp": [],
     "studentEmails": [
       "rajeshganta@gmail.com"
     ],
@@ -2579,7 +2937,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -2607,6 +2967,10 @@
     "parentPhones": [
       "+1 832 215 5432"
     ],
+    "studentWhatsapp": "+1 832 215 5432",
+    "parentWhatsapp": [
+      "+1 832 215 5432"
+    ],
     "studentEmails": [
       "reshmika.5046@student.topgrade.edu"
     ],
@@ -2622,7 +2986,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": []
   },
@@ -2645,6 +3011,10 @@
     "parentPhones": [
       "+1 832 941 8419"
     ],
+    "studentWhatsapp": "+1 832 941 8419",
+    "parentWhatsapp": [
+      "+1 832 941 8419"
+    ],
     "studentEmails": [
       "robert.mora.5027b@student.topgrade.edu"
     ],
@@ -2660,7 +3030,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -2688,6 +3060,10 @@
     "parentPhones": [
       "+1 346 546 9546"
     ],
+    "studentWhatsapp": "+1 346 546 9546",
+    "parentWhatsapp": [
+      "+1 346 546 9546"
+    ],
     "studentEmails": [
       "saanvi.narula.5024@student.topgrade.edu"
     ],
@@ -2703,7 +3079,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -2731,6 +3109,10 @@
     "parentPhones": [
       "+1 713 820 0880"
     ],
+    "studentWhatsapp": "+1 713 820 0880",
+    "parentWhatsapp": [
+      "+1 713 820 0880"
+    ],
     "studentEmails": [
       "samson.miller.5016@student.topgrade.edu"
     ],
@@ -2746,7 +3128,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -2774,6 +3158,10 @@
     "parentPhones": [
       "+1 832 314 3626"
     ],
+    "studentWhatsapp": "+1 832 314 3626",
+    "parentWhatsapp": [
+      "+1 832 314 3626"
+    ],
     "studentEmails": [
       "sandeep.duggal.5033@student.topgrade.edu"
     ],
@@ -2789,7 +3177,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": []
   },
@@ -2812,6 +3202,10 @@
     "parentPhones": [
       "+1 832 607 0195"
     ],
+    "studentWhatsapp": "+1 832 607 0195",
+    "parentWhatsapp": [
+      "+1 832 607 0195"
+    ],
     "studentEmails": [
       "serena.5043@student.topgrade.edu"
     ],
@@ -2827,7 +3221,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -2855,6 +3251,10 @@
     "parentPhones": [
       "+1 979 900 7400"
     ],
+    "studentWhatsapp": "+1 979 900 7400",
+    "parentWhatsapp": [
+      "+1 979 900 7400"
+    ],
     "studentEmails": [
       "serena.iii.5044@student.topgrade.edu"
     ],
@@ -2870,7 +3270,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": []
   },
@@ -2880,10 +3282,10 @@
     "fullName": "Siva Reddy",
     "firstName": "Siva",
     "lastName": "Reddy",
-    "email": "sivareddy683970@gmail.com",
+    "email": "clashofclansreddy@gmail.com",
     "dob": "2003-04-08",
     "age": 23,
-    "school": "Top Grade International",
+    "school": "Bhashyam High School",
     "grade": "Grade 12",
     "status": "ACTIVE",
     "primaryMobile": "+1 7780648562",
@@ -2893,8 +3295,12 @@
     "parentPhones": [
       "+1 7780648562"
     ],
+    "studentWhatsapp": "+1 7780648562",
+    "parentWhatsapp": [
+      "+1 7780648562"
+    ],
     "studentEmails": [
-      "sivareddy683970@gmail.com"
+      "clashofclansreddy@gmail.com"
     ],
     "parentEmails": [
       "sivareddy683970@gmail.com"
@@ -2904,11 +3310,13 @@
     "guardianName": "",
     "program": "AP Calculus",
     "teacher": "Tamara Gipson",
-    "residentialAddress": "12125 Near bustand, jangareddygudem, JRG, AP 534447",
-    "studentAddress": "12125 Near bustand, jangareddygudem, JRG, AP 534447",
-    "alternateAddress": "12125 Near bustand, jangareddygudem, JRG, AP 534447",
+    "residentialAddress": "111 Near bustand, jangareddygudem, JRG, AP 534447",
+    "studentAddress": "111 Near bustand, jangareddygudem, JRG, AP 534447",
+    "alternateAddress": "111 Near bustand, jangareddygudem, JRG, AP 534447",
     "examDate": "2026-09-20",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -2936,6 +3344,10 @@
     "parentPhones": [
       "+1 832 274 9851"
     ],
+    "studentWhatsapp": "+1 832 274 9851",
+    "parentWhatsapp": [
+      "+1 832 274 9851"
+    ],
     "studentEmails": [
       "sky.zielinski.5026@student.topgrade.edu"
     ],
@@ -2951,7 +3363,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -2979,6 +3393,10 @@
     "parentPhones": [
       "+1 832 275 5298"
     ],
+    "studentWhatsapp": "+1 832 275 5298",
+    "parentWhatsapp": [
+      "+1 832 275 5298"
+    ],
     "studentEmails": [
       "sophie.5062@student.topgrade.edu"
     ],
@@ -2994,7 +3412,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -3022,6 +3442,10 @@
     "parentPhones": [
       "+1 662 617 9073"
     ],
+    "studentWhatsapp": "+1 662 617 9073",
+    "parentWhatsapp": [
+      "+1 662 617 9073"
+    ],
     "studentEmails": [
       "sumay.5019@student.topgrade.edu"
     ],
@@ -3037,7 +3461,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -3065,6 +3491,10 @@
     "parentPhones": [
       "+1 662 617 9073"
     ],
+    "studentWhatsapp": "+1 662 617 9073",
+    "parentWhatsapp": [
+      "+1 662 617 9073"
+    ],
     "studentEmails": [
       "sumay.5038@student.topgrade.edu"
     ],
@@ -3080,7 +3510,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -3108,6 +3540,10 @@
     "parentPhones": [
       "+1 832 888 8512"
     ],
+    "studentWhatsapp": "+1 832 888 8512",
+    "parentWhatsapp": [
+      "+1 832 888 8512"
+    ],
     "studentEmails": [
       "tierra.perry.5003@student.topgrade.edu"
     ],
@@ -3123,7 +3559,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": []
   },
@@ -3146,6 +3584,10 @@
     "parentPhones": [
       "+1 714 261 6170"
     ],
+    "studentWhatsapp": "+1 714 261 6170",
+    "parentWhatsapp": [
+      "+1 714 261 6170"
+    ],
     "studentEmails": [
       "tu.hyunh.5013@student.topgrade.edu"
     ],
@@ -3161,7 +3603,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": []
   },
@@ -3184,6 +3628,10 @@
     "parentPhones": [
       "+1 713 302 1264"
     ],
+    "studentWhatsapp": "+1 713 302 1264",
+    "parentWhatsapp": [
+      "+1 713 302 1264"
+    ],
     "studentEmails": [
       "ulaysha.5051@student.topgrade.edu"
     ],
@@ -3199,7 +3647,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -3227,6 +3677,10 @@
     "parentPhones": [
       "+1 713 820 0792"
     ],
+    "studentWhatsapp": "+1 713 820 0792",
+    "parentWhatsapp": [
+      "+1 713 820 0792"
+    ],
     "studentEmails": [
       "ulaysha.gibbs.5052@student.topgrade.edu"
     ],
@@ -3242,7 +3696,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": []
   },
@@ -3265,6 +3721,10 @@
     "parentPhones": [
       "+1 713 382 5195"
     ],
+    "studentWhatsapp": "+1 713 382 5195",
+    "parentWhatsapp": [
+      "+1 713 382 5195"
+    ],
     "studentEmails": [
       "uriel.5015@student.topgrade.edu"
     ],
@@ -3280,7 +3740,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -3308,6 +3770,10 @@
     "parentPhones": [
       "+1 573 308 5088"
     ],
+    "studentWhatsapp": "+1 573 308 5088",
+    "parentWhatsapp": [
+      "+1 573 308 5088"
+    ],
     "studentEmails": [
       "vinoli.5037@student.topgrade.edu"
     ],
@@ -3323,7 +3789,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -3351,6 +3819,10 @@
     "parentPhones": [
       "+1 716 464 0517"
     ],
+    "studentWhatsapp": "+1 716 464 0517",
+    "parentWhatsapp": [
+      "+1 716 464 0517"
+    ],
     "studentEmails": [
       "viviana.5057@student.topgrade.edu"
     ],
@@ -3366,7 +3838,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
@@ -3394,6 +3868,10 @@
     "parentPhones": [
       "+1 713 725 3665"
     ],
+    "studentWhatsapp": "+1 713 725 3665",
+    "parentWhatsapp": [
+      "+1 713 725 3665"
+    ],
     "studentEmails": [
       "vondeah.grant.5050@student.topgrade.edu"
     ],
@@ -3409,7 +3887,9 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
-    "purchasedHours": 20,
+    "purchasedHours": 0,
+    "hoursLeft": 0,
+    "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": []
   }
