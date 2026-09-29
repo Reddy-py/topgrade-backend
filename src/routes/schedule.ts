@@ -279,6 +279,61 @@ router.post("/assign-student", async (req: Request, res: Response): Promise<any>
   }
 });
 
+// 8b. Unassign a student from a specific schedule slot
+router.post("/unassign-student", async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { schedule_id, student_id, student_code } = req.body;
+    if (!schedule_id || !student_id) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing required fields: schedule_id and student_id are required."
+      });
+    }
+
+    const updatedSlot = await ScheduleDataService.unassignStudentFromSlot({
+      schedule_id,
+      student_id,
+      student_code
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: `Student successfully unassigned from schedule slot.`,
+      data: updatedSlot
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 8c. Sync all schedule slots for a student
+router.post("/sync-student-slots", async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { student_id, student_name, student_code, parent_email, schedule_ids } = req.body;
+    if (!student_id || !student_name) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing required fields: student_id and student_name are required."
+      });
+    }
+
+    await ScheduleDataService.syncStudentSlots({
+      student_id,
+      student_name,
+      student_code,
+      parent_email,
+      schedule_ids: Array.isArray(schedule_ids) ? schedule_ids : []
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: `Schedule slots synced successfully for student '${student_name}'.`
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // 1. Endpoint to allocate a new class with active conflict checks
 router.post("/allocate", async (req, res): Promise<any> => {
   const { 

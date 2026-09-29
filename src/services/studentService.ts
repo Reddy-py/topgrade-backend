@@ -5,6 +5,7 @@ import { dispatchMultiChannelNotification } from "./notificationService.js";
 import { sendExamGoodLuckWishes, sendBirthdayGreetings } from "./automatedEmailService.js";
 import { inMemoryTeachers } from "../routes/teachers.js";
 import { supabaseAdmin } from "../supabase.js";
+import { localScheduleStore } from "./scheduleDataService.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -573,15 +574,22 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
 
   // Multi-Email Dispatch Notification to Respected Student & Parent Email Addresses
   try {
+    const parentEmail = cleanParentEmails[0] || `parent.${(newStudent.fatherName || newStudent.firstName || "guardian").toLowerCase().replace(/[^a-z0-9]/g, "")}.${(newStudent.studentCode || "").replace(/[^0-9]/g, "") || Math.floor(1000 + Math.random() * 9000)}@parents.topgrade.edu`;
+    const parentPassword = "Parent@TopGrade2026";
+
     const recipients: Array<{ role: "STUDENT" | "PARENT" | "TEACHER" | "ACCOUNTANT" | "ADMIN"; email: string; name: string; phone: string }> = [];
     
     cleanStudentEmails.forEach(e => {
       recipients.push({ role: "STUDENT", email: e, name: newStudent.fullName, phone: newStudent.primaryMobile || "" });
     });
     
-    cleanParentEmails.forEach(e => {
-      recipients.push({ role: "PARENT", email: e, name: newStudent.fatherName || "Parent", phone: cleanParentPhones[0] || "" });
-    });
+    if (cleanParentEmails.length > 0) {
+      cleanParentEmails.forEach(e => {
+        recipients.push({ role: "PARENT", email: e, name: newStudent.fatherName || "Parent", phone: cleanParentPhones[0] || "" });
+      });
+    } else {
+      recipients.push({ role: "PARENT", email: parentEmail, name: newStudent.fatherName || "Parent", phone: cleanParentPhones[0] || "" });
+    }
 
     if (recipients.length === 0 && newStudent.email) {
       recipients.push({ role: "STUDENT", email: newStudent.email, name: newStudent.fullName, phone: newStudent.primaryMobile || "" });
@@ -596,7 +604,7 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
     await dispatchMultiChannelNotification({
       eventType: "PAYMENT_COMPLETED",
       subject: `🎉 Student Enrollment Registered — ${newStudent.fullName} (${newStudent.studentCode})`,
-      message: `Dear ${newStudent.fullName} & Parent,\n\nCongratulations! Your student profile has been registered.\n\n📋 Dossier Summary:\n• Student Name: ${newStudent.fullName}\n• Student ID Code: ${newStudent.studentCode}\n• School: ${newStudent.school}\n• Grade: ${newStudent.grade}\n• Enrolled Courses: ${newStudent.allocatedCourses?.map(c => c.courseName).join(", ")}\n\n🔑 Student Portal Login Credentials:\n• Portal Email: ${newStudent.email}\n• Password: ${newStudent.password}\n\nThank you for choosing TopGrade CRM!`,
+      message: `Dear ${newStudent.fullName} & Parent,\n\nCongratulations! Your student profile has been registered in TopGrade CRM.\n\n📋 Dossier Summary:\n• Student Name: ${newStudent.fullName}\n• Student ID Code: ${newStudent.studentCode}\n• School: ${newStudent.school}\n• Grade: ${newStudent.grade}\n• Enrolled Courses: ${newStudent.allocatedCourses?.map(c => c.courseName).join(", ")}\n\n🔑 Student Portal Login Credentials:\n• Portal Email: ${newStudent.email}\n• Password: ${newStudent.password}\n• Role: STUDENT\n\n👨‍👩‍👧 Parent Portal Login Credentials:\n• Parent Portal Email: ${parentEmail}\n• Password: ${parentPassword}\n• Role: PARENT\n• Parent Portal Features: Track your child's attendance, weekly schedule slots, fee receipts, and academic reports.\n\nThank you for choosing TopGrade CRM!`,
       recipients
     });
   } catch (err) {
@@ -604,6 +612,127 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
   }
 
   return newStudent;
+}
+
+/**
+ * Service to dispatch Parent Credentials specifically on demand
+ */
+export async function sendParentCredentialsService(studentIdOrCode: string): Promise<{ success: boolean; message: string; parentEmail: string }> {
+  const isUUID = (str?: string | null): boolean =>
+    !!str && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
+
+  let student = inMemoryStudentStore.find(s => s.id === studentIdOrCode || s.studentCode === studentIdOrCode);
+  if (!student) {
+    try {
+      let sbQuery = supabaseAdmin.from("students").select("*");
+      if (isUUID(studentIdOrCode)) {
+        sbQuery = sbQuery.eq("id", studentIdOrCode);
+      } else {
+        sbQuery = sbQuery.eq("student_id_code", studentIdOrCode);
+      }
+      const { data } = await sbQuery.maybeSingle();
+      if (data) {
+        student = {
+          id: data.id,
+          studentCode: data.student_id_code,
+          fullName: data.name,
+          firstName: (data.name || "").split(" ")[0] || "Student",
+          lastName: (data.name || "").split(" ").slice(1).join(" ") || "",
+          email: data.email,
+          dob: data.dob || "2005-01-01",
+          age: data.age || 18,
+          school: data.school || "Top Grade Academy",
+          grade: data.grade || "Grade 10",
+          status: data.status || "ACTIVE",
+          primaryMobile: data.phone || "",
+          studentPhones: [data.phone || ""].filter(Boolean),
+          parentPhones: [data.father_phone || ""].filter(Boolean),
+          studentEmails: [data.email || ""].filter(Boolean),
+          parentEmails: [],
+          fatherName: data.father_name || "Parent",
+          motherName: data.mother_name || "",
+          guardianName: data.guardian || "",
+          program: data.program || "General Track",
+          teacher: data.teacher || "Unassigned",
+          allocatedCourses: data.allocated_courses || [],
+          password: data.password || "Student@123"
+        } as any;
+      }
+    } catch (e) {}
+  }
+
+  if (!student) {
+    throw new Error(`Student record not found for ID/Code '${studentIdOrCode}'.`);
+  }
+
+  const cleanParentEmails = (student.parentEmails || []).filter(e => e && e.includes("@"));
+  const defaultParentEmail = `parent.${(student.fatherName || student.firstName || "guardian").toLowerCase().replace(/[^a-z0-9]/g, "")}.${(student.studentCode || "").replace(/[^0-9]/g, "") || "2026"}@parents.topgrade.edu`;
+  const parentEmail = cleanParentEmails[0] || defaultParentEmail;
+  const parentPassword = "Parent@TopGrade2026";
+  const parentName = student.fatherName || student.motherName || student.guardianName || `${student.fullName}'s Parent`;
+
+  // Ensure Parent User exists in Supabase Auth & profiles
+  try {
+    const { data: pAuth } = await supabaseAdmin.auth.admin.createUser({
+      email: parentEmail,
+      password: parentPassword,
+      email_confirm: true,
+      user_metadata: {
+        role: "PARENT",
+        full_name: parentName,
+        child_code: student.studentCode,
+        child_codes: [student.studentCode],
+        child_name: student.fullName
+      }
+    });
+
+    await supabaseAdmin.from("profiles").upsert({
+      ...(pAuth?.user?.id ? { id: pAuth.user.id } : {}),
+      email: parentEmail,
+      full_name: parentName,
+      role: "PARENT",
+      status: "Active",
+      updated_at: new Date().toISOString()
+    }, { onConflict: "email" });
+  } catch (authErr) {
+    // If user already exists, update their metadata
+    try {
+      const { data: userList } = await supabaseAdmin.auth.admin.listUsers();
+      const existingUser = userList?.users?.find(u => u.email?.toLowerCase() === parentEmail.toLowerCase());
+      if (existingUser) {
+        await supabaseAdmin.auth.admin.updateUserById(existingUser.id, {
+          user_metadata: {
+            ...existingUser.user_metadata,
+            role: "PARENT",
+            full_name: parentName,
+            child_code: student.studentCode,
+            child_codes: Array.from(new Set([...(existingUser.user_metadata?.child_codes || []), student.studentCode])),
+            child_name: student.fullName
+          }
+        });
+      }
+    } catch {}
+  }
+
+  // Dispatch Email
+  const recipients = [
+    { role: "PARENT" as const, email: parentEmail, name: parentName, phone: student.parentPhones?.[0] || "" },
+    { role: "ADMIN" as const, email: process.env.ADMIN_EMAIL || "tglbiz101@gmail.com", name: "TopGrade Admin", phone: "" },
+    { role: "ACCOUNTANT" as const, email: process.env.ACCOUNTANT_EMAIL || "sivareddy68397@gmail.com", name: "Accountant", phone: "" }
+  ];
+
+  await dispatchMultiChannelNotification({
+    eventType: "PAYMENT_COMPLETED",
+    subject: `🔑 TopGrade CRM — Parent Portal Access Credentials for ${student.fullName}`,
+    message: `Dear ${parentName},\n\nHere are your official TopGrade CRM Parent Portal credentials to access your child's academic schedules, attendance records, course streams, and tuition statements:\n\n👤 Student Information:\n• Student Name: ${student.fullName}\n• Student ID Code: ${student.studentCode}\n• School: ${student.school || "Top Grade Academy"}\n• Grade: ${student.grade || "General"}\n\n🔑 Parent Login Credentials:\n• Parent Portal Email: ${parentEmail}\n• Password: ${parentPassword}\n• Role: PARENT\n\n🌐 Sign In: You can sign in using these credentials at the TopGrade CRM login screen.\n\nThank you,\nTopGrade CRM Administration`,
+    recipients
+  });
+
+  return {
+    success: true,
+    message: `Parent credentials successfully dispatched to '${parentEmail}'.`,
+    parentEmail
+  };
 }
 
 /**
@@ -842,25 +971,83 @@ export async function deleteStudentService(id: string): Promise<boolean> {
   }
   lastSupabaseStudentFetch = 0;
 
-  // Real-time Supabase Delete Sync
+  // Real-time Supabase Cascade Delete Sync
   try {
     const isUUID = (str?: string | null): boolean =>
       !!str && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
 
-    if (removed?.id && isUUID(removed.id)) {
-      await supabaseAdmin.from("students").delete().eq("id", removed.id);
-    } else if (isUUID(id)) {
-      await supabaseAdmin.from("students").delete().eq("id", id);
+    const targetStudentId = removed?.id || (isUUID(id) ? id : null);
+    const targetStudentCode = removed?.studentCode || (!isUUID(id) ? id : null);
+    const targetStudentName = removed?.fullName;
+    const targetStudentEmail = removed?.email;
+
+    // 1. Delete from students table
+    if (targetStudentId && isUUID(targetStudentId)) {
+      await supabaseAdmin.from("students").delete().eq("id", targetStudentId);
+    }
+    if (targetStudentCode) {
+      await supabaseAdmin.from("students").delete().eq("student_id_code", targetStudentCode);
+    }
+    if (targetStudentEmail) {
+      await supabaseAdmin.from("students").delete().eq("email", targetStudentEmail);
+      await supabaseAdmin.from("profiles").delete().eq("email", targetStudentEmail);
     }
 
-    if (removed?.studentCode) {
-      await supabaseAdmin.from("students").delete().eq("student_id_code", removed.studentCode);
+    // 2. Delete from schedule_students table
+    if (targetStudentId) {
+      await supabaseAdmin.from("schedule_students").delete().eq("student_id", targetStudentId);
     }
-    if (!isUUID(id)) {
-      await supabaseAdmin.from("students").delete().eq("student_id_code", id);
+    if (targetStudentCode) {
+      await supabaseAdmin.from("schedule_students").delete().eq("student_code", targetStudentCode);
     }
+
+    // 3. Delete from attendance table
+    if (targetStudentId) {
+      await supabaseAdmin.from("attendance").delete().eq("student_id", targetStudentId);
+    }
+    if (targetStudentName) {
+      await supabaseAdmin.from("attendance").delete().eq("student_name", targetStudentName);
+    }
+
+    // 4. Delete from fees table
+    if (targetStudentId) {
+      await supabaseAdmin.from("fees").delete().eq("student_id", targetStudentId);
+    }
+    if (targetStudentCode) {
+      await supabaseAdmin.from("fees").delete().eq("student_code", targetStudentCode);
+    }
+
+    // 5. Delete from parent_students table
+    if (targetStudentId) {
+      await supabaseAdmin.from("parent_students").delete().eq("student_id", targetStudentId);
+    }
+
+    // 6. Remove from local schedule store slots
+    try {
+      const allSchedules = localScheduleStore.getAllSchedules();
+      for (const slot of allSchedules) {
+        if (slot.students && slot.students.length > 0) {
+          const filteredStudents = slot.students.filter(
+            (st: any) => st.student_id !== targetStudentId && 
+                  st.student_id !== targetStudentCode && 
+                  st.student_code !== targetStudentCode &&
+                  st.student_name !== targetStudentName
+          );
+          if (filteredStudents.length !== slot.students.length) {
+            localScheduleStore.saveSchedule({
+              ...slot,
+              students: filteredStudents,
+              updated_at: new Date().toISOString()
+            });
+          }
+        }
+      }
+    } catch (schErr) {
+      console.warn("Notice updating local schedules on student delete:", schErr);
+    }
+
   } catch (e: any) {
-    console.warn("Supabase student delete notice:", e?.message);
+    console.warn("Supabase student cascade delete notice:", e?.message);
   }
 
   return true;

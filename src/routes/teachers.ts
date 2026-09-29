@@ -196,42 +196,80 @@ router.post("/", createTeacherHandler);
 
 // PUT: Update faculty teacher profile in real time
 export const updateTeacherHandler = async (req: express.Request, res: express.Response) => {
-  const teacherId = req.params.id;
+  const teacherId = String(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id);
   const t = req.body;
 
   if (!teacherId) {
     return res.status(400).json({ success: false, message: "Teacher ID is required." });
   }
 
-  const idx = inMemoryTeachers.findIndex(tch => tch.id === teacherId || tch.teacher_id_code === teacherId);
-  if (idx === -1) {
-    return res.status(404).json({ success: false, message: `Teacher with ID '${teacherId}' not found.` });
+  const isUUID = (str?: any): boolean =>
+    typeof str === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
+
+  let idx = inMemoryTeachers.findIndex(tch => 
+    tch.id === teacherId || 
+    tch.teacher_id_code === teacherId || 
+    (t.email && tch.email?.toLowerCase() === t.email.toLowerCase())
+  );
+
+  let currentTeacher = idx !== -1 ? inMemoryTeachers[idx] : null;
+
+  // If not found in memory, query Supabase
+  if (!currentTeacher) {
+    try {
+      let sbQuery = supabaseAdmin.from("teachers").select("*");
+      if (isUUID(teacherId)) {
+        sbQuery = sbQuery.eq("id", teacherId);
+      } else {
+        sbQuery = sbQuery.eq("teacher_id_code", teacherId);
+      }
+      const { data: sbTeacher } = await sbQuery.maybeSingle();
+      if (sbTeacher) {
+        currentTeacher = sbTeacher;
+      } else if (t.email) {
+        const { data: sbByEmail } = await supabaseAdmin.from("teachers").select("*").eq("email", t.email).maybeSingle();
+        if (sbByEmail) currentTeacher = sbByEmail;
+      }
+    } catch (sbErr) {
+      console.warn("Notice querying teacher for update:", sbErr);
+    }
   }
 
-  const currentTeacher = inMemoryTeachers[idx];
-  const updatedTeacher = {
-    ...currentTeacher,
-    name: t.name !== undefined ? t.name : currentTeacher.name,
-    dob: t.dateOfBirth !== undefined ? t.dateOfBirth : currentTeacher.dob,
-    age: t.age !== undefined ? parseInt(t.age) : currentTeacher.age,
-    qualification: t.qualification !== undefined ? t.qualification : currentTeacher.qualification,
-    qualification_certificate_url: t.qualificationCertificateUrl !== undefined ? t.qualificationCertificateUrl : currentTeacher.qualification_certificate_url,
-    resume_url: t.resumeUrl !== undefined ? t.resumeUrl : currentTeacher.resume_url,
-    photo_url: t.photoUrl !== undefined ? t.photoUrl : currentTeacher.photo_url,
-    phone: t.phone !== undefined ? t.phone : currentTeacher.phone,
-    email: t.email !== undefined ? t.email : currentTeacher.email,
-    specialization: t.specialization !== undefined ? t.specialization : currentTeacher.specialization,
-    experience: t.experience !== undefined ? t.experience : currentTeacher.experience,
-    joining_date: t.joiningDate !== undefined ? t.joiningDate : currentTeacher.joining_date,
-    salary: t.salary !== undefined ? t.salary : currentTeacher.salary,
-    status: t.status !== undefined ? t.status : currentTeacher.status,
-    working_days_count: t.workingDaysCount !== undefined ? t.workingDaysCount : (t.availabilityDays?.length || currentTeacher.working_days_count),
-    availability_days: t.availabilityDays !== undefined ? t.availabilityDays : currentTeacher.availability_days,
-    availability_slots: t.availabilitySlots !== undefined ? t.availabilitySlots : currentTeacher.availability_slots
+  const baseTeacher = currentTeacher || {
+    id: teacherId,
+    teacher_id_code: t.teacher_id_code || `TG-FAC-${teacherId.slice(0, 4)}`,
+    name: t.name || "Teacher",
+    email: t.email || ""
   };
 
-  inMemoryTeachers[idx] = updatedTeacher;
+  const updatedTeacher = {
+    ...baseTeacher,
+    name: t.name !== undefined ? t.name : baseTeacher.name,
+    dob: t.dateOfBirth !== undefined ? t.dateOfBirth : baseTeacher.dob,
+    age: t.age !== undefined ? parseInt(t.age) : baseTeacher.age,
+    qualification: t.qualification !== undefined ? t.qualification : baseTeacher.qualification,
+    qualification_certificate_url: t.qualificationCertificateUrl !== undefined ? t.qualificationCertificateUrl : baseTeacher.qualification_certificate_url,
+    resume_url: t.resumeUrl !== undefined ? t.resumeUrl : baseTeacher.resume_url,
+    photo_url: t.photoUrl !== undefined ? t.photoUrl : baseTeacher.photo_url,
+    phone: t.phone !== undefined ? t.phone : baseTeacher.phone,
+    email: t.email !== undefined ? t.email : baseTeacher.email,
+    specialization: t.specialization !== undefined ? t.specialization : baseTeacher.specialization,
+    experience: t.experience !== undefined ? t.experience : baseTeacher.experience,
+    joining_date: t.joiningDate !== undefined ? t.joiningDate : baseTeacher.joining_date,
+    salary: t.salary !== undefined ? t.salary : baseTeacher.salary,
+    status: t.status !== undefined ? t.status : baseTeacher.status,
+    working_days_count: t.workingDaysCount !== undefined ? t.workingDaysCount : (t.availabilityDays?.length || baseTeacher.working_days_count || 5),
+    availability_days: t.availabilityDays !== undefined ? t.availabilityDays : baseTeacher.availability_days,
+    availability_slots: t.availabilitySlots !== undefined ? t.availabilitySlots : baseTeacher.availability_slots
+  };
 
+  if (idx !== -1) {
+    inMemoryTeachers[idx] = updatedTeacher;
+  } else {
+    inMemoryTeachers.push(updatedTeacher);
+  }
+
+  // Real-time Supabase Database Update
   try {
     const updateRow: any = {
       name: updatedTeacher.name,
@@ -248,10 +286,48 @@ export const updateTeacherHandler = async (req: express.Request, res: express.Re
       availability_slots: updatedTeacher.availability_slots,
       status: updatedTeacher.status || "Active"
     };
-    await supabaseAdmin
-      .from("teachers")
-      .update(updateRow)
-      .eq("teacher_id_code", currentTeacher.teacher_id_code || teacherId);
+
+    if (isUUID(teacherId)) {
+      await supabaseAdmin.from("teachers").update(updateRow).eq("id", teacherId);
+    } else if (baseTeacher.id && isUUID(baseTeacher.id)) {
+      await supabaseAdmin.from("teachers").update(updateRow).eq("id", baseTeacher.id);
+    }
+
+    if (baseTeacher.teacher_id_code) {
+      await supabaseAdmin.from("teachers").update(updateRow).eq("teacher_id_code", baseTeacher.teacher_id_code);
+    }
+    if (updatedTeacher.email) {
+      await supabaseAdmin.from("teachers").update(updateRow).eq("email", updatedTeacher.email);
+    }
+
+    // Real-time sync into Supabase profiles table for instant "My Profile" teacher updates
+    if (updatedTeacher.email) {
+      await supabaseAdmin.from("profiles").upsert({
+        email: updatedTeacher.email,
+        full_name: updatedTeacher.name,
+        role: "TEACHER",
+        status: updatedTeacher.status || "Active",
+        updated_at: new Date().toISOString()
+      }, { onConflict: "email" });
+
+      // Update Supabase Auth user metadata
+      try {
+        const { data: authList } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 200 });
+        const matchedUser = authList?.users?.find(u => u.email?.toLowerCase() === updatedTeacher.email.toLowerCase());
+        if (matchedUser) {
+          await supabaseAdmin.auth.admin.updateUserById(matchedUser.id, {
+            user_metadata: {
+              ...matchedUser.user_metadata,
+              full_name: updatedTeacher.name,
+              role: "TEACHER",
+              teacher_id_code: updatedTeacher.teacher_id_code
+            }
+          });
+        }
+      } catch (authErr) {
+        console.warn("Notice updating teacher auth metadata:", authErr);
+      }
+    }
   } catch (err: any) {
     console.warn("Supabase teacher update notice:", err?.message);
   }
@@ -291,6 +367,10 @@ export const deleteTeacherHandler = async (req: express.Request, res: express.Re
     }
     if (!isUUID(teacherId)) {
       await supabaseAdmin.from("teachers").delete().eq("teacher_id_code", teacherId);
+    }
+    if (deletedTeacher?.email) {
+      await supabaseAdmin.from("teachers").delete().eq("email", deletedTeacher.email);
+      await supabaseAdmin.from("profiles").delete().eq("email", deletedTeacher.email);
     }
   } catch (err: any) {
     console.warn("Supabase teacher delete notice:", err?.message);

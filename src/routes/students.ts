@@ -10,11 +10,32 @@ import {
   toggleStudentStatusService,
   changeStudentPasswordService,
   requestPasswordResetService,
-  verifyLoginRoleService
+  verifyLoginRoleService,
+  sendParentCredentialsService
 } from "../services/studentService.js";
 import { dispatchMultiChannelNotification } from "../services/notificationService.js";
 
 const router = express.Router();
+
+/**
+ * POST /api/students/:id/send-parent-credentials & POST /api/students/send-parent-credentials
+ * Dispatches official Parent Portal credentials to parent email.
+ */
+export const sendParentCredentialsHandler = async (req: express.Request, res: express.Response) => {
+  try {
+    const studentId = (req.params.id || req.body?.studentId || req.body?.studentCode || req.query?.studentId) as string;
+    if (!studentId) {
+      return res.status(400).json({ success: false, message: "Student ID or Student Code is required." });
+    }
+    const result = await sendParentCredentialsService(studentId);
+    return res.status(200).json(result);
+  } catch (error: any) {
+    return res.status(400).json({ success: false, message: error.message || "Failed to dispatch parent credentials." });
+  }
+};
+
+router.post("/send-parent-credentials", sendParentCredentialsHandler);
+router.post("/:id/send-parent-credentials", sendParentCredentialsHandler);
 
 /**
  * POST /api/students/change-password

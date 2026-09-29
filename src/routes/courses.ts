@@ -3,7 +3,7 @@ import { supabaseAdmin } from "../supabase.js";
 import { inMemoryTeachers } from "./teachers.js";
 import { inMemoryStudentStore } from "../services/studentService.js";
 import { autoGenerateAttendanceSessionsForCourse, removeAttendanceSessionsForCourse } from "../services/sessionAttendanceService.js";
-import { localScheduleStore } from "../services/scheduleDataService.js";
+import { localScheduleStore, ScheduleDataService } from "../services/scheduleDataService.js";
 
 const router = express.Router();
 
@@ -462,6 +462,20 @@ export const deleteCourseHandler = async (req: express.Request, res: express.Res
 
   // Remove corresponding attendance sessions
   removeAttendanceSessionsForCourse(String(courseId));
+
+  // Remove corresponding schedule slots
+  try {
+    const courseName = deletedCourse?.name;
+    const targetId = deletedCourse?.id || courseId;
+    const allSchedules = await ScheduleDataService.listSchedules();
+    for (const s of allSchedules) {
+      if (s.course_id === targetId || (courseName && s.course_name?.toLowerCase() === courseName.toLowerCase())) {
+        ScheduleDataService.deleteSchedule(s.id);
+      }
+    }
+  } catch (schErr) {
+    console.warn("Notice cleaning course schedules:", schErr);
+  }
 
   try {
     if (deletedCourse?.id && isUUID(deletedCourse.id)) {

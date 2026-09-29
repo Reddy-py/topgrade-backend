@@ -1,39 +1,5 @@
 [
   {
-    "id": "sch-test-1789534250057",
-    "course_id": "a01ffa3e-1cd7-4b11-a583-ed9264e2f9a7",
-    "course_name": "English",
-    "teacher_id": "t-123",
-    "teacher_name": "Shahrazad Polk",
-    "day_of_week": "Wednesday",
-    "start_time": "03:00 PM",
-    "end_time": "04:30 PM",
-    "time_slot": "03:00 PM - 04:30 PM",
-    "room": "Lab 2",
-    "location": "Main Academic Center",
-    "max_capacity": 15,
-    "is_active": true,
-    "students": [],
-    "created_at": "2026-09-16T04:50:50.875Z"
-  },
-  {
-    "id": "sch-live-sync-1789534397927",
-    "course_id": "a01ffa3e-1cd7-4b11-a583-ed9264e2f9a7",
-    "course_name": "English",
-    "teacher_id": "tch-ramesh",
-    "teacher_name": "Dr. Ramesh Kumar",
-    "day_of_week": "Tuesday",
-    "start_time": "04:00 PM",
-    "end_time": "05:30 PM",
-    "time_slot": "04:00 PM - 05:30 PM",
-    "room": "STEM Lab 1",
-    "location": "Main Academic Center",
-    "max_capacity": 15,
-    "is_active": true,
-    "students": [],
-    "created_at": "2026-09-16T04:53:18.777Z"
-  },
-  {
     "id": "sch-1789534632287",
     "course_id": "39915e34-eca1-42b4-9383-6695b48f9835",
     "course_name": "3D Printing",
@@ -65,7 +31,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-09-28T09:25:09.318Z"
+    "created_at": "2026-09-29T04:18:30.287Z"
   },
   {
     "id": "sch-1789536766680-tuesday-854",
@@ -91,7 +57,7 @@
         "student_code": "TG-STU-2026-3632"
       }
     ],
-    "created_at": "2026-09-28T09:25:09.319Z"
+    "created_at": "2026-09-29T04:18:30.288Z"
   },
   {
     "id": "sch-1789536766680-wednesday-57",
@@ -108,7 +74,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-09-28T09:25:09.322Z"
+    "created_at": "2026-09-29T04:18:30.289Z"
   },
   {
     "id": "sch-1789536766680-thursday-170",
@@ -125,7 +91,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-09-28T09:25:09.324Z"
+    "created_at": "2026-09-29T04:18:30.291Z"
   },
   {
     "id": "sch-1789536766680-friday-439",
@@ -142,7 +108,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-09-28T09:25:09.326Z"
+    "created_at": "2026-09-29T04:18:30.297Z"
   },
   {
     "id": "sch-1789540113076-wednesday-686",
@@ -159,7 +125,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-09-28T09:25:09.329Z"
+    "created_at": "2026-09-29T04:18:30.298Z"
   },
   {
     "id": "sch-1789540113076-saturday-562",
@@ -176,7 +142,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-09-28T09:25:09.331Z"
+    "created_at": "2026-09-29T04:18:30.299Z"
   },
   {
     "id": "sch-1789540122502",
@@ -193,6 +159,40 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-09-28T09:25:09.332Z"
+    "created_at": "2026-09-29T04:18:30.300Z"
+  },
+  {
+    "id": "sch-1790654753376-saturday-29",
+    "course_id": "fddcf023-19b1-4b67-9a6e-ca9ca6bf79dc",
+    "course_name": "Biology",
+    "teacher_id": "c717847c-2e46-4d80-82bb-a0ec51edc364",
+    "teacher_name": "Shahrazad Polk",
+    "day_of_week": "Saturday",
+    "start_time": "10:00 AM",
+    "end_time": "11:00 AM",
+    "time_slot": "10:00 AM - 11:00 AM",
+    "room": "Room 1",
+    "location": "Main Academic Center",
+    "max_capacity": 15,
+    "is_active": true,
+    "students": [],
+    "created_at": "2026-09-29T04:18:30.284Z"
+  },
+  {
+    "id": "sch-1790654759909",
+    "course_id": "fddcf023-19b1-4b67-9a6e-ca9ca6bf79dc",
+    "course_name": "Biology",
+    "teacher_id": "c717847c-2e46-4d80-82bb-a0ec51edc364",
+    "teacher_name": "Shahrazad Polk",
+    "day_of_week": "Monday",
+    "start_time": "10:00 AM",
+    "end_time": "11:00 AM",
+    "time_slot": "10:00 AM - 11:00 AM",
+    "room": "Room 1",
+    "location": "Main Academic Center",
+    "max_capacity": 15,
+    "is_active": true,
+    "students": [],
+    "created_at": "2026-09-29T04:18:30.286Z"
   }
 ]

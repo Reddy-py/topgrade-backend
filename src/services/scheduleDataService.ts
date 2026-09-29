@@ -933,6 +933,78 @@ export class ScheduleDataService {
   }
 
   /**
+   * Unassign / remove a student from a specific schedule slot
+   */
+  static async unassignStudentFromSlot(payload: {
+    schedule_id: string;
+    student_id: string;
+    student_code?: string;
+  }): Promise<ScheduleSlot | null> {
+    const all = await this.listSchedules();
+    const slot = all.find(s => s.id === payload.schedule_id);
+    if (!slot) return null;
+
+    const updatedStudents = (slot.students || []).filter(
+      s => s.student_id !== payload.student_id && (!payload.student_code || s.student_code !== payload.student_code)
+    );
+
+    const updatedSlot: ScheduleSlot = {
+      ...slot,
+      students: updatedStudents,
+      updated_at: new Date().toISOString()
+    };
+
+    localScheduleStore.saveSchedule(updatedSlot);
+
+    try {
+      await supabaseAdmin
+        .from("schedule_students")
+        .delete()
+        .eq("schedule_id", payload.schedule_id)
+        .eq("student_id", payload.student_id);
+    } catch (err) {
+      console.warn("Supabase schedule_students unassign notice:", err);
+    }
+
+    return updatedSlot;
+  }
+
+  /**
+   * Sync a student's assigned slots: unassigns from any unselected slots and assigns to selected ones
+   */
+  static async syncStudentSlots(payload: {
+    student_id: string;
+    student_name: string;
+    student_code?: string;
+    parent_email?: string;
+    schedule_ids: string[];
+  }): Promise<void> {
+    const all = await this.listSchedules();
+    const targetIds = new Set(payload.schedule_ids || []);
+
+    for (const slot of all) {
+      const isCurrentlyInSlot = slot.students?.some(
+        st => st.student_id === payload.student_id || (payload.student_code && st.student_code === payload.student_code)
+      );
+
+      if (isCurrentlyInSlot && !targetIds.has(slot.id)) {
+        await this.unassignStudentFromSlot({
+          schedule_id: slot.id,
+          student_id: payload.student_id,
+          ...(payload.student_code ? { student_code: payload.student_code } : {})
+        });
+      } else if (!isCurrentlyInSlot && targetIds.has(slot.id)) {
+        await this.assignStudentToSlot({
+          schedule_id: slot.id,
+          student_id: payload.student_id,
+          student_name: payload.student_name,
+          ...(payload.student_code ? { student_code: payload.student_code } : {})
+        });
+      }
+    }
+  }
+
+  /**
    * Get all schedule slots assigned to a specific student
    */
   static async getStudentSchedules(studentId: string): Promise<ScheduleSlot[]> {
