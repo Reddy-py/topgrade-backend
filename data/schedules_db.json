@@ -31,7 +31,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-05T15:00:43.980Z"
+    "created_at": "2026-10-05T15:36:58.737Z"
   },
   {
     "id": "sch-1789536766680-tuesday-854",
@@ -57,7 +57,7 @@
         "student_code": "TG-STU-2026-3632"
       }
     ],
-    "created_at": "2026-10-05T15:00:43.981Z"
+    "created_at": "2026-10-05T15:36:58.740Z"
   },
   {
     "id": "sch-1789536766680-wednesday-57",
@@ -74,7 +74,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-05T15:00:43.983Z"
+    "created_at": "2026-10-05T15:36:58.743Z"
   },
   {
     "id": "sch-1789536766680-thursday-170",
@@ -91,7 +91,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-05T15:00:43.985Z"
+    "created_at": "2026-10-05T15:36:58.745Z"
   },
   {
     "id": "sch-1789536766680-friday-439",
@@ -108,7 +108,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-05T15:00:43.987Z"
+    "created_at": "2026-10-05T15:36:58.747Z"
   },
   {
     "id": "sch-1789540113076-wednesday-686",
@@ -125,7 +125,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-05T15:00:43.993Z"
+    "created_at": "2026-10-05T15:36:58.754Z"
   },
   {
     "id": "sch-1789540113076-saturday-562",
@@ -142,7 +142,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-05T15:00:43.995Z"
+    "created_at": "2026-10-05T15:36:58.756Z"
   },
   {
     "id": "sch-1789540122502",
@@ -159,7 +159,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-05T15:00:43.996Z"
+    "created_at": "2026-10-05T15:36:58.759Z"
   },
   {
     "id": "sch-1790654753376-saturday-29",
@@ -176,7 +176,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-05T15:00:43.976Z"
+    "created_at": "2026-10-05T15:36:58.732Z"
   },
   {
     "id": "sch-1790654759909",
@@ -193,7 +193,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-05T15:00:43.978Z"
+    "created_at": "2026-10-05T15:36:58.734Z"
   },
   {
     "id": "sch-crs-spn-101-1",
@@ -210,7 +210,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-05T15:00:43.989Z"
+    "created_at": "2026-10-05T15:36:58.750Z"
   },
   {
     "id": "sch-crs-spn-101-2",
@@ -227,7 +227,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-05T15:00:43.991Z"
+    "created_at": "2026-10-05T15:36:58.752Z"
   },
   {
     "id": "sch-crs-rea-101-1",
@@ -244,7 +244,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-05T15:00:43.998Z"
+    "created_at": "2026-10-05T15:36:58.761Z"
   },
   {
     "id": "sch-crs-rea-101-2",
@@ -261,7 +261,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-05T15:00:44.000Z"
+    "created_at": "2026-10-05T15:36:58.764Z"
   },
   {
     "id": "sch-crs-mr-101-1",
@@ -278,7 +278,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-05T15:00:44.002Z"
+    "created_at": "2026-10-05T15:36:58.767Z"
   },
   {
     "id": "sch-crs-mr-101-2",
@@ -295,7 +295,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-05T15:00:44.004Z"
+    "created_at": "2026-10-05T15:36:58.769Z"
   },
   {
     "id": "sch-crs-smp-101-1",
@@ -312,7 +312,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-05T15:00:44.006Z"
+    "created_at": "2026-10-05T15:36:58.772Z"
   },
   {
     "id": "sch-crs-smp-101-2",
@@ -329,7 +329,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-05T15:00:44.008Z"
+    "created_at": "2026-10-05T15:36:58.775Z"
   },
   {
     "id": "sch-crs-wrt-101-1",
@@ -346,7 +346,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-05T15:00:44.010Z"
+    "created_at": "2026-10-05T15:36:58.779Z"
   },
   {
     "id": "sch-crs-wrt-101-2",
@@ -363,7 +363,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-05T15:00:44.011Z"
+    "created_at": "2026-10-05T15:36:58.781Z"
   },
   {
     "id": "sch-crs-cew-101-1",
@@ -380,7 +380,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-05T15:00:44.013Z"
+    "created_at": "2026-10-05T15:36:58.783Z"
   },
   {
     "id": "sch-crs-cew-101-2",
@@ -397,7 +397,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-05T15:00:44.014Z"
+    "created_at": "2026-10-05T15:36:58.785Z"
   },
   {
     "id": "sch-crs-gtp-101-1",
@@ -414,7 +414,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-05T15:00:44.015Z"
+    "created_at": "2026-10-05T15:36:58.787Z"
   },
   {
     "id": "sch-crs-gtp-101-2",
@@ -431,7 +431,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-05T15:00:44.016Z"
+    "created_at": "2026-10-05T15:36:58.789Z"
   },
   {
     "id": "sch-crs-alg-101-1",
@@ -448,7 +448,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-05T15:00:44.018Z"
+    "created_at": "2026-10-05T15:36:58.792Z"
   },
   {
     "id": "sch-crs-alg-101-2",
@@ -465,7 +465,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-05T15:00:44.019Z"
+    "created_at": "2026-10-05T15:36:58.794Z"
   },
   {
     "id": "sch-crs-tsi-101-1",
@@ -482,7 +482,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-05T15:00:44.020Z"
+    "created_at": "2026-10-05T15:36:58.795Z"
   },
   {
     "id": "sch-crs-tsi-101-2",
@@ -499,7 +499,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-05T15:00:44.022Z"
+    "created_at": "2026-10-05T15:36:58.797Z"
   },
   {
     "id": "sch-crs-esl-101-1",
@@ -516,7 +516,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-05T15:00:44.023Z"
+    "created_at": "2026-10-05T15:36:58.799Z"
   },
   {
     "id": "sch-crs-esl-101-2",
@@ -533,7 +533,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-05T15:00:44.025Z"
+    "created_at": "2026-10-05T15:36:58.801Z"
   },
   {
     "id": "sch-crs-hin-101-1",
@@ -550,7 +550,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-05T15:00:44.026Z"
+    "created_at": "2026-10-05T15:36:58.803Z"
   },
   {
     "id": "sch-crs-hin-101-2",
@@ -567,6 +567,6 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-05T15:00:44.028Z"
+    "created_at": "2026-10-05T15:36:58.805Z"
   }
 ]
