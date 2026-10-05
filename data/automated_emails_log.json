@@ -265,5 +265,27 @@
       "clashofclansreddy@gmail.com",
       "sivareddy683970@gmail.com"
     ]
+  },
+  {
+    "studentId": "ec40d0c0-c9b4-436a-9e73-f3e34d424fab",
+    "studentCode": "TG-STU-2026-3632",
+    "type": "EXAM_GOOD_LUCK",
+    "dateSent": "2026-10-05",
+    "year": 2026,
+    "recipientEmails": [
+      "sivareddy683970@gmail.com"
+    ]
+  },
+  {
+    "studentId": "d762b029-ddd5-4aa7-a3c1-1bca6e8ba5e9",
+    "studentCode": "TG-STU-2026-5007-B",
+    "type": "BIRTHDAY",
+    "dateSent": "2026-10-05",
+    "year": 2026,
+    "recipientEmails": [
+      "cara.5007b@student.topgrade.edu",
+      "parent.lani.mercado.5007@parents.topgrade.edu",
+      "lani.garrido@gmail.com"
+    ]
   }
 ]

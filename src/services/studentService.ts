@@ -185,7 +185,7 @@ export async function getStudentsService(params: {
             studentWhatsapp: s.student_whatsapp || existing?.studentWhatsapp || s.phone || "",
             parentWhatsapp: s.parent_whatsapp || existing?.parentWhatsapp || (s.father_phone ? [s.father_phone] : []),
             studentEmails: s.student_emails || existing?.studentEmails || (s.email ? [s.email] : []),
-            parentEmails: s.parent_emails || existing?.parentEmails || (s.email ? [s.email] : []),
+            parentEmails: (s.parent_emails && s.parent_emails.length > 0) ? s.parent_emails : (existing?.parentEmails && existing.parentEmails.length > 0 ? existing.parentEmails : []),
             fatherName: s.father_name || existing?.fatherName || "",
             motherName: s.mother_name || existing?.motherName || "",
             guardianName: s.guardian || existing?.guardianName || "",
@@ -195,11 +195,13 @@ export async function getStudentsService(params: {
             studentAddress: studentAddress,
             alternateAddress: studentAddress,
             examDate: examDate,
+            photoUrl: s.govt_id_url || s.photo_url || s.avatar_url || existing?.photoUrl || existing?.profileImageUrl || "",
+            profileImageUrl: s.govt_id_url || s.photo_url || s.avatar_url || existing?.profileImageUrl || existing?.photoUrl || "",
             purchasedHours: 0,
             hoursLeft: 0,
             daysLeft: 0,
             feePlan: s.fee_plan || existing?.feePlan || "Standard Plan",
-            allocatedCourses: s.allocated_courses || existing?.allocatedCourses || (s.program ? [{ courseName: s.program, duration: "3 Months" }] : [])
+            allocatedCourses: (s.allocated_courses && s.allocated_courses.length > 0) ? s.allocated_courses : (existing?.allocatedCourses && existing.allocatedCourses.length > 0 ? existing.allocatedCourses : (s.program ? [{ courseName: s.program, duration: "3 Months" }] : []))
           };
         });
         saveStudentsToDisk();
@@ -219,28 +221,77 @@ export async function getStudentsService(params: {
       students = students.filter(
         s => (user.id && s.id === user.id) ||
              (user.email && s.email.toLowerCase() === user.email.toLowerCase()) ||
-             (user.id && s.studentCode === user.id)
+             (user.id && s.studentCode === user.id) ||
+             (s.studentCode && (user as any).student_code && s.studentCode.toLowerCase() === (user as any).student_code.toLowerCase())
       );
     } else if (roleUpper === "PARENT") {
       // Parents see ONLY their linked children
-      students = students.filter(
-        s => (user.email && (s.parentEmails || []).some(e => e.toLowerCase() === user.email?.toLowerCase())) ||
-             (user.email && s.email.toLowerCase() === user.email.toLowerCase())
-      );
-    } else if (roleUpper === "TEACHER") {
-      // Teachers see ONLY students in their assigned courses or classes (if teacher context supplied)
-      const teacherNameMatch = (user.email || "").split("@")[0]?.replace(".", " ")?.toLowerCase() || "";
-      if (user.id || (teacherNameMatch && teacherNameMatch !== "faculty member")) {
-        students = students.filter(
-          s => (user.id && s.assignedTeacherId === user.id) ||
-               (s.teacher && (
-                 (user.id && s.teacher.toLowerCase().includes(user.id.toLowerCase())) ||
-                 (teacherNameMatch && s.teacher.toLowerCase().includes(teacherNameMatch))
-               ))
-        );
+      const userEmail = (user.email || "").toLowerCase().trim();
+      const userPhone = ((user as any).phone || (user as any).metadata?.phone || "").replace(/\D/g, "");
+      const userFullName = ((user as any).name || (user as any).metadata?.full_name || (user as any).metadata?.father_name || "").toLowerCase().trim();
+      const childCodes: string[] = [];
+      if ((user as any).metadata?.child_codes && Array.isArray((user as any).metadata.child_codes)) {
+        (user as any).metadata.child_codes.forEach((c: any) => childCodes.push(String(c).toLowerCase().trim()));
       }
+      if ((user as any).metadata?.child_code) {
+        String((user as any).metadata.child_code).split(",").forEach(c => childCodes.push(c.toLowerCase().trim()));
+      }
+      if ((user as any).metadata?.student_id_code) {
+        String((user as any).metadata.student_id_code).split(",").forEach(c => childCodes.push(c.toLowerCase().trim()));
+      }
+
+      students = students.filter(s => {
+        const sCode = (s.studentCode || (s as any).student_id_code || "").toLowerCase().trim();
+        const sFather = (s.fatherName || "").toLowerCase().trim();
+        const sEmails = (s.parentEmails || []).map(e => e.toLowerCase().trim());
+        const sPhones = (s.parentPhones || []).map(p => p.replace(/\D/g, ""));
+
+        // 1. Direct parent email match
+        if (userEmail && sEmails.includes(userEmail)) return true;
+
+        // 2. Child code match from metadata
+        if (sCode && childCodes.includes(sCode)) return true;
+
+        // 3. Synthetic parent email code match (e.g. parent.venakat.3632@... matches TG-STU-2026-3632)
+        if (userEmail && sCode) {
+          const codeDigits = sCode.replace(/\D/g, "");
+          if (codeDigits.length >= 4 && userEmail.includes(codeDigits)) return true;
+        }
+
+        // 4. Father/Parent Name match
+        if (userFullName && sFather && (sFather === userFullName || sFather.includes(userFullName) || userFullName.includes(sFather))) {
+          return true;
+        }
+
+        // 5. Phone match
+        if (userPhone && sPhones.includes(userPhone)) return true;
+
+        return false;
+      });
+    } else if (roleUpper === "TEACHER") {
+      // Teachers see ONLY students in their assigned courses or classes
+      const teacherEmail = (user.email || "").toLowerCase().trim();
+      const teacherName = (((user as any).fullName) || (user.email || "").split("@")[0]?.replace(".", " ") || "").toLowerCase().trim();
+      const teacherId = (user.id || "").toLowerCase().trim();
+
+      students = students.filter(s => {
+        const sTeacherName = (s.teacher || "").toLowerCase().trim();
+        const sTeacherId = (s.assignedTeacherId || "").toLowerCase().trim();
+        const matchesDirect = 
+          (teacherId && sTeacherId === teacherId) ||
+          (teacherName && sTeacherName && (sTeacherName.includes(teacherName) || teacherName.includes(sTeacherName))) ||
+          (teacherEmail && sTeacherName.includes(teacherEmail));
+
+        const matchesAlloc = Array.isArray(s.allocatedCourses) && s.allocatedCourses.some((ac: any) => {
+          const acTeacher = (ac.teacher || ac.teacherName || "").toLowerCase().trim();
+          const acTeacherId = (ac.teacherId || "").toLowerCase().trim();
+          return (teacherId && acTeacherId === teacherId) || (teacherName && acTeacher && (acTeacher.includes(teacherName) || teacherName.includes(acTeacher)));
+        });
+
+        return matchesDirect || matchesAlloc;
+      });
     }
-    // ADMIN and ACCOUNTANT see ALL
+    // ADMIN sees ALL
   }
 
   if (statusFilter === "ACTIVE" || statusFilter === "INACTIVE") {
@@ -531,6 +582,7 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
       address: sbAddress,
       alternate_address: newStudent.studentAddress || newStudent.alternateAddress || "",
       purchased_hours: newStudent.purchasedHours || 20,
+      govt_id_url: newStudent.profileImageUrl || newStudent.photoUrl || null,
       medical_notes: newStudent.examDate ? `EXAM_DATE:${newStudent.examDate}` : null,
       program: newStudent.program || "General Academic Track",
       teacher: newStudent.teacher || "Unassigned",
@@ -544,13 +596,6 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
     }
   } catch (sbErr: any) {
     console.warn("Supabase student sync notice:", sbErr?.message);
-  }
-
-  // Automatic Exam Good Luck Email Trigger if Exam Date is scheduled
-  if (newStudent.examDate) {
-    sendExamGoodLuckWishes(newStudent, newStudent.examDate).catch(err =>
-      console.warn("Good luck email dispatch note:", err)
-    );
   }
 
   // Automatic Birthday Wish Email Trigger if Birthday is today
@@ -577,7 +622,7 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
     const parentEmail = cleanParentEmails[0] || `parent.${(newStudent.fatherName || newStudent.firstName || "guardian").toLowerCase().replace(/[^a-z0-9]/g, "")}.${(newStudent.studentCode || "").replace(/[^0-9]/g, "") || Math.floor(1000 + Math.random() * 9000)}@parents.topgrade.edu`;
     const parentPassword = "Parent@TopGrade2026";
 
-    const recipients: Array<{ role: "STUDENT" | "PARENT" | "TEACHER" | "ACCOUNTANT" | "ADMIN"; email: string; name: string; phone: string }> = [];
+    const recipients: Array<{ role: "STUDENT" | "PARENT" | "TEACHER" | "ADMIN"; email: string; name: string; phone: string }> = [];
     
     cleanStudentEmails.forEach(e => {
       recipients.push({ role: "STUDENT", email: e, name: newStudent.fullName, phone: newStudent.primaryMobile || "" });
@@ -596,10 +641,7 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
     }
 
     const adminEmail = process.env.ADMIN_EMAIL || "tglbiz101@gmail.com";
-    const accountantEmail = process.env.ACCOUNTANT_EMAIL || "sivareddy68397@gmail.com";
-
     recipients.push({ role: "ADMIN", email: adminEmail, name: "System Administrator", phone: "" });
-    recipients.push({ role: "ACCOUNTANT", email: accountantEmail, name: "Accountant", phone: "" });
 
     await dispatchMultiChannelNotification({
       eventType: "PAYMENT_COMPLETED",
@@ -717,8 +759,7 @@ export async function sendParentCredentialsService(studentIdOrCode: string): Pro
   // Dispatch Email
   const recipients = [
     { role: "PARENT" as const, email: parentEmail, name: parentName, phone: student.parentPhones?.[0] || "" },
-    { role: "ADMIN" as const, email: process.env.ADMIN_EMAIL || "tglbiz101@gmail.com", name: "TopGrade Admin", phone: "" },
-    { role: "ACCOUNTANT" as const, email: process.env.ACCOUNTANT_EMAIL || "sivareddy68397@gmail.com", name: "Accountant", phone: "" }
+    { role: "ADMIN" as const, email: process.env.ADMIN_EMAIL || "tglbiz101@gmail.com", name: "TopGrade Admin", phone: "" }
   ];
 
   await dispatchMultiChannelNotification({
@@ -854,6 +895,7 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
       address: sbAddress,
       alternate_address: updated.studentAddress || updated.alternateAddress || "",
       purchased_hours: updated.purchasedHours || 0,
+      govt_id_url: updated.profileImageUrl || updated.photoUrl || null,
       medical_notes: updated.examDate ? `EXAM_DATE:${updated.examDate}` : null,
       program: updated.program || "General Academic Track",
       teacher: updated.teacher || "Unassigned",
@@ -873,16 +915,19 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
     // Update profiles table in Supabase if email exists
     if (updated.email) {
       try {
+        const photoCdnUrl = updated.profileImageUrl || updated.photoUrl || null;
         if (existing.email && existing.email.toLowerCase() !== updated.email.toLowerCase()) {
           await supabaseAdmin.from("profiles").update({
             email: updated.email,
             full_name: updated.fullName,
+            avatar_url: photoCdnUrl,
             updated_at: new Date().toISOString()
           }).eq("email", existing.email);
         } else {
           await supabaseAdmin.from("profiles").upsert({
             email: updated.email,
             full_name: updated.fullName,
+            avatar_url: photoCdnUrl,
             role: "STUDENT",
             status: "Active",
             updated_at: new Date().toISOString()
@@ -892,70 +937,11 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
         console.warn("Supabase profiles update notice:", profErr?.message);
       }
     }
-
-    if (updated.examDate && updated.examDate !== existing.examDate) {
-      sendExamGoodLuckWishes(updated, updated.examDate).catch(err =>
-        console.warn("Exam email note:", err)
-      );
-    }
   } catch (e: any) {
     console.warn("Supabase student update notice:", e?.message);
   }
 
-  // Multi-Channel Profile Update Notification Dispatch
-  try {
-    const recipients: Array<{ role: "STUDENT" | "PARENT" | "TEACHER" | "ACCOUNTANT" | "ADMIN"; email: string; name: string; phone: string }> = [];
-    const addedEmails = new Set<string>();
-
-    if (updated.email && !addedEmails.has(updated.email.toLowerCase())) {
-      recipients.push({ role: "STUDENT", email: updated.email, name: updated.fullName, phone: updated.primaryMobile || "" });
-      addedEmails.add(updated.email.toLowerCase());
-    }
-
-    if (existing.email && existing.email.toLowerCase() !== (updated.email || "").toLowerCase() && !addedEmails.has(existing.email.toLowerCase())) {
-      recipients.push({ role: "STUDENT", email: existing.email, name: updated.fullName, phone: existing.primaryMobile || "" });
-      addedEmails.add(existing.email.toLowerCase());
-    }
-
-    (updated.studentEmails || []).forEach(e => {
-      if (e && !addedEmails.has(e.toLowerCase())) {
-        recipients.push({ role: "STUDENT", email: e, name: updated.fullName, phone: updated.primaryMobile || "" });
-        addedEmails.add(e.toLowerCase());
-      }
-    });
-
-    (updated.parentEmails || []).forEach(e => {
-      if (e && !addedEmails.has(e.toLowerCase())) {
-        recipients.push({ role: "PARENT", email: e, name: updated.fatherName || "Parent", phone: (updated.parentPhones && updated.parentPhones[0]) || "" });
-        addedEmails.add(e.toLowerCase());
-      }
-    });
-
-    const adminEmail = process.env.ADMIN_EMAIL || "tglbiz101@gmail.com";
-    const accountantEmail = process.env.ACCOUNTANT_EMAIL || "sivareddy68397@gmail.com";
-    if (!addedEmails.has(adminEmail.toLowerCase())) {
-      recipients.push({ role: "ADMIN", email: adminEmail, name: "System Administrator", phone: "" });
-      addedEmails.add(adminEmail.toLowerCase());
-    }
-    if (!addedEmails.has(accountantEmail.toLowerCase())) {
-      recipients.push({ role: "ACCOUNTANT", email: accountantEmail, name: "Accountant", phone: "" });
-      addedEmails.add(accountantEmail.toLowerCase());
-    }
-
-    const emailChangeWarning = existing.email && updated.email && existing.email.toLowerCase() !== updated.email.toLowerCase()
-      ? `\n\n🔒 **Security Alert**: Primary student email address was updated from **${existing.email}** to **${updated.email}**.\n`
-      : "";
-
-    await dispatchMultiChannelNotification({
-      eventType: "ADMISSION_APPROVED",
-      subject: `📝 Student Profile Updated — ${updated.fullName} (${updated.studentCode})`,
-      message: `Dear ${updated.fullName} & Family,\n\nYour student dossier record at **Top Grade Learning** has been successfully updated.${emailChangeWarning}\n📋 **Updated Dossier Summary**:\n• Student Name: ${updated.fullName}\n• Student ID Code: ${updated.studentCode}\n• Primary Email: ${updated.email}\n• Contact Number: ${updated.primaryMobile || "N/A"}\n• Academic Grade: ${updated.grade}\n• School: ${updated.school}\n• Enrolled Program: ${updated.program || "General Academic Track"}\n• Assigned Faculty: ${updated.teacher || "Unassigned"}\n• Residential Address: ${updated.residentialAddress || "N/A"}\n\nIf you did not authorize these changes, please notify our administrative team immediately at ${adminEmail}.\n\nWarm regards,\nTop Grade Learning Academic Team`,
-      recipients
-    });
-  } catch (notifErr: any) {
-    console.warn("Notice dispatching student profile update notification:", notifErr?.message);
-  }
-
+  // Silent mutation: Unsolicited profile update & exam emails purged per privacy isolation standards
   return updated;
 }
 
@@ -1144,10 +1130,9 @@ export async function changeStudentPasswordService(params: {
     await dispatchMultiChannelNotification({
       eventType: "PASSWORD_CHANGE_ALERT",
       subject: `🔑 Security Alert: Student Password Updated — ${student.fullName} (${student.studentCode})`,
-      message: `Dear Administrator & Accountant,\n\nStudent ${student.fullName} (ID: ${student.studentCode}, Email: ${student.email}) has updated their portal login password.\n\nTime: ${new Date().toLocaleString()}\nStatus: 1-Time Self Service Used (Future changes require Admin reset)\n\nTopGrade Security Center`,
+      message: `Dear Administrator,\n\nStudent ${student.fullName} (ID: ${student.studentCode}, Email: ${student.email}) has updated their portal login password.\n\nTime: ${new Date().toLocaleString()}\nStatus: 1-Time Self Service Used (Future changes require Admin reset)\n\nTopGrade Security Center`,
       recipients: [
-        { role: "ADMIN", email: process.env.ADMIN_EMAIL || "tglbiz101@gmail.com", name: "System Administrator" },
-        { role: "ACCOUNTANT", email: process.env.ACCOUNTANT_EMAIL || "sivareddy68397@gmail.com", name: "Lead Accountant" }
+        { role: "ADMIN", email: process.env.ADMIN_EMAIL || "tglbiz101@gmail.com", name: "System Administrator" }
       ]
     });
   } catch (emailErr) {
@@ -1192,10 +1177,9 @@ export async function requestPasswordResetService(params: {
     await dispatchMultiChannelNotification({
       eventType: "PASSWORD_RESET_REQUEST",
       subject: `⚠️ Action Required: Password Reset Requested — ${targetName} (${targetCode})`,
-      message: `Dear Administrator & Accountant,\n\nStudent ${targetName} (ID: ${targetCode}, Email: ${targetEmail}) has requested a secondary password reset after using their 1-time password change limit.\n\nPlease log in to the Admin Portal to manage their credentials.\n\nTopGrade Security Management`,
+      message: `Dear Administrator,\n\nStudent ${targetName} (ID: ${targetCode}, Email: ${targetEmail}) has requested a secondary password reset after using their 1-time password change limit.\n\nPlease log in to the Admin Portal to manage their credentials.\n\nTopGrade Security Management`,
       recipients: [
-        { role: "ADMIN", email: process.env.ADMIN_EMAIL || "tglbiz101@gmail.com", name: "System Administrator" },
-        { role: "ACCOUNTANT", email: process.env.ACCOUNTANT_EMAIL || "sivareddy68397@gmail.com", name: "Lead Accountant" }
+        { role: "ADMIN", email: process.env.ADMIN_EMAIL || "tglbiz101@gmail.com", name: "System Administrator" }
       ]
     });
   } catch (err) {
@@ -1204,7 +1188,7 @@ export async function requestPasswordResetService(params: {
 
   return {
     success: true,
-    message: "Password reset request dispatched to Admin and Accountant."
+    message: "Password reset request dispatched to Administrator."
   };
 }
 
@@ -1283,15 +1267,6 @@ export async function verifyLoginRoleService(emailOrCode: string) {
     query === "admin"
   ) {
     return { success: true, role: "ADMIN" };
-  }
-  const configuredAccountant = (process.env.ACCOUNTANT_EMAIL || "").toLowerCase();
-  if (
-    (configuredAccountant && query === configuredAccountant) ||
-    query === "sivareddy68397@gmail.com" ||
-    query === "accountant@topgrade.edu" ||
-    query.includes("accountant")
-  ) {
-    return { success: true, role: "ACCOUNTANT" };
   }
   if (query.includes("teacher")) return { success: true, role: "TEACHER" };
 

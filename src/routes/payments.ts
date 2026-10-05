@@ -5,6 +5,11 @@ import { CourseHoursService, paymentOrdersStore, studentCourseBalancesStore, typ
 import { ReceiptPdfService } from "../services/receiptPdfService.js";
 import { LedgerService } from "../services/ledgerService.js";
 import { dispatchMultiChannelNotification } from "../services/notificationService.js";
+import {
+  createCheckoutSessionHandler,
+  stripeWebhookHandler,
+  manualZelleConfirmHandler
+} from "./paymentRoutes.js";
 
 interface PendingUpiIntent {
   txn_ref: string;
@@ -27,6 +32,11 @@ interface PendingUpiIntent {
 export const pendingUpiIntentsStore: PendingUpiIntent[] = [];
 
 const router = express.Router();
+
+// ── US STRIPE & ZELLE PAYMENT ENDPOINTS ──────────────────
+router.post("/stripe/create-checkout-session", createCheckoutSessionHandler);
+router.post("/stripe/webhook", stripeWebhookHandler);
+router.post("/manual/zelle-confirm", manualZelleConfirmHandler);
 
 // 1. CREATE RAZORPAY ORDER (POST /api/payments/razorpay/create-order)
 router.post("/razorpay/create-order", (req, res) => {

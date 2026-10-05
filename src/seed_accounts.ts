@@ -15,7 +15,6 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
 
 const testUsers = [
   { email: "admin@topgrade.edu", password: "TopGrade2026!", name: "Manikanta Admin", role: "ADMIN" },
-  { email: "accountant@topgrade.edu", password: "TopGrade2026!", name: "Priya Sharma", role: "ACCOUNTANT" },
   { email: "teacher@topgrade.edu", password: "TopGrade2026!", name: "Vikram Teacher", role: "TEACHER" },
   { email: "parent@topgrade.edu", password: "TopGrade2026!", name: "Suresh Kumar", role: "PARENT" },
   { email: "student@topgrade.edu", password: "TopGrade2026!", name: "Rahul Kumar", role: "STUDENT" },

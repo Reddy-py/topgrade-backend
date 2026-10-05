@@ -97,7 +97,7 @@ export const getStudentsHandler = async (req: AuthenticatedRequest, res: express
     // Pass authenticated user context for RBAC filtering
     const requestedRole = (req.query.userRole as string) || (req.query.role as string) || (req.headers["x-user-role"] as string);
     const currentUser = req.user
-      ? { id: req.user.id || "", email: req.user.email || "", role: String(req.user.role) }
+      ? { id: req.user.id || "", email: req.user.email || "", role: String(req.user.role), metadata: req.user.metadata }
       : requestedRole
       ? { id: (req.query.userId as string) || "", email: (req.query.userEmail as string) || "", role: requestedRole.toUpperCase() }
       : undefined;

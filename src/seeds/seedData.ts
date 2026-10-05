@@ -9,13 +9,6 @@ export const seedRoleAccounts = [
     department: "Executive Management"
   },
   {
-    email: "accountant@topgrade.edu",
-    role: "Accountant",
-    full_name: "Financial Ledger Controller",
-    phone: "+1555019002",
-    department: "Finance & Accounts"
-  },
-  {
     email: "teacher@topgrade.edu",
     role: "Teacher",
     full_name: "John Doe (M.Sc CS)",

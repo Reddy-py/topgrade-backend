@@ -153,11 +153,10 @@ export const createTeacherHandler = async (req: express.Request, res: express.Re
     console.warn("Supabase teacher creation notice:", error?.message);
   }
 
-  // Automatic Email Dispatch to Teacher, Admin, and Accountant
+  // Automatic Email Dispatch to Teacher and Admin
   try {
-    const recipients: Array<{ role: "TEACHER" | "ADMIN" | "ACCOUNTANT"; email: string; name: string }> = [
-      { role: "ADMIN", email: process.env.ADMIN_EMAIL || "tglbiz101@gmail.com", name: "TopGrade Admin" },
-      { role: "ACCOUNTANT", email: process.env.ACCOUNTANT_EMAIL || "sivareddy68397@gmail.com", name: "TopGrade Accountant" }
+    const recipients: Array<{ role: "TEACHER" | "ADMIN"; email: string; name: string }> = [
+      { role: "ADMIN", email: process.env.ADMIN_EMAIL || "tglbiz101@gmail.com", name: "TopGrade Admin" }
     ];
 
     if (newTeacher.email && newTeacher.email.includes("@")) {
@@ -185,7 +184,7 @@ export const createTeacherHandler = async (req: express.Request, res: express.Re
 
   res.status(201).json({
     success: true,
-    message: `Teacher '${newTeacher.name}' added successfully! Email notification dispatched to teacher, admin, and accountant.`,
+    message: `Teacher '${newTeacher.name}' added successfully! Email notification dispatched to teacher and admin.`,
     data: newTeacher
   });
 };

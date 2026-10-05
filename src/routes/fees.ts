@@ -146,7 +146,6 @@ router.post("/pay", authenticateJwt, authorizePermission("fees.pay"), async (req
 
     // Auto-dispatch Branded HTML Gmail Payment Receipt
     const adminEmail = process.env.ADMIN_EMAIL || "tglbiz101@gmail.com";
-    const accountantEmail = process.env.ACCOUNTANT_EMAIL || "sivareddy68397@gmail.com";
     const recipientEmail = p.parentEmail || p.studentEmail || adminEmail;
 
     await dispatchMultiChannelNotification({
@@ -155,8 +154,7 @@ router.post("/pay", authenticateJwt, authorizePermission("fees.pay"), async (req
       message: `Dear ${p.studentName || "Student / Parent"},\n\nPayment has been successfully recorded at TopGrade CRM!\n\n📋 Receipt Dossier:\n• Receipt Number: ${receiptNumber}\n• Fee Type: ${p.feeType || "Tuition Fee"}\n• Original Payable: $${originalAmount.toFixed(2)}\n• Promotional Discount: -$${discountAmount.toFixed(2)}\n• Net Amount Paid: $${finalPayable.toFixed(2)}\n• Payment Mode: ${paymentMethod.toUpperCase()}\n${isCheque ? `• Cheque Number: ${p.chequeNumber || "N/A"}\n• Bank Name: ${p.bankName || "N/A"}\n• Clearance Reference: ${p.clearanceRef || "Pending Verification"}\n` : ""}• Date: ${new Date().toLocaleDateString()}\n\nThank you for your prompt settlement!`,
       recipients: [
         { role: "PARENT", email: recipientEmail, name: p.studentName || "Parent" },
-        { role: "ADMIN", email: adminEmail, name: "System Administrator" },
-        { role: "ACCOUNTANT", email: accountantEmail, name: "Lead Accountant" }
+        { role: "ADMIN", email: adminEmail, name: "System Administrator" }
       ]
     });
 

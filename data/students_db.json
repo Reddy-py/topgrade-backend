@@ -26,7 +26,8 @@
       "aarshiv.5030b@student.topgrade.edu"
     ],
     "parentEmails": [
-      "aarshiv.5030b@student.topgrade.edu"
+      "parent.dhara.desai.5030@parents.topgrade.edu",
+      "dhara.6n@gmail.com"
     ],
     "fatherName": "Dhara Desai",
     "motherName": "",
@@ -37,13 +38,15 @@
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "GT prep/ Math & Reading",
+        "courseName": "Math & Reading Foundations",
         "duration": "3 Months"
       }
     ]
@@ -60,34 +63,42 @@
     "school": "Rogers",
     "grade": "Grade 6",
     "status": "ACTIVE",
-    "primaryMobile": "",
-    "studentPhones": [],
-    "parentPhones": [],
-    "studentWhatsapp": "",
-    "parentWhatsapp": [],
+    "primaryMobile": "+1 ",
+    "studentPhones": [
+      "+1 "
+    ],
+    "parentPhones": [
+      "+1 "
+    ],
+    "studentWhatsapp": "+1 ",
+    "parentWhatsapp": [
+      "+1 "
+    ],
     "studentEmails": [
       "abi.bridger.5056@student.topgrade.edu"
     ],
     "parentEmails": [
-      "abi.bridger.5056@student.topgrade.edu"
+      "parent.yordana.bridger.5056@parents.topgrade.edu"
     ],
     "fatherName": "Yordana Bridger",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "Afterschool",
-        "duration": "3 Months"
+        "courseName": "After School Program",
+        "duration": "Academic Year"
       }
     ]
   },
@@ -118,25 +129,28 @@
       "abigail.rawls.5055@student.topgrade.edu"
     ],
     "parentEmails": [
-      "abigail.rawls.5055@student.topgrade.edu"
+      "parent.judith.rawls.5055@parents.topgrade.edu",
+      "jcothorn@gmail.com"
     ],
     "fatherName": "Judith Rawls",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "Afterschool",
-        "duration": "3 Months"
+        "courseName": "After School Program",
+        "duration": "Academic Year"
       }
     ]
   },
@@ -167,25 +181,28 @@
       "amir.douhdouh.5029@student.topgrade.edu"
     ],
     "parentEmails": [
-      "amir.douhdouh.5029@student.topgrade.edu"
+      "parent.chantha.5029@parents.topgrade.edu",
+      "chanthavorng@icloud.com"
     ],
     "fatherName": "Chantha",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "Afterschool",
-        "duration": "3 Months"
+        "courseName": "After School Program",
+        "duration": "Academic Year"
       }
     ]
   },
@@ -216,17 +233,20 @@
       "amisha.5031@student.topgrade.edu"
     ],
     "parentEmails": [
-      "amisha.5031@student.topgrade.edu"
+      "parent.rashmi.aggarwal.5031@parents.topgrade.edu",
+      "rashmi.esq@gmail.com"
     ],
     "fatherName": "Rashmi Aggarwal",
     "motherName": "",
     "guardianName": "",
     "program": "PAP Spanish",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
@@ -265,24 +285,27 @@
       "amudhanmadhan.kumar.5061@student.topgrade.edu"
     ],
     "parentEmails": [
-      "amudhanmadhan.kumar.5061@student.topgrade.edu"
+      "parent.brindha.madhan.5061@parents.topgrade.edu",
+      "brindha.biotek@gmail.com"
     ],
     "fatherName": "Brindha Madhan",
     "motherName": "",
     "guardianName": "",
     "program": "College Essay writing",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "College Essay writing",
+        "courseName": "Writing Skills & Handwriting",
         "duration": "3 Months"
       }
     ]
@@ -314,24 +337,28 @@
       "anushka.5039@student.topgrade.edu"
     ],
     "parentEmails": [
-      "anushka.5039@student.topgrade.edu"
+      "parent.ayan.monpara.5039@parents.topgrade.edu",
+      "parent.kirtida.monpara.5040@parents.topgrade.edu",
+      "monpara@gmail.com"
     ],
     "fatherName": "Ayan Monpara",
     "motherName": "",
     "guardianName": "",
     "program": "SAT prep",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "SAT prep",
+        "courseName": "SAT Prep",
         "duration": "3 Months"
       }
     ]
@@ -363,24 +390,27 @@
       "ava.5066@student.topgrade.edu"
     ],
     "parentEmails": [
-      "ava.5066@student.topgrade.edu"
+      "parent.rosie.lopez.5066@parents.topgrade.edu",
+      "rosieflopez@yahoo.com"
     ],
     "fatherName": "Rosie Lopez",
     "motherName": "",
     "guardianName": "",
     "program": "PAP Geometry",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "PAP Geometry",
+        "courseName": "Geometry",
         "duration": "3 Months"
       }
     ]
@@ -412,24 +442,27 @@
       "bezaleel.5058b@student.topgrade.edu"
     ],
     "parentEmails": [
-      "bezaleel.5058b@student.topgrade.edu"
+      "parent.soosan.pappan.5058@parents.topgrade.edu",
+      "soosanmathai@yahoo.com"
     ],
     "fatherName": "Soosan Pappan",
     "motherName": "",
     "guardianName": "",
     "program": "ESL",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "ESL",
+        "courseName": "ESL (English as a Second Language)",
         "duration": "3 Months"
       }
     ]
@@ -461,17 +494,20 @@
       "brandon.5036@student.topgrade.edu"
     ],
     "parentEmails": [
-      "brandon.5036@student.topgrade.edu"
+      "parent.brandon.kimmons.5036@parents.topgrade.edu",
+      "kimmonscare@gmail.com"
     ],
     "fatherName": "Brandon Kimmons",
     "motherName": "",
     "guardianName": "",
     "program": "Math",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
@@ -510,17 +546,21 @@
       "brooke.5049@student.topgrade.edu"
     ],
     "parentEmails": [
-      "brooke.5049@student.topgrade.edu"
+      "parent.garrett.grant.5049@parents.topgrade.edu",
+      "vondeahgrant@yahoo.com",
+      "ggrantl@renewedstrength.biz"
     ],
     "fatherName": "Garrett Grant",
     "motherName": "",
     "guardianName": "",
     "program": "Math",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
@@ -559,17 +599,20 @@
       "camila.5004@student.topgrade.edu"
     ],
     "parentEmails": [
-      "camila.5004@student.topgrade.edu"
+      "parent.dulce.eduardo.garcia.5004@parents.topgrade.edu",
+      "gdulce955@gmail.com"
     ],
     "fatherName": "DULCE Eduardo Garcia",
     "motherName": "",
     "guardianName": "",
     "program": "Reading",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
@@ -608,25 +651,28 @@
       "cara.5007b@student.topgrade.edu"
     ],
     "parentEmails": [
-      "cara.5007b@student.topgrade.edu"
+      "parent.lani.mercado.5007@parents.topgrade.edu",
+      "lani.garrido@gmail.com"
     ],
     "fatherName": "Lani Mercado",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "Afterschool",
-        "duration": "3 Months"
+        "courseName": "After School Program",
+        "duration": "Academic Year"
       }
     ]
   },
@@ -657,22 +703,30 @@
       "chaitanya.gundapaneni.5048@student.topgrade.edu"
     ],
     "parentEmails": [
-      "chaitanya.gundapaneni.5048@student.topgrade.edu"
+      "chaitu900@gmail.com",
+      "parent.chaitanya.gundapaneni.5048@parents.topgrade.edu"
     ],
-    "fatherName": "",
+    "fatherName": "Chaitanya Gundapaneni Parent",
     "motherName": "",
     "guardianName": "",
-    "program": "",
-    "teacher": "",
+    "program": "General Track",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
-    "allocatedCourses": []
+    "allocatedCourses": [
+      {
+        "courseName": "General Track",
+        "duration": "3 Months"
+      }
+    ]
   },
   {
     "id": "2cc76de3-2547-4241-9610-bbf472e0cd5a",
@@ -701,22 +755,29 @@
       "chardaet.galvan.5063@student.topgrade.edu"
     ],
     "parentEmails": [
-      "chardaet.galvan.5063@student.topgrade.edu"
+      "parent.chardaet.galvan.5063@parents.topgrade.edu"
     ],
-    "fatherName": "",
+    "fatherName": "Chardaet Galvan Parent",
     "motherName": "",
     "guardianName": "",
-    "program": "",
-    "teacher": "",
+    "program": "General Track",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
-    "allocatedCourses": []
+    "allocatedCourses": [
+      {
+        "courseName": "General Track",
+        "duration": "3 Months"
+      }
+    ]
   },
   {
     "id": "c38527cf-265c-4274-98d4-46de4e383f3f",
@@ -745,17 +806,20 @@
       "charlie.5068@student.topgrade.edu"
     ],
     "parentEmails": [
-      "charlie.5068@student.topgrade.edu"
+      "parent.liz.rodwell.5068@parents.topgrade.edu",
+      "elizabethannrodwell@gmail.com"
     ],
     "fatherName": "Liz Rodwell",
     "motherName": "",
     "guardianName": "",
     "program": "Reading",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
@@ -794,17 +858,20 @@
       "charlotte.5067@student.topgrade.edu"
     ],
     "parentEmails": [
-      "charlotte.5067@student.topgrade.edu"
+      "parent.frank.fernandez.5067@parents.topgrade.edu",
+      "ftfern24@yahoo.com"
     ],
     "fatherName": "Frank Fernandez",
     "motherName": "",
     "guardianName": "",
     "program": "Math",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
@@ -843,17 +910,21 @@
       "chirag.5020@student.topgrade.edu"
     ],
     "parentEmails": [
-      "chirag.5020@student.topgrade.edu"
+      "parent.prakash.motwani.5020@parents.topgrade.edu",
+      "cmotwani10@gmail.com",
+      "pmots@yahoo.com"
     ],
     "fatherName": "Prakash Motwani",
     "motherName": "",
     "guardianName": "",
     "program": "AP Physics",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
@@ -864,50 +935,6 @@
         "duration": "3 Months"
       }
     ]
-  },
-  {
-    "id": "e6820bf9-15b1-4158-b847-aec0879109e3",
-    "studentCode": "TG-STU-2026-5021",
-    "fullName": "Chirag Motwani",
-    "firstName": "Chirag",
-    "lastName": "Motwani",
-    "email": "chirag.motwani.5021@student.topgrade.edu",
-    "dob": "2005-01-01",
-    "age": 12,
-    "school": "Top Grade Academy",
-    "grade": "Grade 10",
-    "status": "ACTIVE",
-    "primaryMobile": "+1 304 767 2676",
-    "studentPhones": [
-      "+1 304 767 2676"
-    ],
-    "parentPhones": [
-      "+1 304 767 2676"
-    ],
-    "studentWhatsapp": "+1 304 767 2676",
-    "parentWhatsapp": [
-      "+1 304 767 2676"
-    ],
-    "studentEmails": [
-      "chirag.motwani.5021@student.topgrade.edu"
-    ],
-    "parentEmails": [
-      "chirag.motwani.5021@student.topgrade.edu"
-    ],
-    "fatherName": "",
-    "motherName": "",
-    "guardianName": "",
-    "program": "",
-    "teacher": "",
-    "residentialAddress": "",
-    "studentAddress": "",
-    "alternateAddress": "",
-    "examDate": "",
-    "purchasedHours": 0,
-    "hoursLeft": 0,
-    "daysLeft": 0,
-    "feePlan": "Standard Plan",
-    "allocatedCourses": []
   },
   {
     "id": "bc7d6522-5feb-4b91-bea8-53d285ade5a0",
@@ -936,25 +963,32 @@
       "christopher.habal.5025@student.topgrade.edu"
     ],
     "parentEmails": [
-      "christopher.habal.5025@student.topgrade.edu"
+      "parent.barbara.habal.5025@parents.topgrade.edu",
+      "barbarajaycacho@yahoo.com"
     ],
     "fatherName": "Barbara Habal",
     "motherName": "",
     "guardianName": "",
     "program": "SAT prep, College Essay workshop",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "SAT prep, College Essay workshop",
+        "courseName": "SAT Prep",
         "duration": "3 Months"
+      },
+      {
+        "courseName": "College Essay Workshop & Writing",
+        "duration": "2 Months"
       }
     ]
   },
@@ -985,17 +1019,20 @@
       "cj.5009@student.topgrade.edu"
     ],
     "parentEmails": [
-      "cj.5009@student.topgrade.edu"
+      "parent.chad.williams.5009@parents.topgrade.edu",
+      "chad8404@gmail.com"
     ],
     "fatherName": "Chad Williams",
     "motherName": "",
     "guardianName": "",
     "program": "Reading",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
@@ -1006,50 +1043,6 @@
         "duration": "3 Months"
       }
     ]
-  },
-  {
-    "id": "79efe451-df07-4149-ab98-086824109712",
-    "studentCode": "TG-STU-2026-5011",
-    "fullName": "Conner Kuzniar",
-    "firstName": "Conner",
-    "lastName": "Kuzniar",
-    "email": "conner.kuzniar.5011@student.topgrade.edu",
-    "dob": "2005-01-01",
-    "age": 12,
-    "school": "Top Grade Academy",
-    "grade": "Grade 10",
-    "status": "ACTIVE",
-    "primaryMobile": "+1 713 208 0947",
-    "studentPhones": [
-      "+1 713 208 0947"
-    ],
-    "parentPhones": [
-      "+1 713 208 0947"
-    ],
-    "studentWhatsapp": "+1 713 208 0947",
-    "parentWhatsapp": [
-      "+1 713 208 0947"
-    ],
-    "studentEmails": [
-      "conner.kuzniar.5011@student.topgrade.edu"
-    ],
-    "parentEmails": [
-      "conner.kuzniar.5011@student.topgrade.edu"
-    ],
-    "fatherName": "",
-    "motherName": "",
-    "guardianName": "",
-    "program": "",
-    "teacher": "",
-    "residentialAddress": "",
-    "studentAddress": "",
-    "alternateAddress": "",
-    "examDate": "",
-    "purchasedHours": 0,
-    "hoursLeft": 0,
-    "daysLeft": 0,
-    "feePlan": "Standard Plan",
-    "allocatedCourses": []
   },
   {
     "id": "9181fd23-325b-4565-971c-96009dee49ef",
@@ -1078,25 +1071,28 @@
       "dahlia.5062b@student.topgrade.edu"
     ],
     "parentEmails": [
-      "dahlia.5062b@student.topgrade.edu"
+      "parent.annie.smith.5062@parents.topgrade.edu",
+      "annieb@cgsfs.com"
     ],
     "fatherName": "Annie Smith",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "Afterschool",
-        "duration": "3 Months"
+        "courseName": "After School Program",
+        "duration": "Academic Year"
       }
     ]
   },
@@ -1127,24 +1123,32 @@
       "deven.5032@student.topgrade.edu"
     ],
     "parentEmails": [
-      "deven.5032@student.topgrade.edu"
+      "parent.linda.duggal.5032@parents.topgrade.edu",
+      "duggalmd@aol.com",
+      "duggaljd14@gmail.com"
     ],
     "fatherName": "Linda Duggal",
     "motherName": "",
     "guardianName": "",
     "program": "AP Chem , SAT prep",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "AP Chem , SAT prep",
+        "courseName": "AP Chemistry",
+        "duration": "3 Months"
+      },
+      {
+        "courseName": "SAT Prep",
         "duration": "3 Months"
       }
     ]
@@ -1176,24 +1180,27 @@
       "dhyana.5030@student.topgrade.edu"
     ],
     "parentEmails": [
-      "dhyana.5030@student.topgrade.edu"
+      "parent.dhara.desai.5030@parents.topgrade.edu",
+      "dhara.6n@gmail.com"
     ],
     "fatherName": "Dhara Desai",
     "motherName": "",
     "guardianName": "",
     "program": "GT prep/ Math & Reading",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "GT prep/ Math & Reading",
+        "courseName": "Math & Reading Foundations",
         "duration": "3 Months"
       }
     ]
@@ -1225,25 +1232,28 @@
       "elias.5023b@student.topgrade.edu"
     ],
     "parentEmails": [
-      "elias.5023b@student.topgrade.edu"
+      "parent.natalie.chaiban.5023@parents.topgrade.edu",
+      "n_pilotte@yahoo.com"
     ],
     "fatherName": "Natalie Chaiban",
     "motherName": "",
     "guardianName": "",
     "program": "summer camp",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "summer camp",
-        "duration": "3 Months"
+        "courseName": "Summer Camp & Academic Tutoring",
+        "duration": "Summer Session"
       }
     ]
   },
@@ -1274,25 +1284,28 @@
       "eric.5027@student.topgrade.edu"
     ],
     "parentEmails": [
-      "eric.5027@student.topgrade.edu"
+      "parent.marisol.penaloza.5027@parents.topgrade.edu",
+      "marisol.maldonado96@icloud.com"
     ],
     "fatherName": "marisol penaloza",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "Afterschool",
-        "duration": "3 Months"
+        "courseName": "After School Program",
+        "duration": "Academic Year"
       }
     ]
   },
@@ -1323,24 +1336,28 @@
       "ethan.kuzniar.5010@student.topgrade.edu"
     ],
     "parentEmails": [
-      "ethan.kuzniar.5010@student.topgrade.edu"
+      "parent.yoselin.kuzniar.5010@parents.topgrade.edu",
+      "conner.skuzniar@gmail.com",
+      "yosyaranda18@gmail.com"
     ],
     "fatherName": "Yoselin Kuzniar",
     "motherName": "",
     "guardianName": "",
     "program": "STAAR",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "STAAR",
+        "courseName": "STAAR Prep",
         "duration": "3 Months"
       }
     ]
@@ -1372,24 +1389,31 @@
       "evan.li.5064@student.topgrade.edu"
     ],
     "parentEmails": [
-      "evan.li.5064@student.topgrade.edu"
+      "parent.ke.li.5064@parents.topgrade.edu",
+      "ke.li@outlook.com"
     ],
     "fatherName": "Ke Li",
     "motherName": "",
     "guardianName": "",
     "program": "PAP Chemistry, PAP Alge 2",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "PAP Chemistry, PAP Alge 2",
+        "courseName": "AP Chemistry",
+        "duration": "3 Months"
+      },
+      {
+        "courseName": "Algebra 1 & PAP Algebra 2",
         "duration": "3 Months"
       }
     ]
@@ -1421,25 +1445,28 @@
       "evelyn.5008@student.topgrade.edu"
     ],
     "parentEmails": [
-      "evelyn.5008@student.topgrade.edu"
+      "parent.anna.jan.5008@parents.topgrade.edu",
+      "annasjan@gmail.com"
     ],
     "fatherName": "Anna Jan",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "Afterschool",
-        "duration": "3 Months"
+        "courseName": "After School Program",
+        "duration": "Academic Year"
       }
     ]
   },
@@ -1470,25 +1497,28 @@
       "faith.5028@student.topgrade.edu"
     ],
     "parentEmails": [
-      "faith.5028@student.topgrade.edu"
+      "parent.mili.chavez.5028@parents.topgrade.edu",
+      "pabloymili2023@gmail.com"
     ],
     "fatherName": "Mili Chavez",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "Afterschool",
-        "duration": "3 Months"
+        "courseName": "After School Program",
+        "duration": "Academic Year"
       }
     ]
   },
@@ -1519,25 +1549,28 @@
       "giselle.5005@student.topgrade.edu"
     ],
     "parentEmails": [
-      "giselle.5005@student.topgrade.edu"
+      "parent.elizabeth.guillory.5005@parents.topgrade.edu",
+      "guilloryea@gmail.com"
     ],
     "fatherName": "Elizabeth Guillory",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "Afterschool",
-        "duration": "3 Months"
+        "courseName": "After School Program",
+        "duration": "Academic Year"
       }
     ]
   },
@@ -1568,71 +1601,27 @@
       "hari.charan.5045@student.topgrade.edu"
     ],
     "parentEmails": [
-      "hari.charan.5045@student.topgrade.edu"
+      "parent.gayathri.sathiamoorthy.5045@parents.topgrade.edu",
+      "gayathri.sathiamoorthy@gmail.com"
     ],
     "fatherName": "Gayathri Sathiamoorthy",
     "motherName": "",
     "guardianName": "",
     "program": "SAT prep",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "SAT prep",
-        "duration": "3 Months"
-      }
-    ]
-  },
-  {
-    "id": "4457858c-594e-4b96-9df6-eb66753cfe3c",
-    "studentCode": "TG-STU-2026-9717",
-    "fullName": "harshith pabisetty",
-    "firstName": "harshith",
-    "lastName": "pabisetty",
-    "email": "std-1788241892654@topgrade.edu",
-    "dob": "2004-07-13",
-    "age": 22,
-    "school": "Top Grade Academy",
-    "grade": "Grade 12",
-    "status": "ACTIVE",
-    "primaryMobile": "+1 5818585656",
-    "studentPhones": [
-      "+1 5818585656"
-    ],
-    "parentPhones": [
-      "+1 5818585656"
-    ],
-    "studentWhatsapp": "+1 5818585656",
-    "parentWhatsapp": [],
-    "studentEmails": [
-      "std-1788241892654@topgrade.edu"
-    ],
-    "parentEmails": [
-      "std-1788241892654@topgrade.edu"
-    ],
-    "fatherName": "sathish",
-    "motherName": "lakshmi",
-    "guardianName": "",
-    "program": "Python Beginners & Logic",
-    "teacher": "manikanta",
-    "residentialAddress": "",
-    "studentAddress": "",
-    "alternateAddress": "",
-    "examDate": "",
-    "purchasedHours": 0,
-    "hoursLeft": 0,
-    "daysLeft": 0,
-    "feePlan": "Standard Plan",
-    "allocatedCourses": [
-      {
-        "courseName": "Python Beginners & Logic",
+        "courseName": "SAT Prep",
         "duration": "3 Months"
       }
     ]
@@ -1664,25 +1653,28 @@
       "isabelle.5054@student.topgrade.edu"
     ],
     "parentEmails": [
-      "isabelle.5054@student.topgrade.edu"
+      "parent.florence.buaku.5054@parents.topgrade.edu",
+      "flossied@gmail.com"
     ],
     "fatherName": "Florence Buaku",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "Afterschool",
-        "duration": "3 Months"
+        "courseName": "After School Program",
+        "duration": "Academic Year"
       }
     ]
   },
@@ -1713,24 +1705,27 @@
       "jacob.5001@student.topgrade.edu"
     ],
     "parentEmails": [
-      "jacob.5001@student.topgrade.edu"
+      "parent.tanyea.fowls.5001@parents.topgrade.edu",
+      "tanyeafowls@yahoo.com"
     ],
     "fatherName": "Tanyea Fowls",
     "motherName": "",
     "guardianName": "",
     "program": "Reading Comp",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "Reading Comp",
+        "courseName": "Reading Comprehension",
         "duration": "3 Months"
       }
     ]
@@ -1762,24 +1757,27 @@
       "joseph.5018@student.topgrade.edu"
     ],
     "parentEmails": [
-      "joseph.5018@student.topgrade.edu"
+      "parent.janice.perkins.5018@parents.topgrade.edu",
+      "deeutley@gmail.com"
     ],
     "fatherName": "Janice Perkins",
     "motherName": "",
     "guardianName": "",
     "program": "Summer camp & Math, writing, reading tutoring",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "Summer camp & Math, writing, reading tutoring",
+        "courseName": "Math & Reading Foundations",
         "duration": "3 Months"
       }
     ]
@@ -1811,71 +1809,30 @@
       "julia.5054b@student.topgrade.edu"
     ],
     "parentEmails": [
-      "julia.5054b@student.topgrade.edu"
+      "parent.florence.buaku.5054@parents.topgrade.edu",
+      "flossied@gmail.com"
     ],
     "fatherName": "Florence Buaku",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "Afterschool",
-        "duration": "3 Months"
+        "courseName": "After School Program",
+        "duration": "Academic Year"
       }
     ]
-  },
-  {
-    "id": "867087b6-2914-4efb-8429-660516f2f0a5",
-    "studentCode": "TG-STU-2026-5042",
-    "fullName": "Kaleb Smith",
-    "firstName": "Kaleb",
-    "lastName": "Smith",
-    "email": "kaleb.smith.5042@student.topgrade.edu",
-    "dob": "2005-01-01",
-    "age": 12,
-    "school": "Top Grade Academy",
-    "grade": "Grade 10",
-    "status": "ACTIVE",
-    "primaryMobile": "+1 908 340 2976",
-    "studentPhones": [
-      "+1 908 340 2976"
-    ],
-    "parentPhones": [
-      "+1 908 340 2976"
-    ],
-    "studentWhatsapp": "+1 908 340 2976",
-    "parentWhatsapp": [
-      "+1 908 340 2976"
-    ],
-    "studentEmails": [
-      "kaleb.smith.5042@student.topgrade.edu"
-    ],
-    "parentEmails": [
-      "kaleb.smith.5042@student.topgrade.edu"
-    ],
-    "fatherName": "",
-    "motherName": "",
-    "guardianName": "",
-    "program": "",
-    "teacher": "",
-    "residentialAddress": "",
-    "studentAddress": "",
-    "alternateAddress": "",
-    "examDate": "",
-    "purchasedHours": 0,
-    "hoursLeft": 0,
-    "daysLeft": 0,
-    "feePlan": "Standard Plan",
-    "allocatedCourses": []
   },
   {
     "id": "d62ddb95-753b-416b-9292-8f1ce9c8ffad",
@@ -1904,24 +1861,28 @@
       "kaleb.smith.5041@student.topgrade.edu"
     ],
     "parentEmails": [
-      "kaleb.smith.5041@student.topgrade.edu"
+      "parent.blake.johnson.5041@parents.topgrade.edu",
+      "parent.kaleb.smith.5042@parents.topgrade.edu",
+      "mykix3@gmail.com"
     ],
     "fatherName": "Blake Johnson",
     "motherName": "",
     "guardianName": "",
     "program": "SAT prep",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "SAT prep",
+        "courseName": "SAT Prep",
         "duration": "3 Months"
       }
     ]
@@ -1953,24 +1914,26 @@
       "kalena.5059b@student.topgrade.edu"
     ],
     "parentEmails": [
-      "kalena.5059b@student.topgrade.edu"
+      "parent.lakeshia.morgan.5059@parents.topgrade.edu"
     ],
     "fatherName": "Lakeshia Morgan",
     "motherName": "",
     "guardianName": "",
     "program": "Reading & Math",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "Reading & Math",
+        "courseName": "Math & Reading Foundations",
         "duration": "3 Months"
       }
     ]
@@ -2002,24 +1965,26 @@
       "kaliyah.5059@student.topgrade.edu"
     ],
     "parentEmails": [
-      "kaliyah.5059@student.topgrade.edu"
+      "parent.lakeshia.morgan.5059@parents.topgrade.edu"
     ],
     "fatherName": "Lakeshia Morgan",
     "motherName": "",
     "guardianName": "",
     "program": "Reading & Math",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "Reading & Math",
+        "courseName": "Math & Reading Foundations",
         "duration": "3 Months"
       }
     ]
@@ -2051,17 +2016,20 @@
       "kamauri.hunter.5002@student.topgrade.edu"
     ],
     "parentEmails": [
-      "kamauri.hunter.5002@student.topgrade.edu"
+      "parent.angel.lewis.5002@parents.topgrade.edu",
+      "missyou1970@yahoo.com"
     ],
     "fatherName": "Angel Lewis",
     "motherName": "",
     "guardianName": "",
     "program": "Reading",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
@@ -2100,17 +2068,20 @@
       "kayden.jones.5060@student.topgrade.edu"
     ],
     "parentEmails": [
-      "kayden.jones.5060@student.topgrade.edu"
+      "parent.chardae.evans.5060@parents.topgrade.edu",
+      "chardaeevans1@gmail.com"
     ],
     "fatherName": "Chardae Evans",
     "motherName": "",
     "guardianName": "",
     "program": "Math",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
@@ -2149,17 +2120,20 @@
       "kiaan.5034b@student.topgrade.edu"
     ],
     "parentEmails": [
-      "kiaan.5034b@student.topgrade.edu"
+      "parent.anvita.gupta.5034@parents.topgrade.edu",
+      "anvita512@gmail.com"
     ],
     "fatherName": "Anvita Gupta",
     "motherName": "",
     "guardianName": "",
     "program": "General Track",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
@@ -2198,71 +2172,30 @@
       "kiron.5007@student.topgrade.edu"
     ],
     "parentEmails": [
-      "kiron.5007@student.topgrade.edu"
+      "parent.lani.mercado.5007@parents.topgrade.edu",
+      "lani.garrido@gmail.com"
     ],
     "fatherName": "Lani Mercado",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "Afterschool",
-        "duration": "3 Months"
+        "courseName": "After School Program",
+        "duration": "Academic Year"
       }
     ]
-  },
-  {
-    "id": "3423761e-675e-4f3b-8bec-4f1b0cbba5d9",
-    "studentCode": "TG-STU-2026-5040",
-    "fullName": "Kirtida Monpara",
-    "firstName": "Kirtida",
-    "lastName": "Monpara",
-    "email": "kirtida.monpara.5040@student.topgrade.edu",
-    "dob": "2005-01-01",
-    "age": 12,
-    "school": "Top Grade Academy",
-    "grade": "Grade 10",
-    "status": "ACTIVE",
-    "primaryMobile": "+1 781 353 1272",
-    "studentPhones": [
-      "+1 781 353 1272"
-    ],
-    "parentPhones": [
-      "+1 781 353 1272"
-    ],
-    "studentWhatsapp": "+1 781 353 1272",
-    "parentWhatsapp": [
-      "+1 781 353 1272"
-    ],
-    "studentEmails": [
-      "kirtida.monpara.5040@student.topgrade.edu"
-    ],
-    "parentEmails": [
-      "kirtida.monpara.5040@student.topgrade.edu"
-    ],
-    "fatherName": "",
-    "motherName": "",
-    "guardianName": "",
-    "program": "",
-    "teacher": "",
-    "residentialAddress": "",
-    "studentAddress": "",
-    "alternateAddress": "",
-    "examDate": "",
-    "purchasedHours": 0,
-    "hoursLeft": 0,
-    "daysLeft": 0,
-    "feePlan": "Standard Plan",
-    "allocatedCourses": []
   },
   {
     "id": "8ffc70b7-ab49-4d9b-8fba-07f96fcd3877",
@@ -2291,17 +2224,20 @@
       "kris.5022@student.topgrade.edu"
     ],
     "parentEmails": [
-      "kris.5022@student.topgrade.edu"
+      "parent.rekha.nair.5022@parents.topgrade.edu",
+      "nair.rekha11@gmail.com"
     ],
     "fatherName": "Rekha Nair",
     "motherName": "",
     "guardianName": "",
     "program": "Geometry",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
@@ -2340,25 +2276,28 @@
       "leandro.5006@student.topgrade.edu"
     ],
     "parentEmails": [
-      "leandro.5006@student.topgrade.edu"
+      "parent.esperanza.garcia.5006@parents.topgrade.edu",
+      "esperanzagarciaovalle@gmail.com"
     ],
     "fatherName": "Esperanza garcia",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "123 Main St",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "Afterschool",
-        "duration": "3 Months"
+        "courseName": "After School Program",
+        "duration": "Academic Year"
       }
     ]
   },
@@ -2389,24 +2328,27 @@
       "logan.starks.5017@student.topgrade.edu"
     ],
     "parentEmails": [
-      "logan.starks.5017@student.topgrade.edu"
+      "parent.quinisha.starks.5017@parents.topgrade.edu",
+      "qunisha.starks1@gmail.com"
     ],
     "fatherName": "Quinisha Starks",
     "motherName": "",
     "guardianName": "",
     "program": "Math & Reading",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "Math & Reading",
+        "courseName": "Math & Reading Foundations",
         "duration": "3 Months"
       }
     ]
@@ -2438,25 +2380,28 @@
       "lydia.5023@student.topgrade.edu"
     ],
     "parentEmails": [
-      "lydia.5023@student.topgrade.edu"
+      "parent.natalie.chaiban.5023@parents.topgrade.edu",
+      "n_pilotte@yahoo.com"
     ],
     "fatherName": "Natalie Chaiban",
     "motherName": "",
     "guardianName": "",
     "program": "summer camp",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "summer camp",
-        "duration": "3 Months"
+        "courseName": "Summer Camp & Academic Tutoring",
+        "duration": "Summer Session"
       }
     ]
   },
@@ -2487,25 +2432,28 @@
       "madison.carter.5053@student.topgrade.edu"
     ],
     "parentEmails": [
-      "madison.carter.5053@student.topgrade.edu"
+      "parent.amy.carter.5053@parents.topgrade.edu",
+      "carterae2020@gmail.com"
     ],
     "fatherName": "Amy Carter",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "Afterschool",
-        "duration": "3 Months"
+        "courseName": "After School Program",
+        "duration": "Academic Year"
       }
     ]
   },
@@ -2536,24 +2484,31 @@
       "micah.5065@student.topgrade.edu"
     ],
     "parentEmails": [
-      "micah.5065@student.topgrade.edu"
+      "parent.wes.murdoch.5065@parents.topgrade.edu",
+      "wesdmurdock@hotmail.com"
     ],
     "fatherName": "Wes Murdoch",
     "motherName": "",
     "guardianName": "",
     "program": "Reading, Handwriting",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "Reading, Handwriting",
+        "courseName": "Reading Comprehension",
+        "duration": "3 Months"
+      },
+      {
+        "courseName": "Writing Skills & Handwriting",
         "duration": "3 Months"
       }
     ]
@@ -2585,25 +2540,28 @@
       "minh.5012@student.topgrade.edu"
     ],
     "parentEmails": [
-      "minh.5012@student.topgrade.edu"
+      "parent.loan.nguyen.5012@parents.topgrade.edu",
+      "nloan969@gmail.com"
     ],
     "fatherName": "Loan Nguyen",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "Afterschool",
-        "duration": "3 Months"
+        "courseName": "After School Program",
+        "duration": "Academic Year"
       }
     ]
   },
@@ -2634,24 +2592,27 @@
       "nehemiah.5058@student.topgrade.edu"
     ],
     "parentEmails": [
-      "nehemiah.5058@student.topgrade.edu"
+      "parent.soosan.pappan.5058@parents.topgrade.edu",
+      "soosanmathai@yahoo.com"
     ],
     "fatherName": "Soosan Pappan",
     "motherName": "",
     "guardianName": "",
     "program": "ESL",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "ESL",
+        "courseName": "ESL (English as a Second Language)",
         "duration": "3 Months"
       }
     ]
@@ -2683,24 +2644,27 @@
       "nikhil.5047@student.topgrade.edu"
     ],
     "parentEmails": [
-      "nikhil.5047@student.topgrade.edu"
+      "parent.shiva.marthy.5047@parents.topgrade.edu",
+      "shiva90@gmail.com"
     ],
     "fatherName": "Shiva Marthy",
     "motherName": "",
     "guardianName": "",
     "program": "SAT prep",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "SAT prep",
+        "courseName": "SAT Prep",
         "duration": "3 Months"
       }
     ]
@@ -2732,17 +2696,20 @@
       "noshi.5034@student.topgrade.edu"
     ],
     "parentEmails": [
-      "noshi.5034@student.topgrade.edu"
+      "parent.anvita.gupta.5034@parents.topgrade.edu",
+      "anvita512@gmail.com"
     ],
     "fatherName": "Anvita Gupta",
     "motherName": "",
     "guardianName": "",
     "program": "General Track",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
@@ -2768,19 +2735,20 @@
     "status": "ACTIVE",
     "primaryMobile": "+1 3468228020",
     "studentPhones": [
-      "+1 3468228020"
+      "+1 346 822 8020"
     ],
     "parentPhones": [
-      "+1 2817606386"
+      "+1 281 760 6386"
     ],
-    "studentWhatsapp": "+1 3468228020",
+    "studentWhatsapp": "+1 346 822 8020",
     "parentWhatsapp": [
-      "+1 2817606386"
+      "+1 281 760 6386"
     ],
     "studentEmails": [
       "riaupadhyaya3@gmail.com"
     ],
     "parentEmails": [
+      "tglbiz101@gmail.com",
       "riaupadhyaya3@gmail.com"
     ],
     "fatherName": "Jignesh Upadhyaya",
@@ -2792,6 +2760,8 @@
     "studentAddress": "2615 Sunfish Drive, Pearland, TX 77584 | School: Narayana Olympiad School | School: Bhashyam High School | School: Bhashyam High School | School: Bhashyam High School",
     "alternateAddress": "2615 Sunfish Drive, Pearland, TX 77584 | School: Narayana Olympiad School | School: Bhashyam High School | School: Bhashyam High School | School: Bhashyam High School",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
@@ -2830,25 +2800,28 @@
       "peyton.5014@student.topgrade.edu"
     ],
     "parentEmails": [
-      "peyton.5014@student.topgrade.edu"
+      "parent.alexis.merritt.5014@parents.topgrade.edu",
+      "megul41@gmail.com"
     ],
     "fatherName": "Alexis Merritt",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "Afterschool",
-        "duration": "3 Months"
+        "courseName": "After School Program",
+        "duration": "Academic Year"
       }
     ]
   },
@@ -2879,71 +2852,27 @@
       "raina.5035@student.topgrade.edu"
     ],
     "parentEmails": [
-      "raina.5035@student.topgrade.edu"
+      "parent.nitin.wadhwa.5035@parents.topgrade.edu",
+      "nwadhwa78@gmail.com"
     ],
     "fatherName": "Nitin Wadhwa",
     "motherName": "",
     "guardianName": "",
     "program": "Hindi",
-    "teacher": "",
-    "residentialAddress": "",
-    "studentAddress": "",
-    "alternateAddress": "",
-    "examDate": "",
-    "purchasedHours": 0,
-    "hoursLeft": 0,
-    "daysLeft": 0,
-    "feePlan": "Standard Plan",
-    "allocatedCourses": [
-      {
-        "courseName": "Hindi",
-        "duration": "3 Months"
-      }
-    ]
-  },
-  {
-    "id": "f4ca7a7b-c64a-4e18-86ab-a0a48e342be2",
-    "studentCode": "TG-STU-2026-4231",
-    "fullName": "rajesh ganta",
-    "firstName": "rajesh",
-    "lastName": "ganta",
-    "email": "rajeshganta@gmail.com",
-    "dob": "2004-06-24",
-    "age": 22,
-    "school": "Top Grade Academy",
-    "grade": "Grade 12",
-    "status": "ACTIVE",
-    "primaryMobile": "+1 1234567894",
-    "studentPhones": [
-      "+1 1234567894"
-    ],
-    "parentPhones": [
-      "+1 1234567894"
-    ],
-    "studentWhatsapp": "+1 1234567894",
-    "parentWhatsapp": [],
-    "studentEmails": [
-      "rajeshganta@gmail.com"
-    ],
-    "parentEmails": [
-      "rajeshganta@gmail.com"
-    ],
-    "fatherName": "srinu",
-    "motherName": "lakshmi",
-    "guardianName": "",
-    "program": "General Academic Track",
     "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "General Academic Track",
+        "courseName": "Hindi Language",
         "duration": "3 Months"
       }
     ]
@@ -2975,22 +2904,29 @@
       "reshmika.5046@student.topgrade.edu"
     ],
     "parentEmails": [
-      "reshmika.5046@student.topgrade.edu"
+      "parent.bindu.aghari.5046@parents.topgrade.edu"
     ],
     "fatherName": "Bindu Aghari",
     "motherName": "",
     "guardianName": "",
-    "program": "",
-    "teacher": "",
+    "program": "General Track",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
-    "allocatedCourses": []
+    "allocatedCourses": [
+      {
+        "courseName": "General Track",
+        "duration": "3 Months"
+      }
+    ]
   },
   {
     "id": "99688e31-31de-4eb0-b4e3-55b833fc306d",
@@ -3019,25 +2955,28 @@
       "robert.mora.5027b@student.topgrade.edu"
     ],
     "parentEmails": [
-      "robert.mora.5027b@student.topgrade.edu"
+      "parent.marisol.penaloza.5027@parents.topgrade.edu",
+      "marisol.maldonado96@icloud.com"
     ],
     "fatherName": "marisol penaloza",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "Afterschool",
-        "duration": "3 Months"
+        "courseName": "After School Program",
+        "duration": "Academic Year"
       }
     ]
   },
@@ -3068,25 +3007,28 @@
       "saanvi.narula.5024@student.topgrade.edu"
     ],
     "parentEmails": [
-      "saanvi.narula.5024@student.topgrade.edu"
+      "parent.uma.narula.5024@parents.topgrade.edu",
+      "umanutritionist@gmail.com"
     ],
     "fatherName": "Uma Narula",
     "motherName": "",
     "guardianName": "",
     "program": "College Essay workshop",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "College Essay workshop",
-        "duration": "3 Months"
+        "courseName": "College Essay Workshop & Writing",
+        "duration": "2 Months"
       }
     ]
   },
@@ -3117,71 +3059,30 @@
       "samson.miller.5016@student.topgrade.edu"
     ],
     "parentEmails": [
-      "samson.miller.5016@student.topgrade.edu"
+      "parent.selena.miller.5016@parents.topgrade.edu",
+      "selenademps@hotmail.com"
     ],
     "fatherName": "Selena Miller",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "Afterschool",
-        "duration": "3 Months"
+        "courseName": "After School Program",
+        "duration": "Academic Year"
       }
     ]
-  },
-  {
-    "id": "a3a10d93-f01a-452f-b695-91e648146a54",
-    "studentCode": "TG-STU-2026-5033",
-    "fullName": "Sandeep Duggal",
-    "firstName": "Sandeep",
-    "lastName": "Duggal",
-    "email": "sandeep.duggal.5033@student.topgrade.edu",
-    "dob": "2005-01-01",
-    "age": 12,
-    "school": "Top Grade Academy",
-    "grade": "Grade 10",
-    "status": "ACTIVE",
-    "primaryMobile": "+1 832 314 3626",
-    "studentPhones": [
-      "+1 832 314 3626"
-    ],
-    "parentPhones": [
-      "+1 832 314 3626"
-    ],
-    "studentWhatsapp": "+1 832 314 3626",
-    "parentWhatsapp": [
-      "+1 832 314 3626"
-    ],
-    "studentEmails": [
-      "sandeep.duggal.5033@student.topgrade.edu"
-    ],
-    "parentEmails": [
-      "sandeep.duggal.5033@student.topgrade.edu"
-    ],
-    "fatherName": "",
-    "motherName": "",
-    "guardianName": "",
-    "program": "",
-    "teacher": "",
-    "residentialAddress": "",
-    "studentAddress": "",
-    "alternateAddress": "",
-    "examDate": "",
-    "purchasedHours": 0,
-    "hoursLeft": 0,
-    "daysLeft": 0,
-    "feePlan": "Standard Plan",
-    "allocatedCourses": []
   },
   {
     "id": "a5696856-7c60-4f50-975c-87a1caad52f5",
@@ -3210,97 +3111,57 @@
       "serena.5043@student.topgrade.edu"
     ],
     "parentEmails": [
-      "serena.5043@student.topgrade.edu"
+      "parent.serena.ayala.5043@parents.topgrade.edu",
+      "parent.serena.iii.5044@parents.topgrade.edu",
+      "smayala79@yahoo.com"
     ],
     "fatherName": "Serena Ayala",
     "motherName": "",
     "guardianName": "",
     "program": "Alge 1",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "Alge 1",
+        "courseName": "Algebra 1 & PAP Algebra 2",
         "duration": "3 Months"
       }
     ]
   },
   {
-    "id": "4455f575-219f-44cd-b6b4-21750fd94971",
-    "studentCode": "TG-STU-2026-5044",
-    "fullName": "Serena III",
-    "firstName": "Serena",
-    "lastName": "III",
-    "email": "serena.iii.5044@student.topgrade.edu",
-    "dob": "2005-01-01",
-    "age": 12,
-    "school": "Top Grade Academy",
-    "grade": "Grade 10",
-    "status": "ACTIVE",
-    "primaryMobile": "+1 979 900 7400",
-    "studentPhones": [
-      "+1 979 900 7400"
-    ],
-    "parentPhones": [
-      "+1 979 900 7400"
-    ],
-    "studentWhatsapp": "+1 979 900 7400",
-    "parentWhatsapp": [
-      "+1 979 900 7400"
-    ],
-    "studentEmails": [
-      "serena.iii.5044@student.topgrade.edu"
-    ],
-    "parentEmails": [
-      "serena.iii.5044@student.topgrade.edu"
-    ],
-    "fatherName": "",
-    "motherName": "",
-    "guardianName": "",
-    "program": "",
-    "teacher": "",
-    "residentialAddress": "",
-    "studentAddress": "",
-    "alternateAddress": "",
-    "examDate": "",
-    "purchasedHours": 0,
-    "hoursLeft": 0,
-    "daysLeft": 0,
-    "feePlan": "Standard Plan",
-    "allocatedCourses": []
-  },
-  {
     "id": "ec40d0c0-c9b4-436a-9e73-f3e34d424fab",
     "studentCode": "TG-STU-2026-3632",
-    "fullName": "Siva Reddy",
+    "fullName": "Siva sankar rama Reddy",
     "firstName": "Siva",
-    "lastName": "Reddy",
-    "email": "clashofclansreddy@gmail.com",
+    "lastName": "sankar rama Reddy",
+    "email": "sivareddy683970@gmail.com",
     "dob": "2003-04-08",
     "age": 23,
     "school": "Bhashyam High School",
-    "grade": "Grade 12",
+    "grade": "PG",
     "status": "ACTIVE",
-    "primaryMobile": "+1 7780648562",
+    "primaryMobile": "+1 778 064 8562",
     "studentPhones": [
-      "+1 7780648562"
+      "+1 778 064 8562"
     ],
     "parentPhones": [
-      "+1 7780648562"
+      "+1 778 064 8562"
     ],
-    "studentWhatsapp": "+1 7780648562",
+    "studentWhatsapp": "+1 778 064 8562",
     "parentWhatsapp": [
-      "+1 7780648562"
+      "+1 778 064 8562"
     ],
     "studentEmails": [
-      "clashofclansreddy@gmail.com"
+      "sivareddy683970@gmail.com"
     ],
     "parentEmails": [
       "sivareddy683970@gmail.com"
@@ -3308,19 +3169,21 @@
     "fatherName": "Venakat",
     "motherName": "Lakshmi",
     "guardianName": "",
-    "program": "AP Calculus",
+    "program": "General Academic Track",
     "teacher": "Tamara Gipson",
     "residentialAddress": "111 Near bustand, jangareddygudem, JRG, AP 534447",
     "studentAddress": "111 Near bustand, jangareddygudem, JRG, AP 534447",
     "alternateAddress": "111 Near bustand, jangareddygudem, JRG, AP 534447",
     "examDate": "2026-09-20",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "AP Calculus",
+        "courseName": "General Academic Track",
         "duration": "3 Months"
       }
     ]
@@ -3352,25 +3215,28 @@
       "sky.zielinski.5026@student.topgrade.edu"
     ],
     "parentEmails": [
-      "sky.zielinski.5026@student.topgrade.edu"
+      "parent.lexii.zielinski.5026@parents.topgrade.edu",
+      "alexisszielinski@gmail.com"
     ],
     "fatherName": "Lexii Zielinski",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "Afterschool",
-        "duration": "3 Months"
+        "courseName": "After School Program",
+        "duration": "Academic Year"
       }
     ]
   },
@@ -3401,25 +3267,28 @@
       "sophie.5062@student.topgrade.edu"
     ],
     "parentEmails": [
-      "sophie.5062@student.topgrade.edu"
+      "parent.annie.smith.5062@parents.topgrade.edu",
+      "annieb@cgsfs.com"
     ],
     "fatherName": "Annie Smith",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "Afterschool",
-        "duration": "3 Months"
+        "courseName": "After School Program",
+        "duration": "Academic Year"
       }
     ]
   },
@@ -3450,24 +3319,27 @@
       "sumay.5019@student.topgrade.edu"
     ],
     "parentEmails": [
-      "sumay.5019@student.topgrade.edu"
+      "parent.minny.bhatty.5038@parents.topgrade.edu",
+      "minnybhatty@gmail.com"
     ],
     "fatherName": "Minny Bhatty",
     "motherName": "",
     "guardianName": "",
     "program": "Writing skills",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "Writing skills",
+        "courseName": "Writing Skills & Handwriting",
         "duration": "3 Months"
       }
     ]
@@ -3499,24 +3371,28 @@
       "sumay.5038@student.topgrade.edu"
     ],
     "parentEmails": [
-      "sumay.5038@student.topgrade.edu"
+      "parent.minny.bhatty.5038@parents.topgrade.edu",
+      "parent.sumay.5038@parents.topgrade.edu",
+      "minnybhatty@gmail.com"
     ],
     "fatherName": "Minny Bhatty",
     "motherName": "",
     "guardianName": "",
     "program": "Writing",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "Writing",
+        "courseName": "Writing Skills & Handwriting",
         "duration": "3 Months"
       }
     ]
@@ -3548,22 +3424,29 @@
       "tierra.perry.5003@student.topgrade.edu"
     ],
     "parentEmails": [
-      "tierra.perry.5003@student.topgrade.edu"
+      "parent.tierra.perry.5003@parents.topgrade.edu"
     ],
-    "fatherName": "",
+    "fatherName": "Tierra Perry Parent",
     "motherName": "",
     "guardianName": "",
-    "program": "",
-    "teacher": "",
+    "program": "General Track",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
-    "allocatedCourses": []
+    "allocatedCourses": [
+      {
+        "courseName": "General Track",
+        "duration": "3 Months"
+      }
+    ]
   },
   {
     "id": "69660262-8625-4fc9-80bd-b601cee9d8a0",
@@ -3592,22 +3475,30 @@
       "tu.hyunh.5013@student.topgrade.edu"
     ],
     "parentEmails": [
-      "tu.hyunh.5013@student.topgrade.edu"
+      "tuhuynh0046@gmail.com",
+      "parent.tu.hyunh.5013@parents.topgrade.edu"
     ],
-    "fatherName": "",
+    "fatherName": "Tu Hyunh Parent",
     "motherName": "",
     "guardianName": "",
-    "program": "",
-    "teacher": "",
+    "program": "General Track",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
-    "allocatedCourses": []
+    "allocatedCourses": [
+      {
+        "courseName": "General Track",
+        "duration": "3 Months"
+      }
+    ]
   },
   {
     "id": "c0dca76d-260b-4542-b299-d1f140277211",
@@ -3636,71 +3527,31 @@
       "ulaysha.5051@student.topgrade.edu"
     ],
     "parentEmails": [
-      "ulaysha.5051@student.topgrade.edu"
+      "parent.elizabeth.osorio.5051@parents.topgrade.edu",
+      "ulayshagibbs@gmail.com",
+      "o.elizabeth@icloud.com"
     ],
     "fatherName": "Elizabeth Osorio",
     "motherName": "",
     "guardianName": "",
     "program": "TSI prep",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "TSI prep",
-        "duration": "3 Months"
+        "courseName": "TSI Prep",
+        "duration": "2 Months"
       }
     ]
-  },
-  {
-    "id": "bbb8561f-6942-4db9-b8c1-ba41bbd9e138",
-    "studentCode": "TG-STU-2026-5052",
-    "fullName": "Ulaysha Gibbs",
-    "firstName": "Ulaysha",
-    "lastName": "Gibbs",
-    "email": "ulaysha.gibbs.5052@student.topgrade.edu",
-    "dob": "2005-01-01",
-    "age": 12,
-    "school": "Top Grade Academy",
-    "grade": "Grade 10",
-    "status": "ACTIVE",
-    "primaryMobile": "+1 713 820 0792",
-    "studentPhones": [
-      "+1 713 820 0792"
-    ],
-    "parentPhones": [
-      "+1 713 820 0792"
-    ],
-    "studentWhatsapp": "+1 713 820 0792",
-    "parentWhatsapp": [
-      "+1 713 820 0792"
-    ],
-    "studentEmails": [
-      "ulaysha.gibbs.5052@student.topgrade.edu"
-    ],
-    "parentEmails": [
-      "ulaysha.gibbs.5052@student.topgrade.edu"
-    ],
-    "fatherName": "",
-    "motherName": "",
-    "guardianName": "",
-    "program": "",
-    "teacher": "",
-    "residentialAddress": "",
-    "studentAddress": "",
-    "alternateAddress": "",
-    "examDate": "",
-    "purchasedHours": 0,
-    "hoursLeft": 0,
-    "daysLeft": 0,
-    "feePlan": "Standard Plan",
-    "allocatedCourses": []
   },
   {
     "id": "33f23d67-7c8b-472c-b30f-6b63944442f1",
@@ -3729,24 +3580,26 @@
       "uriel.5015@student.topgrade.edu"
     ],
     "parentEmails": [
-      "uriel.5015@student.topgrade.edu"
+      "parent.claudette.fonndikum.5015@parents.topgrade.edu"
     ],
     "fatherName": "Claudette Fonndikum",
     "motherName": "",
     "guardianName": "",
     "program": "STAAR prep",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "STAAR prep",
+        "courseName": "STAAR Prep",
         "duration": "3 Months"
       }
     ]
@@ -3778,24 +3631,31 @@
       "vinoli.5037@student.topgrade.edu"
     ],
     "parentEmails": [
-      "vinoli.5037@student.topgrade.edu"
+      "parent.kaushalya.amunugama.5037@parents.topgrade.edu",
+      "kaushalya.amunugama@gmail.com"
     ],
     "fatherName": "Kaushalya Amunugama",
     "motherName": "",
     "guardianName": "",
     "program": "Reading Writing",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "Reading Writing",
+        "courseName": "Reading Comprehension",
+        "duration": "3 Months"
+      },
+      {
+        "courseName": "Writing Skills & Handwriting",
         "duration": "3 Months"
       }
     ]
@@ -3827,70 +3687,29 @@
       "viviana.5057@student.topgrade.edu"
     ],
     "parentEmails": [
-      "viviana.5057@student.topgrade.edu"
+      "parent.geraldine.raja.5057@parents.topgrade.edu",
+      "gerijosie@yahoo.com"
     ],
     "fatherName": "Geraldine Raja",
     "motherName": "",
     "guardianName": "",
     "program": "Afterschool",
-    "teacher": "",
+    "teacher": "Unassigned",
     "residentialAddress": "",
     "studentAddress": "",
     "alternateAddress": "",
     "examDate": "",
+    "photoUrl": "",
+    "profileImageUrl": "",
     "purchasedHours": 0,
     "hoursLeft": 0,
     "daysLeft": 0,
     "feePlan": "Standard Plan",
     "allocatedCourses": [
       {
-        "courseName": "Afterschool",
-        "duration": "3 Months"
+        "courseName": "After School Program",
+        "duration": "Academic Year"
       }
     ]
-  },
-  {
-    "id": "15084b08-a5f9-4c34-8b41-f836dff52190",
-    "studentCode": "TG-STU-2026-5050",
-    "fullName": "Vondeah Grant",
-    "firstName": "Vondeah",
-    "lastName": "Grant",
-    "email": "vondeah.grant.5050@student.topgrade.edu",
-    "dob": "2005-01-01",
-    "age": 12,
-    "school": "Top Grade Academy",
-    "grade": "Grade 10",
-    "status": "ACTIVE",
-    "primaryMobile": "+1 713 725 3665",
-    "studentPhones": [
-      "+1 713 725 3665"
-    ],
-    "parentPhones": [
-      "+1 713 725 3665"
-    ],
-    "studentWhatsapp": "+1 713 725 3665",
-    "parentWhatsapp": [
-      "+1 713 725 3665"
-    ],
-    "studentEmails": [
-      "vondeah.grant.5050@student.topgrade.edu"
-    ],
-    "parentEmails": [
-      "vondeah.grant.5050@student.topgrade.edu"
-    ],
-    "fatherName": "",
-    "motherName": "",
-    "guardianName": "",
-    "program": "",
-    "teacher": "",
-    "residentialAddress": "",
-    "studentAddress": "",
-    "alternateAddress": "",
-    "examDate": "",
-    "purchasedHours": 0,
-    "hoursLeft": 0,
-    "daysLeft": 0,
-    "feePlan": "Standard Plan",
-    "allocatedCourses": []
   }
 ]

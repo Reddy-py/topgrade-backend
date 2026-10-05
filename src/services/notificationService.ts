@@ -11,7 +11,7 @@ dotenv.config();
 
 export interface NotificationPayload {
   recipients: Array<{
-    role: "STUDENT" | "PARENT" | "TEACHER" | "ACCOUNTANT" | "ADMIN";
+    role: "STUDENT" | "PARENT" | "TEACHER" | "ADMIN";
     email?: string;
     phone?: string;
     name?: string;
@@ -109,12 +109,10 @@ export async function dispatchMultiChannelNotification(payload: NotificationPayl
   const { transporter, gmailUser } = getTransporter();
 
   for (const recipient of payload.recipients) {
-    // If recipient email is missing or dummy topgrade.edu address, route to configured admin / accountant
+    // If recipient email is missing or dummy topgrade.edu address, route to configured admin
     let emailTarget = recipient.email;
     if (!emailTarget || emailTarget.endsWith("@topgrade.edu")) {
-      emailTarget = recipient.role === "ACCOUNTANT"
-        ? (process.env.ACCOUNTANT_EMAIL || "sivareddy68397@gmail.com")
-        : (process.env.ADMIN_EMAIL || "tglbiz101@gmail.com");
+      emailTarget = process.env.ADMIN_EMAIL || "tglbiz101@gmail.com";
     }
 
     const phoneTarget = recipient.phone || "+1 555 019 9999";
@@ -294,6 +292,53 @@ export async function sendMonthlyAttendanceSummaryEmail(params: {
         role: "PARENT",
         email: params.parentEmail,
         name: `Parent of ${params.studentName}`
+      }
+    ]
+  });
+
+  return result.success;
+}
+
+/**
+ * Node 8: Payment Confirmation Receipt Email to Parents
+ */
+export async function sendPaymentConfirmationReceiptEmail(params: {
+  parentEmail: string;
+  parentName?: string;
+  studentName: string;
+  courseName: string;
+  tokensPurchased: number;
+  tokensRemaining: number;
+  amountUsd: number;
+  paymentMethod: string;
+  transactionId: string;
+  receiptDate?: string;
+}): Promise<boolean> {
+  const subject = `🧾 Payment Receipt: ${params.tokensPurchased} Class Hour Tokens Credited for ${params.studentName}`;
+  const nowStr = params.receiptDate || new Date().toLocaleString("en-US", { timeZone: "America/New_York" });
+
+  const message = `Dear ${params.parentName || "Parent"},\n\n` +
+    `Thank you for your payment! We have successfully credited ${params.tokensPurchased} Class Hour Token${params.tokensPurchased > 1 ? "s" : ""} to ${params.studentName}'s account for ${params.courseName}.\n\n` +
+    `• Student: ${params.studentName}\n` +
+    `• Course: ${params.courseName}\n` +
+    `• Tokens Credited: +${params.tokensPurchased} Hour${params.tokensPurchased > 1 ? "s" : ""}\n` +
+    `• Available Token Balance: ${params.tokensRemaining} Class Hours\n` +
+    `• Amount Paid: $${params.amountUsd.toFixed(2)} USD\n` +
+    `• Payment Channel: ${params.paymentMethod}\n` +
+    `• Transaction / Reference ID: ${params.transactionId}\n` +
+    `• Timestamp: ${nowStr}\n\n` +
+    `Token Consumption Policy: Each time ${params.studentName} is marked PRESENT during roll call, 1 token is deducted. An automated low-quota alert will notify you when the token balance falls to 2 or fewer hours.\n\n` +
+    `Warm regards,\nTop Grade Learning Accounts Division\ntglbiz101@gmail.com`;
+
+  const result = await dispatchMultiChannelNotification({
+    eventType: "PAYMENT_COMPLETED",
+    subject,
+    message,
+    recipients: [
+      {
+        role: "PARENT",
+        email: params.parentEmail,
+        name: params.parentName || `Parent of ${params.studentName}`
       }
     ]
   });

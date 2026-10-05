@@ -1,4 +1,4 @@
-export type UserRole = "STUDENT" | "PARENT" | "TEACHER" | "ACCOUNTANT" | "ADMIN";
+export type UserRole = "STUDENT" | "PARENT" | "TEACHER" | "ADMIN";
 
 export type PermissionString =
   | "dashboard.view"
@@ -34,16 +34,6 @@ export const ROLE_PERMISSIONS: Record<UserRole, PermissionString[]> = {
     "settings.view",
     "settings.edit",
     "settings.manage",
-  ],
-  ACCOUNTANT: [
-    "dashboard.view",
-    "students.view",
-    "fees.view", "fees.create", "fees.edit", "fees.pay",
-    "payments.view", "payments.create", "payments.edit",
-    "receipts.view", "receipts.create", "receipts.download",
-    "reports.view",
-    "attendance.view",
-    "settings.view",
   ],
   TEACHER: [
     "dashboard.view",

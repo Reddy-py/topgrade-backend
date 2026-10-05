@@ -141,7 +141,6 @@ router.get("/list", authenticateJwt, authorizePermission("students.view"), async
 router.post("/approve/:id", authenticateJwt, authorizePermission("students.create"), async (req: AuthenticatedRequest, res) => {
   const { id } = req.params;
   const adminEmail = process.env.ADMIN_EMAIL || "tglbiz101@gmail.com";
-  const accountantEmail = process.env.ACCOUNTANT_EMAIL || "sivareddy68397@gmail.com";
 
   let targetInquiry: any = null;
 
@@ -180,10 +179,9 @@ router.post("/approve/:id", authenticateJwt, authorizePermission("students.creat
     ? targetInquiry.parent_emails 
     : (targetInquiry.parent_email ? [targetInquiry.parent_email] : []);
 
-  const recipients: Array<{ role: "STUDENT" | "PARENT" | "ADMIN" | "ACCOUNTANT"; email: string; name: string }> = [
+  const recipients: Array<{ role: "STUDENT" | "PARENT" | "ADMIN"; email: string; name: string }> = [
     { role: "STUDENT", email: studentEmail, name: studentName },
-    { role: "ADMIN", email: adminEmail, name: "System Administrator" },
-    { role: "ACCOUNTANT", email: accountantEmail, name: "Accounts Department" }
+    { role: "ADMIN", email: adminEmail, name: "System Administrator" }
   ];
 
   parentEmailsList.forEach((pEmail, idx) => {
@@ -200,13 +198,13 @@ router.post("/approve/:id", authenticateJwt, authorizePermission("students.creat
   await dispatchMultiChannelNotification({
     eventType: "ADMISSION_APPROVED",
     subject: `🎉 Admission Approved — Welcome to TopGrade Learning!`,
-    message: `Dear ${studentName},\n\nWe are delighted to inform you that your admission request for ${targetInquiry.grade_level || targetInquiry.course_interested || "Academic Program"} has been APPROVED by the Center Administrator!\n\nOur Accounts & Billing Department will complete your formal enrollment and issue your course schedules.`,
+    message: `Dear ${studentName},\n\nWe are delighted to inform you that your admission request for ${targetInquiry.grade_level || targetInquiry.course_interested || "Academic Program"} has been APPROVED by the Center Administrator!\n\nOur Academic Administration Department will complete your formal enrollment and issue your course schedules.`,
     recipients
   });
 
   res.status(200).json({
     success: true,
-    message: "Admission inquiry approved! Automatic acceptance emails sent to Admin, Parents, Student & Accountant."
+    message: "Admission inquiry approved! Automatic acceptance emails sent to Admin, Parents & Student."
   });
 });
 

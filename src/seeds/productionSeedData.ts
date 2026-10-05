@@ -5,7 +5,6 @@ import { LedgerService } from "../services/ledgerService.js";
 export const productionSeedData = {
   roles: [
     { email: "admin@topgrade.edu", role: "ADMIN", name: "System Administrator" },
-    { email: "accountant@topgrade.edu", role: "ACCOUNTANT", name: "Ledger Controller" },
     { email: "teacher@topgrade.edu", role: "TEACHER", name: "John Doe (M.Sc CS)" },
     { email: "parent@topgrade.edu", role: "PARENT", name: "Rajesh Kumar" },
     { email: "student@topgrade.edu", role: "STUDENT", name: "Alex Mercer" }

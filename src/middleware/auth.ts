@@ -6,6 +6,7 @@ export interface AuthenticatedUser {
   id: string;
   email?: string | undefined;
   role: UserRole;
+  metadata?: any;
 }
 
 export interface AuthenticatedRequest extends Request {
@@ -67,6 +68,7 @@ export const authenticateJwt = async (
       id: user.id,
       email: user.email ?? undefined,
       role,
+      metadata: user.user_metadata,
     };
 
     next();

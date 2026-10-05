@@ -28,22 +28,11 @@ async function main() {
     console.log("Auth Exception:", err.message);
   }
 
-  const tableNames = ["students", "teachers", "courses", "profiles", "admission_requests", "users"];
-  for (const table of tableNames) {
-    try {
-      const { data, error } = await supabase.from(table).select("*").limit(5);
-      if (error) {
-        console.log(`Table '${table}' -> Status: ERROR (${error.message}, Code: ${error.code})`);
-      } else {
-        console.log(`Table '${table}' -> Status: EXISTS, Records count: ${data?.length || 0}`);
-        if (data && data.length > 0) {
-          console.log(`   Sample:`, JSON.stringify(data[0]).slice(0, 100));
-        }
-      }
-    } catch (e: any) {
-      console.log(`Table '${table}' -> Exception: ${e.message}`);
-    }
-  }
+  const { data: feesData } = await supabase.from("fees").select("*").limit(1);
+  console.log("FEES COLUMNS:", Object.keys(feesData?.[0] || {}));
+
+  const { data: stuData } = await supabase.from("students").select("*").limit(1);
+  console.log("STUDENTS COLUMNS:", Object.keys(stuData?.[0] || {}));
 }
 
 main();
