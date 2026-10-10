@@ -4,6 +4,8 @@ import { inMemoryTeachers } from "./teachers.js";
 import { inMemoryStudentStore } from "../services/studentService.js";
 import { autoGenerateAttendanceSessionsForCourse, removeAttendanceSessionsForCourse } from "../services/sessionAttendanceService.js";
 import { localScheduleStore, ScheduleDataService } from "../services/scheduleDataService.js";
+import type { AuthenticatedRequest } from "../middleware/auth.js";
+import { getAccessScope, allowsCourse, allowsStudent, allowsTeacher } from "../services/accessScope.js";
 
 const router = express.Router();
 
@@ -171,13 +173,39 @@ export const getCoursesHandler = async (req: express.Request, res: express.Respo
 
   list.sort((a, b) => (a.name || "").localeCompare(b.name || "", undefined, { sensitivity: "base" }));
 
+  // Login-based limits: admin sees every course. Teacher: own courses. Parent / student: only courses the child is in.
+  const authUser = (req as AuthenticatedRequest).user;
+  if (!authUser) {
+    return res.status(401).json({ success: false, message: "Unauthorized: sign in to continue." });
+  }
+  if (authUser.role !== "ADMIN") {
+    const scope = await getAccessScope(authUser);
+    list = list.filter((c: any) => {
+      if (allowsCourse(scope, c.id, c.course_code, c.name)) return true;
+      if (authUser.role === "TEACHER") {
+        return (c.assigned_teachers || []).some((t: any) =>
+          allowsTeacher(scope, t.teacherId, t.teacherCode, t.email) ||
+          (t.name && scope.teacherNames.has(String(t.name).trim().toLowerCase()))
+        );
+      }
+      return false;
+    });
+    list = list.map((c: any) => ({
+      ...c,
+      assigned_teachers: (c.assigned_teachers || []).map((t: any) => ({ teacherId: t.teacherId, teacherCode: t.teacherCode, name: t.name })),
+      mapped_students: (c.mapped_students || []).filter((m: any) =>
+        allowsStudent(scope, m?.studentId, m?.student_id, m?.id, m?.studentCode, m?.student_code)
+      ),
+    }));
+  }
+
   res.status(200).json({ success: true, data: list });
 };
 
 router.get("/list", getCoursesHandler);
 router.get("/", getCoursesHandler);
 
-// POST: Add new Course (Admin & Accountant)
+// POST: Add new Course (Admin)
 export const createCourseHandler = async (req: express.Request, res: express.Response) => {
   const c = req.body;
   const uniqueCode = c.courseCode || c.course_code || `TG-CRS-${Math.floor(100 + Math.random() * 899)}`;
@@ -248,7 +276,7 @@ export const createCourseHandler = async (req: express.Request, res: express.Res
 router.post("/add", createCourseHandler);
 router.post("/", createCourseHandler);
 
-// PUT: Update an existing course (Admin & Accountant)
+// PUT: Update an existing course (Admin)
 export const editCourseHandler = async (req: express.Request, res: express.Response) => {
   const c = req.body;
   const courseId = req.params.id || c.id;

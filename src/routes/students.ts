@@ -2,6 +2,7 @@ import express from "express";
 import { authenticateJwt } from "../middleware/auth.js";
 import type { AuthenticatedRequest } from "../middleware/auth.js";
 import { authorizePermission } from "../middleware/authorize.js";
+import { getAccessScope, allowsStudent } from "../services/accessScope.js";
 import {
   getStudentsService,
   createStudentService,
@@ -39,12 +40,20 @@ router.post("/:id/send-parent-credentials", sendParentCredentialsHandler);
 
 /**
  * POST /api/students/change-password
- * Change password with ONE-TIME limit & automatic email dispatch to Admin/Accountant.
+ * Change password with ONE-TIME limit & automatic email dispatch to Admin.
  */
 export const changePasswordHandler = async (req: express.Request, res: express.Response) => {
   try {
     const { studentId, email, newPassword } = req.body;
-    const result = await changeStudentPasswordService({ studentId, email, newPassword });
+    const loggedIn = (req as AuthenticatedRequest).user;
+    if (!loggedIn) {
+      res.status(401).json({ success: false, message: "Unauthorized: sign in to continue." });
+      return;
+    }
+    // Only the admin may change another person's password. Everyone else changes their own, found by their login email.
+    const result = loggedIn.role === "ADMIN"
+      ? await changeStudentPasswordService({ studentId, email, newPassword })
+      : await changeStudentPasswordService({ email: loggedIn.email, newPassword } as any);
     res.status(200).json(result);
   } catch (error: any) {
     res.status(400).json({ success: false, message: error.message || "Failed to update password." });
@@ -94,13 +103,12 @@ export const getStudentsHandler = async (req: AuthenticatedRequest, res: express
     const status = (req.query.status as string) || "ALL";
     const grade = (req.query.grade as string) || "ALL";
 
-    // Pass authenticated user context for RBAC filtering
-    const requestedRole = (req.query.userRole as string) || (req.query.role as string) || (req.headers["x-user-role"] as string);
-    const currentUser = req.user
-      ? { id: req.user.id || "", email: req.user.email || "", role: String(req.user.role), metadata: req.user.metadata }
-      : requestedRole
-      ? { id: (req.query.userId as string) || "", email: (req.query.userEmail as string) || "", role: requestedRole.toUpperCase() }
-      : undefined;
+    // The role ALWAYS comes from the verified login (never from a query string or header sent by the browser).
+    if (!req.user) {
+      res.status(401).json({ success: false, message: "Unauthorized: sign in to continue." });
+      return;
+    }
+    const currentUser = { id: req.user.id || "", email: req.user.email || "", role: String(req.user.role), metadata: req.user.metadata };
 
     const result = await getStudentsService({ page, limit, search, status, grade, currentUser });
     res.status(200).json(result);
@@ -234,12 +242,18 @@ router.get("/parents/list", authenticateJwt, authorizePermission("parents.view")
 router.post("/de-enroll/request", authenticateJwt, async (req: AuthenticatedRequest, res: express.Response) => {
   const { studentId, studentName, courseName, reason } = req.body;
 
+  const scope = await getAccessScope(req.user!);
+  if (!allowsStudent(scope, studentId)) {
+    res.status(403).json({ success: false, message: "Forbidden: this student is not linked to your login." });
+    return;
+  }
+
   await dispatchMultiChannelNotification({
     eventType: "DE_ENROLLMENT_REQUESTED",
     subject: `⚠️ Course Withdrawal Request Submitted — ${studentName}`,
     message: `De-enrollment request submitted for ${studentName} (${courseName || "General Course"}). Reason: ${reason}. Awaiting Admin Approval.`,
     recipients: [
-      { role: "PARENT", email: "parent@topgrade.edu", name: "Parent", phone: "" },
+      { role: req.user!.role, email: req.user!.email || (process.env.ADMIN_EMAIL || "tglbiz101@gmail.com"), name: req.user!.metadata?.full_name || "Parent", phone: "" },
       { role: "ADMIN", email: process.env.ADMIN_EMAIL || "tglbiz101@gmail.com", name: "System Administrator", phone: "" }
     ]
   });

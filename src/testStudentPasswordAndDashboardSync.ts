@@ -54,7 +54,7 @@ async function runPasswordAndDashboardTests() {
     throw new Error("Password change failed to update student record.");
   }
   console.log(`   • Password updated. Database status: hasChangedPassword = ${changeRes.student.hasChangedPassword}`);
-  console.log("   ✅ TEST 3 PASSED: Password changed once and automatic email sent to Admin/Accountant!");
+  console.log("   ✅ TEST 3 PASSED: Password changed once and automatic email sent to Admin!");
 
   // 4. Test Second Password Change (MUST BE REJECTED)
   console.log("\n🔹 TEST 4: Second Password Change Attempt (Enforce 1-Time Limit)");
@@ -76,7 +76,7 @@ async function runPasswordAndDashboardTests() {
   console.log("   ✅ TEST 4 PASSED: Second password change rejected per 1-time policy!");
 
   // 5. Test Secondary Password Reset Request to Admin
-  console.log("\n🔹 TEST 5: Secondary Password Reset Request to Admin & Accountant");
+  console.log("\n🔹 TEST 5: Secondary Password Reset Request to Admin");
   const resetReqRes = await requestPasswordResetService({
     studentId: student.id,
     email: testEmail,
@@ -86,7 +86,7 @@ async function runPasswordAndDashboardTests() {
   if (!resetReqRes.success) {
     throw new Error("Failed to dispatch password reset request.");
   }
-  console.log("   ✅ TEST 5 PASSED: Reset request email dispatched to Admin & Accountant!");
+  console.log("   ✅ TEST 5 PASSED: Reset request email dispatched to Admin!");
 
   // 6. Test Dashboard Student Count Sync
   console.log("\n🔹 TEST 6: Dashboard Total Students Real-Time Count Sync");

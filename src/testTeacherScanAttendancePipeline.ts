@@ -100,7 +100,7 @@ async function runTeacherScanAttendancePipelineVerification() {
   console.log("🔹 TEST 4: Multi-Party 4-Way Email Dispatch Log Verification");
   
   if (submitResult.emailsDispatchedCount >= 4) {
-    console.log("   ✅ TEST 4 PASSED: 4-Party automated emails dispatched (Student, Parent, Teacher, Accountant)!\n");
+    console.log("   ✅ TEST 4 PASSED: automated emails dispatched (Student, Parent, Teacher, Admin)!\n");
     passedTests++;
   } else {
     console.log("   ❌ TEST 4 FAILED!\n");

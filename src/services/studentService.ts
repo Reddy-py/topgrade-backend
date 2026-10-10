@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { dispatchMultiChannelNotification } from "./notificationService.js";
+import { resolveTeacherIdentity } from "./teacherIdentity.js";
 import { sendExamGoodLuckWishes, sendBirthdayGreetings } from "./automatedEmailService.js";
 import { inMemoryTeachers } from "../routes/teachers.js";
 import { supabaseAdmin } from "../supabase.js";
@@ -220,75 +221,35 @@ export async function getStudentsService(params: {
       // Students see ONLY their own record
       students = students.filter(
         s => (user.id && s.id === user.id) ||
-             (user.email && s.email.toLowerCase() === user.email.toLowerCase()) ||
+             (user.email && (s.email || "").toLowerCase() === user.email.toLowerCase()) ||
              (user.id && s.studentCode === user.id) ||
              (s.studentCode && (user as any).student_code && s.studentCode.toLowerCase() === (user as any).student_code.toLowerCase())
       );
     } else if (roleUpper === "PARENT") {
-      // Parents see ONLY their linked children
+      // Parents see ONLY children whose parent email equals their login email.
+      // Exact match only: no guessing from names, phone numbers or codes inside the email.
       const userEmail = (user.email || "").toLowerCase().trim();
-      const userPhone = ((user as any).phone || (user as any).metadata?.phone || "").replace(/\D/g, "");
-      const userFullName = ((user as any).name || (user as any).metadata?.full_name || (user as any).metadata?.father_name || "").toLowerCase().trim();
-      const childCodes: string[] = [];
-      if ((user as any).metadata?.child_codes && Array.isArray((user as any).metadata.child_codes)) {
-        (user as any).metadata.child_codes.forEach((c: any) => childCodes.push(String(c).toLowerCase().trim()));
-      }
-      if ((user as any).metadata?.child_code) {
-        String((user as any).metadata.child_code).split(",").forEach(c => childCodes.push(c.toLowerCase().trim()));
-      }
-      if ((user as any).metadata?.student_id_code) {
-        String((user as any).metadata.student_id_code).split(",").forEach(c => childCodes.push(c.toLowerCase().trim()));
-      }
-
       students = students.filter(s => {
-        const sCode = (s.studentCode || (s as any).student_id_code || "").toLowerCase().trim();
-        const sFather = (s.fatherName || "").toLowerCase().trim();
-        const sEmails = (s.parentEmails || []).map(e => e.toLowerCase().trim());
-        const sPhones = (s.parentPhones || []).map(p => p.replace(/\D/g, ""));
-
-        // 1. Direct parent email match
-        if (userEmail && sEmails.includes(userEmail)) return true;
-
-        // 2. Child code match from metadata
-        if (sCode && childCodes.includes(sCode)) return true;
-
-        // 3. Synthetic parent email code match (e.g. parent.venakat.3632@... matches TG-STU-2026-3632)
-        if (userEmail && sCode) {
-          const codeDigits = sCode.replace(/\D/g, "");
-          if (codeDigits.length >= 4 && userEmail.includes(codeDigits)) return true;
-        }
-
-        // 4. Father/Parent Name match
-        if (userFullName && sFather && (sFather === userFullName || sFather.includes(userFullName) || userFullName.includes(sFather))) {
-          return true;
-        }
-
-        // 5. Phone match
-        if (userPhone && sPhones.includes(userPhone)) return true;
-
-        return false;
+        if (!userEmail) return false;
+        const sEmails = (s.parentEmails || []).map(e => (e || "").toLowerCase().trim());
+        return sEmails.includes(userEmail);
       });
     } else if (roleUpper === "TEACHER") {
-      // Teachers see ONLY students in their assigned courses or classes
-      const teacherEmail = (user.email || "").toLowerCase().trim();
-      const teacherName = (((user as any).fullName) || (user.email || "").split("@")[0]?.replace(".", " ") || "").toLowerCase().trim();
-      const teacherId = (user.id || "").toLowerCase().trim();
-
+      // Teachers see ONLY students assigned to them (exact id, code, email or exact name; never partial names).
+      const ident = await resolveTeacherIdentity({ id: user.id, email: user.email });
+      const n = (v: unknown) => String(v ?? "").trim().toLowerCase();
       students = students.filter(s => {
-        const sTeacherName = (s.teacher || "").toLowerCase().trim();
-        const sTeacherId = (s.assignedTeacherId || "").toLowerCase().trim();
-        const matchesDirect = 
-          (teacherId && sTeacherId === teacherId) ||
-          (teacherName && sTeacherName && (sTeacherName.includes(teacherName) || teacherName.includes(sTeacherName))) ||
-          (teacherEmail && sTeacherName.includes(teacherEmail));
-
+        const sTeacherId = n(s.assignedTeacherId);
+        const sTeacher = n(s.teacher);
+        const matchesDirect =
+          (sTeacherId && ident.keys.has(sTeacherId)) ||
+          (sTeacher && (ident.names.has(sTeacher) || ident.keys.has(sTeacher)));
         const matchesAlloc = Array.isArray(s.allocatedCourses) && s.allocatedCourses.some((ac: any) => {
-          const acTeacher = (ac.teacher || ac.teacherName || "").toLowerCase().trim();
-          const acTeacherId = (ac.teacherId || "").toLowerCase().trim();
-          return (teacherId && acTeacherId === teacherId) || (teacherName && acTeacher && (acTeacher.includes(teacherName) || teacherName.includes(acTeacher)));
+          const acId = n(ac.teacherId);
+          const acName = n(ac.teacher || ac.teacherName);
+          return (acId && ident.keys.has(acId)) || (acName && ident.names.has(acName));
         });
-
-        return matchesDirect || matchesAlloc;
+        return !!(matchesDirect || matchesAlloc);
       });
     }
     // ADMIN sees ALL
@@ -324,12 +285,27 @@ export async function getStudentsService(params: {
     copy.hoursLeft = 0;
     copy.daysLeft = 0;
 
-    // STRICT PRIVACY: Tutor cannot see fees, payment plans, invoices or financial details
-    if (user && user.role && user.role.toUpperCase() === "TEACHER") {
+    // STRICT PRIVACY: only admin receives passwords and internal fields.
+    const viewerRole = (user?.role || "").toUpperCase();
+    if (viewerRole !== "ADMIN") {
+      delete copy.password;
+      delete copy.govtIdUrl;
+      delete copy.govt_id_url;
+      delete copy.medicalNotes;
+      delete copy.medical_notes;
+    }
+    // Tutor cannot see fees, payment plans, invoices or financial details, nor parent contact details.
+    if (viewerRole === "TEACHER") {
       delete copy.feePlan;
       delete copy.discount;
       delete copy.paymentMethod;
       delete copy.pricing_type;
+      delete copy.parentEmails;
+      delete copy.parentPhones;
+      delete copy.parentWhatsapp;
+      delete copy.residentialAddress;
+      delete copy.emergencyContactName;
+      delete copy.emergencyContactRelationship;
     }
 
     return copy;
@@ -578,6 +554,7 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
       mother_name: newStudent.motherName || null,
       guardian: newStudent.guardianName || null,
       father_phone: cleanParentPhones[0] || null,
+      parent_emails: cleanParentEmails.map(e => e.trim().toLowerCase()),
       nationality: sbNationality,
       address: sbAddress,
       alternate_address: newStudent.studentAddress || newStudent.alternateAddress || "",
@@ -817,7 +794,7 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
           studentPhones: sbRow.phone ? [sbRow.phone] : [],
           parentPhones: sbRow.father_phone ? [sbRow.father_phone] : [],
           studentEmails: sbRow.email ? [sbRow.email] : [],
-          parentEmails: sbRow.email ? [sbRow.email] : [],
+          parentEmails: Array.isArray(sbRow.parent_emails) ? sbRow.parent_emails : [],
           fatherName: sbRow.father_name || "",
           motherName: sbRow.mother_name || "",
           guardianName: sbRow.guardian || "",
@@ -891,6 +868,7 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
       mother_name: updated.motherName || null,
       guardian: updated.guardianName || null,
       father_phone: (updated.parentPhones && updated.parentPhones[0]) || updated.primaryMobile || null,
+      parent_emails: (updated.parentEmails || []).map((e: string) => e.trim().toLowerCase()),
       nationality: sbNationality,
       address: sbAddress,
       alternate_address: updated.studentAddress || updated.alternateAddress || "",
@@ -1075,7 +1053,7 @@ export async function toggleStudentStatusService(id: string, newStatus?: string)
 
 /**
  * Service to change student password (ONE-TIME ONLY policy).
- * Automatically updates disk storage and notifies Admin & Accountant via email.
+ * Automatically updates disk storage and notifies Admin via email.
  */
 export async function changeStudentPasswordService(params: {
   studentId?: string | undefined;
@@ -1125,7 +1103,7 @@ export async function changeStudentPasswordService(params: {
     }
   })();
 
-  // Automatic email notification to Admin & Accountant
+  // Automatic email notification to Admin
   try {
     await dispatchMultiChannelNotification({
       eventType: "PASSWORD_CHANGE_ALERT",

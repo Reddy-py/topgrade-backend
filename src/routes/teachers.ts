@@ -1,6 +1,7 @@
 import express from "express";
 import { supabaseAdmin } from "../supabase.js";
-import { authenticateJwt } from "../middleware/auth.js";
+import { authenticateJwt, requireRoles } from "../middleware/auth.js";
+import { getAccessScope, allowsTeacher, scopeSchedules, publicTeacherView } from "../services/accessScope.js";
 import type { AuthenticatedRequest } from "../middleware/auth.js";
 import { authorizePermission } from "../middleware/authorize.js";
 import { dispatchMultiChannelNotification } from "../services/notificationService.js";
@@ -38,24 +39,65 @@ export let inMemoryTeachers: any[] = OFFICIAL_TEACHERS.map((t, idx) => ({
   availability_slots: ["Morning - 09:00 AM - 12:00 PM", "Afternoon - 01:00 PM - 04:00 PM", "Evening - 05:00 PM - 08:00 PM"]
 }));
 
-// GET: List all teachers with fail-safe fallback
-export const getTeachersHandler = async (_req: express.Request, res: express.Response) => {
+// GET: List teachers. Admin: all details. Teacher: own record only. Parent / student: only the teachers of their own
+// classes, name and subject only (no phone, email, salary, birth date or documents).
+export const getTeachersHandler = async (req: express.Request, res: express.Response) => {
+  let list: any[] = [];
   try {
     const { data, error } = await supabaseAdmin.from("teachers").select("*").order("name", { ascending: true });
     if (!error && data && data.length > 0) {
-      const sorted = [...data].sort((a: any, b: any) =>
-        (a.name || "").localeCompare(b.name || "", undefined, { sensitivity: "base" })
-      );
-      return res.status(200).json({ success: true, count: sorted.length, data: sorted });
+      list = [...data];
     }
   } catch (err) {
     console.warn("Notice querying Supabase teachers in getTeachersHandler:", err);
   }
-  const sortedInMemory = [...inMemoryTeachers].sort((a: any, b: any) =>
-    (a.name || "").localeCompare(b.name || "", undefined, { sensitivity: "base" })
-  );
-  res.status(200).json({ success: true, count: sortedInMemory.length, data: sortedInMemory });
+  if (list.length === 0) list = [...inMemoryTeachers];
+  list.sort((a: any, b: any) => (a.name || "").localeCompare(b.name || "", undefined, { sensitivity: "base" }));
+
+  const user = (req as AuthenticatedRequest).user;
+  if (!user) {
+    return res.status(401).json({ success: false, message: "Unauthorized: sign in to continue." });
+  }
+
+  if (user.role === "TEACHER") {
+    const scope = await getAccessScope(user);
+    list = list.filter(t => allowsTeacher(scope, t.id, t.teacher_id_code, t.email, t.user_id));
+  } else if (user.role === "PARENT" || user.role === "STUDENT") {
+    const scope = await getAccessScope(user);
+    const slots = scopeSchedules(await ScheduleDataService.listSchedules(), scope);
+    const ids = new Set<string>();
+    const names = new Set<string>();
+    for (const s of slots as any[]) {
+      if (s.teacher_id) ids.add(String(s.teacher_id).trim().toLowerCase());
+      if (s.teacher_name) names.add(String(s.teacher_name).trim().toLowerCase());
+    }
+    list = list
+      .filter(t =>
+        ids.has(String(t.id ?? "").toLowerCase()) ||
+        ids.has(String(t.teacher_id_code ?? "").toLowerCase()) ||
+        names.has(String(t.name ?? "").trim().toLowerCase())
+      )
+      .map(publicTeacherView);
+  }
+
+  return res.status(200).json({ success: true, count: list.length, data: list });
 };
+
+/** A teacher may open only their own records; the admin may open anyone's. */
+async function teacherSelfOrAdmin(req: express.Request, res: express.Response, teacherKey: string): Promise<boolean> {
+  const user = (req as AuthenticatedRequest).user;
+  if (!user) {
+    res.status(401).json({ success: false, message: "Unauthorized: sign in to continue." });
+    return false;
+  }
+  if (user.role === "ADMIN") return true;
+  if (user.role === "TEACHER") {
+    const scope = await getAccessScope(user);
+    if (allowsTeacher(scope, teacherKey)) return true;
+  }
+  res.status(403).json({ success: false, message: "Forbidden: you can only open your own teacher records." });
+  return false;
+}
 
 router.get("/list", getTeachersHandler);
 router.get("/", getTeachersHandler);
@@ -470,7 +512,7 @@ router.post("/assign-course", authenticateJwt, authorizePermission("teachers.edi
 });
 
 // POST: Teacher Accept or Decline Course Assignment
-router.post("/respond-course/:assignmentId", authenticateJwt, async (req: AuthenticatedRequest, res) => {
+router.post("/respond-course/:assignmentId", authenticateJwt, requireRoles("TEACHER", "ADMIN"), async (req: AuthenticatedRequest, res) => {
   const { assignmentId } = req.params;
   const { action } = req.body;
 
@@ -491,7 +533,7 @@ router.post("/respond-course/:assignmentId", authenticateJwt, async (req: Authen
 });
 
 // POST: Smart Faculty Matching Algorithm (Lowest Hourly Rate Prioritization)
-router.post("/smart-match", authenticateJwt, async (req: AuthenticatedRequest, res) => {
+router.post("/smart-match", authenticateJwt, requireRoles("ADMIN"), async (req: AuthenticatedRequest, res) => {
   const { subject, grade } = req.body;
 
   try {
@@ -525,7 +567,7 @@ router.post("/smart-match", authenticateJwt, async (req: AuthenticatedRequest, r
 });
 
 // POST: Teacher Onboarding Documents & Media Release Waiver
-router.post("/onboarding-waiver", authenticateJwt, async (req: AuthenticatedRequest, res) => {
+router.post("/onboarding-waiver", authenticateJwt, requireRoles("TEACHER"), async (req: AuthenticatedRequest, res) => {
   const { teacherId, gdriveFolderUrl, photoWaiverSigned } = req.body;
 
   try {
@@ -565,6 +607,7 @@ router.post("/onboarding-waiver", authenticateJwt, async (req: AuthenticatedRequ
 router.get("/:id/roster", async (req, res): Promise<any> => {
   try {
     const { id } = req.params;
+    if (!(await teacherSelfOrAdmin(req, res, id))) return;
     const roster = await ScheduleDataService.getTeacherRoster(id);
     return res.status(200).json({ success: true, count: roster.length, data: roster });
   } catch (err: any) {
@@ -576,6 +619,7 @@ router.get("/:id/roster", async (req, res): Promise<any> => {
 router.get("/:id/history", async (req, res): Promise<any> => {
   try {
     const { id } = req.params;
+    if (!(await teacherSelfOrAdmin(req, res, id))) return;
     let teacherName = id;
     const match = inMemoryTeachers.find(t => t.id === id || t.teacher_id_code === id);
     if (match) teacherName = match.name;
@@ -600,6 +644,7 @@ router.get("/:id/history", async (req, res): Promise<any> => {
 router.put("/:id/availability", async (req, res): Promise<any> => {
   try {
     const { id } = req.params;
+    if (!(await teacherSelfOrAdmin(req, res, id))) return;
     const { availabilityDays, availabilitySlots } = req.body;
 
     const teacher = inMemoryTeachers.find(t => t.id === id || t.teacher_id_code === id);

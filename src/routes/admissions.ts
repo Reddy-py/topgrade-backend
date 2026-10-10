@@ -118,7 +118,7 @@ const handleAdmissionSubmission = async (req: express.Request, res: express.Resp
 router.post("/inquiry", handleAdmissionSubmission);
 router.post("/register", handleAdmissionSubmission);
 
-// 2. PROTECTED: List pending admission requests (Admin & Accountant)
+// 2. PROTECTED: List pending admission requests (Admin)
 router.get("/list", authenticateJwt, authorizePermission("students.view"), async (_req: AuthenticatedRequest, res) => {
   try {
     const { data, error } = await supabaseAdmin

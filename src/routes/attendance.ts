@@ -6,6 +6,8 @@ import { supabaseAdmin } from "../supabase.js";
 import { sendDailyAttendanceRollCallEmail, sendMonthlyAttendanceSummaryEmail } from "../services/notificationService.js";
 import { ScheduleDataService } from "../services/scheduleDataService.js";
 import { CourseHoursService } from "../services/courseHoursService.js";
+import type { AuthenticatedRequest } from "../middleware/auth.js";
+import { getAccessScope, allowsStudent, scopeSessions } from "../services/accessScope.js";
 
 const router = express.Router();
 
@@ -246,6 +248,15 @@ router.post("/monthly-summary-email", async (req, res): Promise<any> => {
 router.get("/session/:sessionId/roster", async (req, res) => {
   try {
     const { sessionId } = req.params;
+    const scope = await getAccessScope((req as AuthenticatedRequest).user!);
+    if (!scope.unrestricted) {
+      const all = await SessionAttendanceService.getLiveSessionsFromSupabase();
+      const sess = all.find((s: any) => s.id === sessionId || s.classSessionId === sessionId);
+      if (!sess || scopeSessions([sess], scope).length === 0) {
+        res.status(403).json({ success: false, message: "Forbidden: this class is not yours." });
+        return;
+      }
+    }
     const rosterData = await SessionAttendanceService.getSessionRoster(sessionId);
     res.status(200).json({
       success: true,
@@ -358,9 +369,14 @@ router.post("/mark-batch", async (req, res) => {
 });
 
 // 5. STUDENT ATTENDANCE STATS & LOW ATTENDANCE ANALYTICS (GET /api/attendance/student-stats/:studentId)
-router.get("/student-stats/:studentId", (req, res) => {
+router.get("/student-stats/:studentId", async (req, res) => {
   try {
     const { studentId } = req.params;
+    const scope = await getAccessScope((req as AuthenticatedRequest).user!);
+    if (!allowsStudent(scope, studentId)) {
+      res.status(403).json({ success: false, message: "Forbidden: this student is not linked to your login." });
+      return;
+    }
     const threshold = req.query.threshold ? Number(req.query.threshold) : 75;
 
     const stats = AttendanceService.getStudentAttendanceStats(studentId, threshold);
@@ -378,8 +394,13 @@ router.get("/student-stats/:studentId", (req, res) => {
 });
 
 // 6. GET STUDENT QR CODE PASS (GET /api/attendance/qr-code/:studentId)
-router.get("/qr-code/:studentId", (req, res) => {
+router.get("/qr-code/:studentId", async (req, res) => {
   const { studentId } = req.params;
+  const scope = await getAccessScope((req as AuthenticatedRequest).user!);
+  if (!allowsStudent(scope, studentId)) {
+    res.status(403).json({ success: false, message: "Forbidden: this student is not linked to your login." });
+    return;
+  }
   const sMatch = inMemoryStudentStore.find(s => s.id === studentId || s.studentCode === studentId);
   const match = {
     studentId: sMatch?.id || studentId,
@@ -404,9 +425,10 @@ router.get("/qr-code/:studentId", (req, res) => {
 });
 
 // 7. GET ALL ATTENDANCE LOGS (GET /api/attendance/list)
-router.get("/list", (req, res) => {
+router.get("/list", async (req, res) => {
   const { studentId, courseId } = req.query;
-  let filtered = attendanceStore;
+  const scope = await getAccessScope((req as AuthenticatedRequest).user!);
+  let filtered = attendanceStore.filter((a: any) => allowsStudent(scope, a.studentId, a.studentCode));
 
   if (studentId) {
     filtered = filtered.filter(a => a.studentId === String(studentId));
@@ -448,6 +470,9 @@ router.get("/sessions", async (req, res) => {
     if (slot && slot !== "ALL") {
       list = list.filter(s => (s as any).slotName === String(slot) || (s as any).slotName?.toLowerCase().includes(String(slot).toLowerCase()));
     }
+
+    // Login-based limits: teacher sees own classes; parent / student see only the classes their child attends.
+    list = scopeSessions(list, await getAccessScope((req as AuthenticatedRequest).user!));
 
     res.status(200).json({
       success: true,

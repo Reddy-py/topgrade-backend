@@ -3,6 +3,8 @@ import type { Request, Response } from "express";
 import { supabaseAdmin } from "../supabase.js";
 import { dispatchMultiChannelNotification, sendClassScheduleEmail } from "../services/notificationService.js";
 import { ScheduleDataService } from "../services/scheduleDataService.js";
+import type { AuthenticatedRequest } from "../middleware/auth.js";
+import { getAccessScope, allowsStudent, allowsTeacher, scopeSchedules } from "../services/accessScope.js";
 
 const router = Router();
 
@@ -14,9 +16,10 @@ let inMemoryReschedules: Record<string, { count: number; lastSessionTime?: strin
 // ==========================================
 
 // 1. List all active schedule slots with mapped students
-router.get("/list", async (_req, res): Promise<any> => {
+router.get("/list", async (req, res): Promise<any> => {
   try {
-    const schedules = await ScheduleDataService.listSchedules();
+    const scope = await getAccessScope((req as AuthenticatedRequest).user!);
+    const schedules = scopeSchedules(await ScheduleDataService.listSchedules(), scope);
     return res.status(200).json({ success: true, count: schedules.length, data: schedules });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message });
@@ -205,6 +208,10 @@ router.delete("/:id", async (req, res): Promise<any> => {
 router.get("/student/:studentId", async (req, res): Promise<any> => {
   try {
     const { studentId } = req.params;
+    const scope = await getAccessScope((req as AuthenticatedRequest).user!);
+    if (!allowsStudent(scope, studentId)) {
+      return res.status(403).json({ success: false, error: "Forbidden: this student is not linked to your login." });
+    }
     const schedules = await ScheduleDataService.getStudentSchedules(studentId);
     return res.status(200).json({ success: true, count: schedules.length, data: schedules });
   } catch (err: any) {
@@ -216,6 +223,10 @@ router.get("/student/:studentId", async (req, res): Promise<any> => {
 router.get("/teacher/:teacherId/roster", async (req, res): Promise<any> => {
   try {
     const { teacherId } = req.params;
+    const scope = await getAccessScope((req as AuthenticatedRequest).user!);
+    if (!allowsTeacher(scope, teacherId)) {
+      return res.status(403).json({ success: false, error: "Forbidden: you can only open your own roster." });
+    }
     const roster = await ScheduleDataService.getTeacherRoster(teacherId);
     return res.status(200).json({ success: true, count: roster.length, data: roster });
   } catch (err: any) {

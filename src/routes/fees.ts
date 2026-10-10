@@ -3,6 +3,7 @@ import { supabaseAdmin } from "../supabase.js";
 import { authenticateJwt } from "../middleware/auth.js";
 import type { AuthenticatedRequest } from "../middleware/auth.js";
 import { authorizePermission } from "../middleware/authorize.js";
+import { getAccessScope, allowsStudent } from "../services/accessScope.js";
 import { dispatchMultiChannelNotification } from "../services/notificationService.js";
 
 const router = express.Router();
@@ -15,27 +16,14 @@ router.get("/list", authenticateJwt, authorizePermission("fees.view"), async (re
     const user = req.user!;
     let query = supabaseAdmin.from("fees").select("*");
 
-    if (user.role === "STUDENT") {
-      const { data: studentRecord } = await supabaseAdmin
-        .from("students")
-        .select("id")
-        .eq("user_id", user.id)
-        .single();
-
-      if (!studentRecord) {
-        res.status(200).json({ success: true, data: inMemoryPayments });
-        return;
-      }
-      query = query.eq("student_id", studentRecord.id);
-    } else if (user.role === "PARENT") {
-      const { data: links } = await supabaseAdmin
-        .from("parent_students")
-        .select("student_id")
-        .eq("parent_id", user.id);
-
-      const studentIds = links?.map((l) => l.student_id) || [];
+    // Admin sees every fee record. Anyone else sees only the fees of their own students.
+    let scope: Awaited<ReturnType<typeof getAccessScope>> | null = null;
+    if (user.role !== "ADMIN") {
+      scope = await getAccessScope(user);
+      const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const studentIds = Array.from(scope.studentKeys).filter(k => uuid.test(k));
       if (studentIds.length === 0) {
-        res.status(200).json({ success: true, data: inMemoryPayments });
+        res.status(200).json({ success: true, data: [] });
         return;
       }
       query = query.in("student_id", studentIds);
@@ -60,6 +48,7 @@ router.get("/list", authenticateJwt, authorizePermission("fees.view"), async (re
 
     const allFees = [...formattedDbFees];
     for (const mem of inMemoryPayments) {
+      if (scope && !allowsStudent(scope, mem.student_id, mem.studentId)) continue;
       if (!allFees.some(f => f.id === mem.id)) {
         allFees.push(mem);
       }
@@ -67,7 +56,7 @@ router.get("/list", authenticateJwt, authorizePermission("fees.view"), async (re
 
     res.status(200).json({ success: true, data: allFees });
   } catch (error: any) {
-    res.status(200).json({ success: true, data: inMemoryPayments });
+    res.status(200).json({ success: true, data: req.user?.role === "ADMIN" ? inMemoryPayments : [] });
   }
 });
 
