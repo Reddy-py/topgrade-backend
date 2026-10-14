@@ -27,6 +27,7 @@ import { authenticateJwt } from "./middleware/auth.js";
 import { authorizePermission } from "./middleware/authorize.js";
 import { routeGuard, requireOwnStudent, requireOwnOrder } from "./middleware/guard.js";
 import { rateLimit } from "./middleware/rateLimit.js";
+import { ensureLogin, emailSetPasswordLink, normEmail, isValidEmail, type LoginRole } from "./services/studentAccounts.js";
 import { USER_ROLES } from "./constants/rolePermissions.js";
 import { reloadStudentsService } from "./services/studentService.js";
 import { dispatchMultiChannelNotification } from "./services/notificationService.js";
@@ -103,6 +104,8 @@ app.use("/api/courses", routeGuard("courses"));
 app.use("/api/schedules", routeGuard("classes", [
   { method: "GET", path: /^\/existing-courses\/?$/, permission: "classes.create" },
   { method: "GET", path: /^\/teacher\/[^/]+\/roster\/?$/, permission: "attendance.create" },
+  { method: "GET", path: /^\/open\/?$/, permission: "attendance.create" },
+  { method: "POST", path: /^\/[^/]+\/(claim|release)\/?$/, permission: "attendance.create" },
 ]));
 app.use("/api/attendance", routeGuard("attendance", [
   { method: "GET", path: /^\/session\/[^/]+\/roster\/?$/, permission: "attendance.create" },
@@ -115,11 +118,13 @@ app.use("/api/fees", routeGuard("fees", [
 app.use("/api/payments", routeGuard("payments", [
   { method: "POST", path: /^\/stripe\/webhook\/?$/, permission: "PUBLIC" },
   { method: "GET", path: /^\/stripe\/status\/?$/, permission: "settings.view" },
-  { method: "POST", path: /^\/(manual\/zelle-confirm|settle)\/?$/, permission: "payments.create" },
-  { method: "POST", path: /^\/(stripe\/create-checkout-session|razorpay\/create-order|razorpay\/verify|upi\/generate-intent|upi\/verify)\/?$/, permission: "fees.pay" },
+  { method: "POST", path: /^\/(stripe\/create-checkout-session|zelle-request)\/?$/, permission: "fees.pay" },
+  { method: "GET", path: /^\/stripe\/verify-session\/?$/, permission: "fees.pay" },
   { method: "GET", path: /^\/teacher-roster\/?$/, permission: "attendance.create" },
   { method: "GET", path: /^\/receipt\//, permission: "receipts.view" },
-  { method: "GET", path: /^\/balance\//, permission: "fees.view" },
+  { method: "GET", path: /^\/(balance|ledger)\//, permission: "fees.view" },
+  { method: "GET", path: /^\/orders\/?$/, permission: "fees.view" },
+  // manual-credit, adjust, orders/:id/confirm and /reject use the default: payments.create (admin only)
 ]));
 app.use("/api/session-qr", routeGuard("attendance", [
   { method: "POST", path: /^\/student-scan\/?$/, permission: "attendance.view" },
@@ -141,10 +146,8 @@ if (process.env.NODE_ENV === "production" && process.env.ALLOW_DEMO !== "true") 
 }
 
 // A parent may pay only for their own child; a student only scans for themselves.
-app.post(
-  ["/api/payments/stripe/create-checkout-session", "/api/payments/razorpay/create-order", "/api/payments/razorpay/verify", "/api/payments/upi/generate-intent", "/api/payments/upi/verify"],
-  requireOwnStudent("student_id", "studentId")
-);
+app.post(["/api/payments/stripe/create-checkout-session", "/api/payments/zelle-request"], requireOwnStudent("student_id"));
+app.get("/api/payments/ledger/:studentId", requireOwnStudent("param:studentId"));
 app.post("/api/fees/pay", requireOwnStudent("studentId"));
 app.post("/api/session-qr/student-scan", requireOwnStudent("studentId"));
 app.get("/api/payments/balance/:studentId", requireOwnStudent("param:studentId"));
@@ -200,112 +203,33 @@ app.post("/api/auth/verify-login", authenticateJwt, authorizePermission("users.v
 app.get("/api/auth/verify-login", authenticateJwt, authorizePermission("users.view"), verifyLoginRoleHandler);
 app.get("/api/auth/lookup-role", authenticateJwt, authorizePermission("users.view"), verifyLoginRoleHandler);
 
-// Direct Auth & Profile Credential Provisioning for Student, Parent, and Teacher
+// Creates (or re-sends) a login for any of the four roles. Admin only.
+// A password is never accepted from the browser: a new login gets a random password nobody sees, and the person
+// receives a one-time set-password link by email. An existing login keeps its password and gets a fresh link.
 app.post("/api/auth/provision-credentials", authenticateJwt, authorizePermission("users.create"), async (req, res) => {
   try {
-    const { email, password, role, fullName, metadata } = req.body;
-    if (!email) {
-      return res.status(400).json({ success: false, message: "Email is required" });
+    const { email, role, fullName, metadata } = req.body || {};
+    const cleanEmail = normEmail(email);
+    if (!cleanEmail || !isValidEmail(cleanEmail)) {
+      return res.status(400).json({ success: false, message: "A valid email is required." });
     }
-    const cleanEmail = email.trim().toLowerCase();
-    const cleanPassword = (password || "Topgrade@123").slice(0, 16);
-    const assignedRole = (role || "STUDENT").toUpperCase();
+    const assignedRole = String(role || "STUDENT").toUpperCase();
     if (!(USER_ROLES as readonly string[]).includes(assignedRole)) {
       return res.status(400).json({ success: false, message: `Role must be one of: ${USER_ROLES.join(", ")}.` });
     }
-
-    let authUserId: string | null = null;
-    try {
-      const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
-        email: cleanEmail,
-        password: cleanPassword,
-        email_confirm: true,
-        user_metadata: {
-          full_name: fullName || "",
-          role: assignedRole,
-          ...(metadata || {})
-        }
-      });
-      if (created?.user) {
-        authUserId = created.user.id;
-      } else if (createErr) {
-        console.warn("Notice admin.createUser:", createErr.message);
-
-        // If user already exists, update user to ensure email_confirm is true and password is set
-        try {
-          const { data: usersList } = await supabaseAdmin.auth.admin.listUsers();
-          const existingUser = usersList?.users?.find(u => u.email?.toLowerCase() === cleanEmail);
-          if (existingUser) {
-            authUserId = existingUser.id;
-            await supabaseAdmin.auth.admin.updateUserById(existingUser.id, {
-              password: cleanPassword,
-              email_confirm: true,
-              user_metadata: {
-                full_name: fullName || existingUser.user_metadata?.full_name || "",
-                role: assignedRole,
-                ...(metadata || {})
-              }
-            });
-          }
-        } catch (updateErr: any) {
-          console.warn("Notice updating existing auth user:", updateErr?.message);
-        }
-      }
-    } catch (e: any) {
-      console.warn("admin.createUser exception:", e?.message);
-    }
-
-    // Upsert into Supabase public.profiles table
-    try {
-      const profileRow: any = {
-        email: cleanEmail,
-        full_name: fullName || cleanEmail.split("@")[0],
-        role: assignedRole,
-        status: "Active",
-        updated_at: new Date().toISOString()
-      };
-      if (authUserId) profileRow.id = authUserId;
-
-      await supabaseAdmin.from("profiles").upsert(profileRow, { onConflict: "email" });
-    } catch (pErr: any) {
-      console.warn("Profiles upsert notice:", pErr?.message);
-    }
-
-    // Dispatch Direct Welcome Credentials Email via Gmail SMTP
-    try {
-      const appUrl = process.env.APP_URL || "http://localhost:5174/login";
-      const htmlEmailMessage = `
-        <div style="font-family: 'Segoe UI', Tahoma, sans-serif; color: #1e293b; line-height: 1.6;">
-          <p>Dear <strong>${fullName || cleanEmail.split("@")[0]}</strong>,</p>
-          <p>Welcome to <strong>Top Grade Learning</strong>! Your official institutional account has been successfully created and verified.</p>
-          <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px; margin: 20px 0;">
-            <p style="margin: 0 0 10px 0; font-size: 15px; font-weight: bold; color: #004ac6;">🔑 Account Login Details:</p>
-            <p style="margin: 6px 0;"><strong>Role:</strong> <span style="background:#e0e7ff; color:#3730a3; padding:2px 8px; border-radius:6px; font-weight:bold; font-size:12px;">${assignedRole}</span></p>
-            <p style="margin: 6px 0;"><strong>Portal Login Email:</strong> <code style="font-size:14px; color:#0f172a;">${cleanEmail}</code></p>
-            <p style="margin: 6px 0;"><strong>Password:</strong> <code style="background:#f1f5f9; padding:3px 8px; border-radius:4px; font-weight:bold; color:#0f172a; font-size:14px;">${cleanPassword}</code></p>
-            <p style="margin: 6px 0;"><strong>Portal Access Link:</strong> <a href="${appUrl}" style="color:#004ac6; font-weight:bold;">${appUrl}</a></p>
-          </div>
-          <p>You can immediately log in to access your course schedules, academic reports, and learning resources without waiting for email verification.</p>
-          <p style="font-size: 12px; color: #64748b; margin-top: 25px;">For security, please change your password after your first login if desired.</p>
-        </div>
-      `;
-
-      await dispatchMultiChannelNotification({
-        eventType: "ADMISSION_APPROVED",
-        subject: `🔐 Your Top Grade Learning Login Credentials (${assignedRole})`,
-        message: htmlEmailMessage,
-        recipients: [
-          { role: assignedRole as any, email: cleanEmail, name: fullName || assignedRole }
-        ],
-        actionUrl: appUrl
-      });
-    } catch (emailErr: any) {
-      console.warn("Notice dispatching credentials email:", emailErr?.message);
-    }
-
-    return res.status(200).json({ success: true, email: cleanEmail, role: assignedRole, authUserId });
+    const name = String(fullName || cleanEmail.split("@")[0]);
+    const login = await ensureLogin({ email: cleanEmail, fullName: name, role: assignedRole as LoginRole, metadata: metadata || {} });
+    const emailed = await emailSetPasswordLink({ email: cleanEmail, name, role: assignedRole as LoginRole });
+    return res.status(200).json({
+      success: true,
+      created: login.created,
+      emailed,
+      message: emailed
+        ? `${login.created ? "Login created" : "Login already existed"}. A set-password link was emailed to ${cleanEmail}.`
+        : `${login.created ? "Login created" : "Login already existed"}, but the set-password email could not be sent.`
+    });
   } catch (err: any) {
-    return res.status(500).json({ success: false, message: err?.message || "Provisioning error" });
+    return res.status(409).json({ success: false, message: err?.message || "Could not create the login." });
   }
 });
 

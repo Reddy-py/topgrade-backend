@@ -10,6 +10,8 @@ dotenv.config({ path: backendEnvPath });
 dotenv.config();
 
 export interface NotificationPayload {
+  /** When true the message is plain text: HTML is escaped and line breaks are kept. Use for anything built from user data. */
+  escapeMessage?: boolean;
   recipients: Array<{
     role: "STUDENT" | "PARENT" | "TEACHER" | "ADMIN";
     email?: string;
@@ -53,7 +55,19 @@ function getTransporter(): { transporter: nodemailer.Transporter | null; gmailUs
 /**
  * Builds responsive, modern HTML email templates tailored to Top Grade Learning branding
  */
-function buildHtmlEmailTemplate(subject: string, message: string, role: string, recipientName: string, actionUrl?: string): string {
+export function escapeHtml(value: unknown): string {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function buildHtmlEmailTemplate(subject: string, message: string, role: string, recipientNameRaw: string, actionUrl?: string, plainText = false): string {
+  const recipientName = escapeHtml(recipientNameRaw);
+  if (plainText) message = escapeHtml(message).replace(/\n/g, "<br>");
+  if (actionUrl) actionUrl = escapeHtml(actionUrl);
   return `
     <!DOCTYPE html>
     <html>
@@ -104,8 +118,21 @@ function buildHtmlEmailTemplate(subject: string, message: string, role: string, 
 /**
  * Central Multi-Channel Notification Dispatcher (Real Gmail SMTP + SMS Simulator)
  */
-export async function dispatchMultiChannelNotification(payload: NotificationPayload): Promise<{ success: boolean; dispatchedLogs: string[] }> {
+export interface DispatchResult {
+  success: boolean;          // true only when no email failed
+  dispatchedLogs: string[];
+  sent: number;              // really delivered to Gmail
+  failed: number;            // Gmail refused or was unreachable
+  simulated: number;         // no Gmail configured (development)
+  failures: string[];
+}
+
+export async function dispatchMultiChannelNotification(payload: NotificationPayload): Promise<DispatchResult> {
   const dispatchedLogs: string[] = [];
+  let sent = 0;
+  let failed = 0;
+  let simulated = 0;
+  const failures: string[] = [];
   const { transporter, gmailUser } = getTransporter();
 
   for (const recipient of payload.recipients) {
@@ -128,7 +155,8 @@ export async function dispatchMultiChannelNotification(payload: NotificationPayl
           payload.message,
           recipient.role,
           recipientName,
-          payload.actionUrl
+          payload.actionUrl,
+          payload.escapeMessage === true
         );
 
         await transporter.sendMail({
@@ -139,17 +167,21 @@ export async function dispatchMultiChannelNotification(payload: NotificationPayl
           attachments: payload.attachments
         });
 
+        sent++;
         const liveLog = `✅ [REAL GMAIL SENT] To: ${recipient.role} <${emailTarget}> | Subject: "${payload.subject}"`;
         console.log(liveLog);
         dispatchedLogs.push(liveLog);
       } catch (err: any) {
         console.error(`❌ [GMAIL SMTP FAILURE] Could not send to ${emailTarget}:`, err.message);
-        const fallbackLog = `⚠️ [GMAIL FALLBACK SIMULATED] To: ${recipient.role} <${emailTarget}> | Subject: "${payload.subject}"`;
+        failed++;
+        failures.push(`${emailTarget}: ${err.message}`);
+        const fallbackLog = `⚠️ [GMAIL FAILED, NOT SENT] To: ${recipient.role} <${emailTarget}> | Subject: "${payload.subject}"`;
         console.log(fallbackLog);
         dispatchedLogs.push(fallbackLog);
       }
     } else {
       // Simulation Log
+      simulated++;
       const emailLog = `📧 [SIMULATED EMAIL] Event: ${payload.eventType} | To: ${recipient.role} (${recipientName}) <${emailTarget}> | Subject: "${payload.subject}"`;
       console.log(emailLog);
       dispatchedLogs.push(emailLog);
@@ -164,7 +196,7 @@ export async function dispatchMultiChannelNotification(payload: NotificationPayl
     }
   }
 
-  return { success: true, dispatchedLogs };
+  return { success: failed === 0, dispatchedLogs, sent, failed, simulated, failures };
 }
 
 /**

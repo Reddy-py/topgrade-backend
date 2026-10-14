@@ -53,7 +53,7 @@ export function routeGuard(resourceOrPermission: string, overrides: GuardOverrid
 // Ownership checks: a parent may only act for their own child, a student for themselves.
 // ---------------------------------------------------------------------------
 import { getAccessScope, allowsStudent } from "../services/accessScope.js";
-import { paymentOrdersStore } from "../services/courseHoursService.js";
+import { findOrder } from "../services/tokenService.js";
 
 /** Checks student ids sent in the request body (or the URL, with "param:name") against the login's own students. */
 export function requireOwnStudent(...fields: string[]) {
@@ -80,10 +80,10 @@ export function requireOwnOrder(paramName: string) {
     try {
       if (!req.user) { res.status(401).json({ success: false, message: "Unauthorized: sign in to continue." }); return; }
       const orderId = req.params[paramName];
-      const order: any = paymentOrdersStore.find(o => o.id === orderId || o.orderNumber === orderId);
+      const order = await findOrder(String(orderId));
       if (!order) { next(); return; } // the route itself answers 404
       const scope = await getAccessScope(req.user);
-      if (!allowsStudent(scope, order.studentId)) {
+      if (!allowsStudent(scope, order.student_id)) {
         res.status(403).json({ success: false, message: "Forbidden: this receipt belongs to another student." });
         return;
       }

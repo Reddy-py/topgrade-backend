@@ -39,6 +39,10 @@ export interface ScheduleSlot {
   max_capacity: number;
   is_active: boolean;
   students?: ScheduleStudent[];
+  // Requirement 8: the admin creates a slot WITHOUT a teacher and marks it open; a teacher then takes it.
+  open_for_teachers?: boolean | undefined;      // set by the admin
+  claimed_by_teacher?: boolean | undefined;     // true once a teacher took it (teacher_id / teacher_name then show who)
+  eligible_teacher_ids?: string[] | undefined;  // if the course lists assigned teachers, only they may take the slot
   created_at?: string;
   updated_at?: string;
 }
@@ -300,7 +304,7 @@ export class ScheduleDataService {
     for (const slot of activeSchedules) {
       if (doTimesOverlap(slot.start_time, slot.end_time, params.start_time, params.end_time)) {
         // 1. Teacher Conflict
-        if (slot.teacher_id === params.teacher_id) {
+        if (params.teacher_id && slot.teacher_id === params.teacher_id) {
           return {
             hasConflict: true,
             error: `Teacher Collision: ${slot.teacher_name} is already scheduled for '${slot.course_name}' on ${slot.day_of_week} at ${slot.time_slot} (Room: ${slot.room}).`
@@ -438,8 +442,10 @@ export class ScheduleDataService {
               id: slotId,
               course_id: crs.id,
               course_name: crs.name,
-              teacher_id: cSlot.teacherId || defaultTeacherId,
-              teacher_name: cSlot.teacherName || defaultTeacherName,
+              teacher_id: cSlot.openForTeachers === true ? (cSlot.teacherId || "") : (cSlot.teacherId || defaultTeacherId),
+              teacher_name: cSlot.openForTeachers === true ? (cSlot.teacherName || "") : (cSlot.teacherName || defaultTeacherName),
+              open_for_teachers: cSlot.openForTeachers === true,
+              eligible_teacher_ids: assignedTeachersArr.map((t: any) => String(t?.teacherId || "")).filter(Boolean),
               day_of_week: cSlot.day,
               start_time: startTimeStr,
               end_time: endTimeStr,
@@ -461,6 +467,18 @@ export class ScheduleDataService {
       }
     } catch (courseSyncErr) {
       console.warn("Course schedule sync notice:", courseSyncErr);
+    }
+
+    // 3. Teacher claims: show which teacher took each open slot (one claim per slot)
+    try {
+      const { data: claims } = await supabaseAdmin.from("teacher_slot_claims").select("slot_id, teacher_id, teacher_name");
+      const claimBySlot = new Map<string, any>((claims || []).map((c: any) => [c.slot_id, c]));
+      baseList = baseList.map(slot => {
+        const claim = slot.open_for_teachers ? claimBySlot.get(slot.id) : undefined;
+        return claim ? { ...slot, teacher_id: claim.teacher_id, teacher_name: claim.teacher_name || slot.teacher_name, claimed_by_teacher: true } : slot;
+      });
+    } catch (claimErr) {
+      console.warn("Teacher claims notice (run migration 20261013):", claimErr);
     }
 
     return baseList.sort((a, b) =>
@@ -508,7 +526,8 @@ export class ScheduleDataService {
         room: slot.room || "Computer Lab 1",
         programTrack: "Core Foundations & Concepts",
         teacherName: slot.teacher_name,
-        teacherId: slot.teacher_id
+        teacherId: slot.teacher_id,
+        openForTeachers: slot.open_for_teachers === true
       };
 
       if (existingIdx >= 0) {
@@ -542,6 +561,7 @@ export class ScheduleDataService {
     room?: string;
     location?: string;
     max_capacity?: number;
+    open_for_teachers?: boolean;
     students?: Array<{ student_id: string; student_name: string; student_code?: string }>;
   }): Promise<ScheduleSlot> {
     const studentIds = (payload.students || []).map(s => s.student_id);
@@ -588,6 +608,7 @@ export class ScheduleDataService {
       location: payload.location || "Main Campus",
       max_capacity: payload.max_capacity || 15,
       is_active: true,
+      open_for_teachers: payload.open_for_teachers === true,
       students: mappedStudents,
       created_at: nowIso,
       updated_at: nowIso
@@ -670,6 +691,7 @@ export class ScheduleDataService {
     room?: string;
     location?: string;
     max_capacity?: number;
+    open_for_teachers?: boolean;
     students?: Array<{ student_id: string; student_name: string; student_code?: string }>;
   }): Promise<ScheduleSlot[]> {
     const days = (payload.days_of_week && payload.days_of_week.length > 0)
@@ -694,6 +716,7 @@ export class ScheduleDataService {
         if (payload.location) createArgs.location = payload.location;
         if (payload.max_capacity) createArgs.max_capacity = payload.max_capacity;
         if (payload.students) createArgs.students = payload.students;
+        if (payload.open_for_teachers) createArgs.open_for_teachers = true;
 
         const slot = await this.createSchedule(createArgs);
         createdSlots.push(slot);
@@ -764,6 +787,24 @@ export class ScheduleDataService {
       updated_at: nowIso
     };
 
+    // Admin choices about who teaches this slot:
+    //  - picking a teacher assigns it for good (the slot is no longer open, any claim is removed)
+    //  - re-opening it clears the teacher so teachers can take it again
+    //  - any other edit of a slot a teacher took keeps it open and keeps that teacher's claim
+    delete (updatedSlot as any).claimed_by_teacher;
+    if (payload.teacher_id) {
+      updatedSlot.open_for_teachers = false;
+      await supabaseAdmin.from("teacher_slot_claims").delete().eq("slot_id", id);
+    } else if (payload.open_for_teachers === true) {
+      updatedSlot.teacher_id = "";
+      updatedSlot.teacher_name = "";
+      await supabaseAdmin.from("teacher_slot_claims").delete().eq("slot_id", id);
+    } else if (existing.claimed_by_teacher) {
+      updatedSlot.open_for_teachers = true;
+      updatedSlot.teacher_id = "";
+      updatedSlot.teacher_name = "";
+    }
+
     localScheduleStore.saveSchedule(updatedSlot);
 
     // Bi-directional sync into Supabase course_material.schedule
@@ -811,6 +852,7 @@ export class ScheduleDataService {
    * Delete a schedule slot
    */
   static async deleteSchedule(id: string): Promise<boolean> {
+    await supabaseAdmin.from("teacher_slot_claims").delete().eq("slot_id", id);
     localScheduleStore.deleteSchedule(id);
     try {
       await supabaseAdmin.from("schedule_students").delete().eq("schedule_id", id);

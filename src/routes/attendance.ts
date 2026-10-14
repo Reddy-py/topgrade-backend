@@ -4,8 +4,8 @@ import { SessionAttendanceService, classSessionQrStore, type ClassSessionQRRecor
 import { inMemoryStudentStore } from "../services/studentService.js";
 import { supabaseAdmin } from "../supabase.js";
 import { sendDailyAttendanceRollCallEmail, sendMonthlyAttendanceSummaryEmail } from "../services/notificationService.js";
+import { consumeAttendanceToken, refundAttendanceToken, findCourse } from "../services/tokenService.js";
 import { ScheduleDataService } from "../services/scheduleDataService.js";
-import { CourseHoursService } from "../services/courseHoursService.js";
 import type { AuthenticatedRequest } from "../middleware/auth.js";
 import { getAccessScope, allowsStudent, scopeSessions } from "../services/accessScope.js";
 
@@ -154,19 +154,32 @@ router.post("/daily-rollcall", async (req, res): Promise<any> => {
         }).catch(err => console.warn("Roll-call parent email warning:", err));
       }
 
-      // 4. Granular Token Deduction on Attendance Roll-Call (1:1 deduction if PRESENT)
-      let tokenDeduction: any = null;
-      if (status === "PRESENT") {
-        tokenDeduction = CourseHoursService.deductTokenOnAttendance(studentId, courseName || scheduleId);
-      } else {
-        const bal = CourseHoursService.getStudentCourseBalance(studentId, courseName || scheduleId);
-        tokenDeduction = {
-          success: true,
-          tokens_remaining: bal ? (bal.tokens_remaining ?? bal.availableHours ?? 0) : 0,
-          tokens_consumed: bal ? (bal.tokens_consumed ?? bal.usedHours ?? 0) : 0,
-          isLowQuotaWarning: bal ? ((bal.tokens_remaining ?? bal.availableHours ?? 0) <= 2) : true,
-          warningMessage: bal?.teacherWarningMessage
-        };
+      // 4. One class = one token. PRESENT uses a token, changing to another status gives it back. Repeats do nothing.
+      let tokenDeduction: any = { tokens_remaining: undefined, tokens_consumed: undefined, isLowQuotaWarning: false, warningMessage: undefined };
+      try {
+        let courseKey = courseName || "";
+        if (!(await findCourse(courseKey)) && scheduleId) {
+          const slot = (await ScheduleDataService.listSchedules()).find(sl => sl.id === scheduleId);
+          courseKey = slot?.course_id || courseKey;
+        }
+        const classRef = `${scheduleId || courseKey}:${rollDate}`;
+        if (status === "PRESENT") {
+          const used = await consumeAttendanceToken({ studentIdOrCode: studentId, courseIdOrName: courseKey, classRef, by: recordedBy });
+          if (used.ok) {
+            tokenDeduction = {
+              tokens_remaining: used.balance,
+              isLowQuotaWarning: !!used.low,
+              warningMessage: used.owed ? `No tokens left: ${-(used.balance ?? 0)} class(es) owed. Ask the parent to buy tokens.` : used.low ? `Low tokens: ${used.balance} class(es) left.` : undefined,
+            };
+          } else {
+            tokenDeduction.warningMessage = used.reason;
+          }
+        } else {
+          const back = await refundAttendanceToken({ studentIdOrCode: studentId, courseIdOrName: courseKey, classRef, by: recordedBy });
+          if (back.balance !== undefined) tokenDeduction.tokens_remaining = back.balance;
+        }
+      } catch (tokenErr: any) {
+        tokenDeduction.warningMessage = `Token update failed: ${tokenErr?.message}`;
       }
 
       processedRecords.push({

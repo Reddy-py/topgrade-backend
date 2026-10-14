@@ -1,53 +1,19 @@
-import { dispatchMultiChannelNotification } from "./notificationService.js";
-import { inMemoryStudentStore } from "./studentService.js";
+import { dispatchMultiChannelNotification, escapeHtml } from "./notificationService.js";
+import { inMemoryStudentStore, getStudentsService } from "./studentService.js";
 import type { StudentDossier } from "./studentService.js";
 import { supabaseAdmin } from "../supabase.js";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
+import { claimEmail, finishEmail, logEmail, listEmailLog, statusFromDispatch } from "./emailLog.js";
+import { instituteNow, instituteTimezone, isBirthdayToday } from "./instituteTime.js";
+import { studentContactEmails, studentOwnEmails } from "./studentNotices.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const DATA_DIR = path.join(__dirname, "../../data");
-const SENT_EMAILS_LOG_FILE = path.join(DATA_DIR, "automated_emails_log.json");
-
-interface AutomatedEmailLog {
-  studentId: string;
-  studentCode: string;
-  type: "BIRTHDAY" | "EXAM_GOOD_LUCK";
-  dateSent: string; // YYYY-MM-DD
-  year: number;
-  recipientEmails: string[];
-}
-
-let sentLogs: AutomatedEmailLog[] = [];
-
-function loadSentLogs(): AutomatedEmailLog[] {
-  try {
-    if (fs.existsSync(SENT_EMAILS_LOG_FILE)) {
-      return JSON.parse(fs.readFileSync(SENT_EMAILS_LOG_FILE, "utf-8"));
-    }
-  } catch (err) {
-    console.warn("Notice reading automated_emails_log.json:", err);
-  }
-  return [];
-}
-
-function saveSentLogs() {
-  try {
-    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-    fs.writeFileSync(SENT_EMAILS_LOG_FILE, JSON.stringify(sentLogs, null, 2), "utf-8");
-  } catch (err) {
-    console.warn("Notice saving automated_emails_log.json:", err);
-  }
-}
-
-sentLogs = loadSentLogs();
+// The log of what was sent lives in the Supabase table email_log (see migration 20261012_email_log.sql).
+// Nothing is kept on disk, so a restart, a redeploy or a second server can never repeat a birthday wish.
 
 /**
  * Builds HTML template for Birthday greetings from Top Grade Learning
  */
 function buildBirthdayHtml(studentName: string): string {
+  studentName = escapeHtml(studentName);
   return `
     <div style="font-family: 'Segoe UI', Tahoma, sans-serif; background: #fdf2f8; padding: 25px; border-radius: 18px; border: 2px solid #f472b6;">
       <div style="text-align: center; margin-bottom: 20px;">
@@ -77,6 +43,9 @@ function buildBirthdayHtml(studentName: string): string {
  * Builds HTML template for Exam Good Luck greetings
  */
 function buildExamGoodLuckHtml(studentName: string, examDate: string, courseName?: string): string {
+  studentName = escapeHtml(studentName);
+  examDate = escapeHtml(examDate);
+  courseName = courseName ? escapeHtml(courseName) : courseName;
   return `
     <div style="font-family: 'Segoe UI', Tahoma, sans-serif; background: #eff6ff; padding: 25px; border-radius: 18px; border: 2px solid #60a5fa;">
       <div style="text-align: center; margin-bottom: 20px;">
@@ -110,6 +79,9 @@ function buildExamGoodLuckHtml(studentName: string, examDate: string, courseName
 }
 
 function buildExamScheduledHtml(studentName: string, examDate: string, courseName: string): string {
+  studentName = escapeHtml(studentName);
+  examDate = escapeHtml(examDate);
+  courseName = escapeHtml(courseName);
   return `
     <div style="font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0fdf4; padding: 25px; border-radius: 18px; border: 2px solid #22c55e;">
       <div style="text-align: center; margin-bottom: 20px;">
@@ -179,66 +151,55 @@ export async function sendCourseExamNotification(student: StudentDossier, examDa
 }
 
 /**
- * Dispatches an automated birthday email to student and parents
+ * Birthday wish. Goes to the student's email; if the student has none, to the parent email(s).
+ * Sent at most once per student per day (checked in the email_log table). force = admin pressed "send now".
+ * Returns true when the email went out (or was simulated because Gmail is not configured).
  */
-export async function sendBirthdayGreetings(student: StudentDossier): Promise<boolean> {
-  const currentYear = new Date().getFullYear();
-  const todayStr: string = new Date().toISOString().split("T")[0] || "";
-  const recipientEmails = [
-    ...(student.studentEmails || []),
-    student.email,
-    ...(student.parentEmails || [])
-  ].filter(Boolean) as string[];
+export async function sendBirthdayGreetings(student: StudentDossier, opts: { force?: boolean } = {}): Promise<boolean> {
+  const to = studentContactEmails(student);
+  const key = student.id || student.studentCode || "";
+  if (to.length === 0 || !key) return false;
 
-  const uniqueRecipients = Array.from(new Set(recipientEmails.map(e => e.trim().toLowerCase())));
-  if (uniqueRecipients.length === 0) return false;
+  const { dateStr } = instituteNow();
+  const subject = `🎂 Happy Birthday, ${student.fullName}! Best Wishes from Top Grade Learning 🎉`;
 
-  const recipients: Array<{ role: any; email: string; name: string; phone: string }> = uniqueRecipients.map(e => ({
-    role: "STUDENT" as const,
-    email: e,
-    name: student.fullName,
-    phone: student.primaryMobile || ""
-  }));
-
-  const adminEmail = (process.env.ADMIN_EMAIL || process.env.GMAIL_USER || "tglbiz101@gmail.com").trim().toLowerCase();
-  if (adminEmail && !uniqueRecipients.includes(adminEmail)) {
-    recipients.push({
-      role: "ADMIN",
-      email: adminEmail,
-      name: "System Administrator",
-      phone: ""
-    });
+  let claimId: string | null = null;
+  if (!opts.force) {
+    claimId = await claimEmail("BIRTHDAY", key, dateStr, to, subject);
+    if (!claimId) return false; // already sent (or being sent) today
   }
 
   try {
-    await dispatchMultiChannelNotification({
+    const own = new Set(studentOwnEmails(student));
+    const result = await dispatchMultiChannelNotification({
       eventType: "ADMISSION_APPROVED",
-      subject: `🎂 Happy Birthday, ${student.fullName}! Best Wishes from Top Grade Learning 🎉`,
+      subject,
       message: buildBirthdayHtml(student.fullName),
-      recipients
+      recipients: to.map(e => ({
+        role: (own.has(e) ? "STUDENT" : "PARENT") as "STUDENT" | "PARENT",
+        email: e,
+        name: own.has(e) ? student.fullName : `Parent of ${student.fullName}`,
+        phone: "",
+      })),
     });
-
-    sentLogs.push({
-      studentId: student.id || student.studentCode || "",
-      studentCode: student.studentCode || "",
-      type: "BIRTHDAY",
-      dateSent: todayStr,
-      year: currentYear,
-      recipientEmails: uniqueRecipients
-    });
-    saveSentLogs();
-    return true;
+    const status = statusFromDispatch(result);
+    const err = result.failures.join("; ") || undefined;
+    if (claimId) await finishEmail(claimId, status, err);
+    else await logEmail("BIRTHDAY", key, dateStr, to, subject, status, err);
+    return status !== "failed";
   } catch (err: any) {
-    console.error(`Failed to dispatch birthday email for ${student.fullName}:`, err.message);
+    if (claimId) await finishEmail(claimId, "failed", err?.message);
+    console.error(`Failed to dispatch birthday email for ${student.fullName}:`, err?.message);
     return false;
   }
 }
 
 /**
- * Dispatches an automated exam good luck email to student and parents
+ * Dispatches an automated exam good luck email to student and parents. Once per student per day.
  */
 export async function sendExamGoodLuckWishes(student: StudentDossier, examDate: string): Promise<boolean> {
-  const todayStr: string = new Date().toISOString().split("T")[0] || "";
+  const { dateStr } = instituteNow();
+  const key = student.id || student.studentCode || "";
   const recipientEmails = [
     ...(student.studentEmails || []),
     student.email,
@@ -246,7 +207,7 @@ export async function sendExamGoodLuckWishes(student: StudentDossier, examDate: 
   ].filter(Boolean) as string[];
 
   const uniqueRecipients = Array.from(new Set(recipientEmails.map(e => e.trim().toLowerCase())));
-  if (uniqueRecipients.length === 0) return false;
+  if (uniqueRecipients.length === 0 || !key) return false;
 
   const recipients: Array<{ role: any; email: string; name: string; phone: string }> = uniqueRecipients.map(e => ({
     role: "STUDENT" as const,
@@ -257,34 +218,26 @@ export async function sendExamGoodLuckWishes(student: StudentDossier, examDate: 
 
   const adminEmail = (process.env.ADMIN_EMAIL || process.env.GMAIL_USER || "tglbiz101@gmail.com").trim().toLowerCase();
   if (adminEmail && !uniqueRecipients.includes(adminEmail)) {
-    recipients.push({
-      role: "ADMIN",
-      email: adminEmail,
-      name: "System Administrator",
-      phone: ""
-    });
+    recipients.push({ role: "ADMIN", email: adminEmail, name: "System Administrator", phone: "" });
   }
 
+  const subject = `🌟 Best of Luck on Your Exam, ${student.fullName}! — Top Grade Learning 🍀`;
+  const claimId = await claimEmail("EXAM_GOOD_LUCK", key, dateStr, uniqueRecipients, subject);
+  if (!claimId) return false;
+
   try {
-    await dispatchMultiChannelNotification({
+    const result = await dispatchMultiChannelNotification({
       eventType: "ADMISSION_APPROVED",
-      subject: `🌟 Best of Luck on Your Exam, ${student.fullName}! — Top Grade Learning 🍀`,
+      subject,
       message: buildExamGoodLuckHtml(student.fullName, examDate, student.program),
       recipients
     });
-
-    sentLogs.push({
-      studentId: student.id || student.studentCode || "",
-      studentCode: student.studentCode || "",
-      type: "EXAM_GOOD_LUCK",
-      dateSent: todayStr,
-      year: new Date().getFullYear(),
-      recipientEmails: uniqueRecipients
-    });
-    saveSentLogs();
-    return true;
+    const status = statusFromDispatch(result);
+    await finishEmail(claimId, status, result.failures.join("; ") || undefined);
+    return status !== "failed";
   } catch (err: any) {
-    console.error(`Failed to dispatch exam good luck email for ${student.fullName}:`, err.message);
+    await finishEmail(claimId, "failed", err?.message);
+    console.error(`Failed to dispatch exam good luck email for ${student.fullName}:`, err?.message);
     return false;
   }
 }
@@ -327,6 +280,7 @@ export function parseDobMonthAndDay(dobStr?: string): { month: number; day: numb
  * Builds HTML template for Teacher Birthday greetings
  */
 function buildTeacherBirthdayHtml(teacherName: string): string {
+  teacherName = escapeHtml(teacherName);
   return `
     <div style="font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0fdf4; padding: 25px; border-radius: 18px; border: 2px solid #4ade80;">
       <div style="text-align: center; margin-bottom: 20px;">
@@ -353,198 +307,142 @@ function buildTeacherBirthdayHtml(teacherName: string): string {
 }
 
 /**
- * Dispatches an automated birthday email to a teacher
+ * Dispatches an automated birthday email to a teacher. Once per teacher per day.
  */
 export async function sendTeacherBirthdayGreetings(teacher: { id: string; name: string; email: string; phone?: string }): Promise<boolean> {
-  const currentYear = new Date().getFullYear();
-  const todayStr: string = new Date().toISOString().split("T")[0] || "";
-
-  if (!teacher.email) return false;
+  if (!teacher.email || !teacher.id) return false;
+  const { dateStr } = instituteNow();
+  const subject = `🎂 Happy Birthday, ${teacher.name}! Warmest Wishes from Top Grade Learning 🎉`;
+  const claimId = await claimEmail("TEACHER_BIRTHDAY", teacher.id, dateStr, [teacher.email], subject);
+  if (!claimId) return false;
 
   try {
-    await dispatchMultiChannelNotification({
+    const result = await dispatchMultiChannelNotification({
       eventType: "ADMISSION_APPROVED",
-      subject: `🎂 Happy Birthday, ${teacher.name}! Warmest Wishes from Top Grade Learning 🎉`,
+      subject,
       message: buildTeacherBirthdayHtml(teacher.name),
-      recipients: [
-        {
-          role: "TEACHER",
-          email: teacher.email,
-          name: teacher.name,
-          phone: teacher.phone || ""
-        }
-      ]
+      recipients: [{ role: "TEACHER", email: teacher.email, name: teacher.name, phone: teacher.phone || "" }]
     });
-
-    sentLogs.push({
-      studentId: teacher.id,
-      studentCode: teacher.id,
-      type: "BIRTHDAY",
-      dateSent: todayStr,
-      year: currentYear,
-      recipientEmails: [teacher.email]
-    });
-    saveSentLogs();
-    return true;
+    const status = statusFromDispatch(result);
+    await finishEmail(claimId, status, result.failures.join("; ") || undefined);
+    return status !== "failed";
   } catch (err: any) {
-    console.error(`Failed to dispatch teacher birthday email for ${teacher.name}:`, err.message);
+    await finishEmail(claimId, "failed", err?.message);
+    console.error(`Failed to dispatch teacher birthday email for ${teacher.name}:`, err?.message);
     return false;
   }
 }
 
-export function getBirthdayLogs() {
-  return sentLogs;
+/** Recent automatic emails (birthdays, exam wishes, student added / updated), newest first. */
+export async function getBirthdayLogs() {
+  const rows = await listEmailLog(500);
+  return rows.map(r => ({
+    studentId: r.subject_key,
+    type: r.kind,
+    dateSent: r.send_date,
+    year: Number(String(r.send_date).slice(0, 4)),
+    recipientEmails: r.recipients,
+    status: r.status,
+    error: r.error,
+    subject: r.subject,
+    createdAt: r.created_at,
+  }));
 }
 
 /**
- * Scans all student and teacher records across Supabase & in-memory store to trigger automated Birthday and Exam Good Luck greetings
+ * Scans active students and teachers and sends the automatic emails that are due today in the institute's time zone:
+ *  - birthdays (to the student's email, or the parent's if the student has none)
+ *  - exam good-luck wishes (exam within 2 days)
+ * Wishes go out from BIRTHDAY_SEND_HOUR (default 7) local time. Safe to run as often as you like:
+ * the email_log table guarantees one email per person per day.
  */
-export async function runAutomatedEmailScan(): Promise<{ birthdaysSent: number; examWishesSent: number; details: string[] }> {
-  const today = new Date();
-  const currentMonth = today.getMonth() + 1; // 1-12
-  const currentDay = today.getDate(); // 1-31
-  const todayDateStr: string = today.toISOString().split("T")[0] || "";
-  const currentYear = today.getFullYear();
-
+export async function runAutomatedEmailScan(
+  opts: { ignoreSendHour?: boolean } = {}
+): Promise<{ birthdaysSent: number; examWishesSent: number; details: string[] }> {
+  const now = instituteNow();
+  const sendHour = Number(process.env.BIRTHDAY_SEND_HOUR ?? 7);
+  const details: string[] = [];
   let birthdaysSent = 0;
   let examWishesSent = 0;
-  const details: string[] = [];
 
-  // 1. Gather all students from in-memory store + live Supabase table
-  const allStudentsMap = new Map<string, StudentDossier>();
-  inMemoryStudentStore.forEach(s => {
-    const key = (s.id || s.studentCode || s.email || "").toLowerCase();
-    if (key) allStudentsMap.set(key, s);
-  });
-
-  try {
-    const { data: sbStudents } = await supabaseAdmin.from("students").select("*");
-    if (sbStudents && Array.isArray(sbStudents)) {
-      sbStudents.forEach((st: any) => {
-        const key = (st.id || st.student_id_code || st.email || "").toLowerCase();
-        const existing = allStudentsMap.get(key);
-        const merged: StudentDossier = {
-          id: st.id || existing?.id || "",
-          studentCode: st.student_id_code || existing?.studentCode || "",
-          fullName: st.name || existing?.fullName || "Student",
-          email: st.email || existing?.email || "",
-          primaryMobile: st.primary_mobile || existing?.primaryMobile || "",
-          dob: st.dob || existing?.dob || "",
-          examDate: (st.medical_notes && st.medical_notes.startsWith("EXAM_DATE:")) 
-            ? st.medical_notes.replace("EXAM_DATE:", "") 
-            : (st.exam_date || existing?.examDate || ""),
-          studentEmails: st.email ? [st.email] : (existing?.studentEmails || []),
-          parentEmails: st.parent_email ? [st.parent_email] : (existing?.parentEmails || []),
-          school: st.school || existing?.school || "TopGrade Partner School",
-          program: st.program || existing?.program || "Academic Coaching",
-          status: st.status || existing?.status || "ACTIVE"
-        };
-        allStudentsMap.set(key, merged);
-      });
-    }
-  } catch (err: any) {
-    console.warn("Notice querying Supabase students for birthday scan:", err.message);
+  if (!opts.ignoreSendHour && now.hour < sendHour) {
+    details.push(`Waiting until ${sendHour}:00 (${instituteTimezone()}) to send today's wishes.`);
+    return { birthdaysSent, examWishesSent, details };
   }
 
-  // Iterate over all students
-  for (const student of allStudentsMap.values()) {
-    const studentIdentifier = student.id || student.studentCode;
-    if (!studentIdentifier) continue;
+  // Always read the latest students from Supabase.
+  await getStudentsService({
+    refresh: true, page: 1, limit: 100000, status: "ALL", grade: "ALL",
+    currentUser: { id: "system", email: "", role: "ADMIN" },
+  });
 
-    // A. Student Birthday Check
-    if (student.dob) {
-      const parsed = parseDobMonthAndDay(student.dob);
-      if (parsed && parsed.month === currentMonth && parsed.day === currentDay) {
-        const alreadySent = sentLogs.some(
-          l => (l.studentId === studentIdentifier || l.studentCode === student.studentCode) &&
-               l.type === "BIRTHDAY" &&
-               l.year === currentYear
-        );
+  for (const student of [...inMemoryStudentStore]) {
+    if ((student.status || "").toUpperCase() !== "ACTIVE") continue;
 
-        if (!alreadySent) {
-          const ok = await sendBirthdayGreetings(student);
-          if (ok) {
-            birthdaysSent++;
-            details.push(`🎂 Birthday email sent to student ${student.fullName} (${student.studentCode || student.email})`);
+    // A. Birthday
+    const dob = parseDobMonthAndDay(student.dob);
+    if (dob && isBirthdayToday(dob, now)) {
+      try {
+        if (await sendBirthdayGreetings(student)) {
+          birthdaysSent++;
+          details.push(`🎂 Birthday email sent for ${student.fullName} (${student.studentCode}) to ${studentContactEmails(student).join(", ")}`);
+        }
+      } catch (e: any) {
+        details.push(`⚠️ Birthday for ${student.fullName} could not be processed: ${e?.message}`);
+      }
+    }
+
+    // B. Exam good luck
+    if (student.examDate) {
+      const examDt = new Date(student.examDate);
+      if (!isNaN(examDt.getTime())) {
+        const diffDays = Math.ceil((examDt.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+        if (diffDays >= 0 && diffDays <= 2) {
+          try {
+            if (await sendExamGoodLuckWishes(student, student.examDate)) {
+              examWishesSent++;
+              details.push(`🍀 Exam good luck email sent for ${student.fullName} (exam ${student.examDate})`);
+            }
+          } catch (e: any) {
+            details.push(`⚠️ Exam wishes for ${student.fullName} could not be processed: ${e?.message}`);
           }
         }
       }
     }
-
-    // B. Exam Date Check
-    const examDate = student.examDate;
-    if (examDate) {
-      try {
-        const examDt = new Date(examDate);
-        if (!isNaN(examDt.getTime())) {
-          const diffDays = Math.ceil((examDt.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-          if (diffDays >= 0 && diffDays <= 2) {
-            const alreadySent = sentLogs.some(
-              l => (l.studentId === studentIdentifier || l.studentCode === student.studentCode) &&
-                   l.type === "EXAM_GOOD_LUCK" &&
-                   l.dateSent === todayDateStr
-            );
-
-            if (!alreadySent) {
-              const ok = await sendExamGoodLuckWishes(student, examDate);
-              if (ok) {
-                examWishesSent++;
-                details.push(`🍀 Exam Good Luck email sent to ${student.fullName} for exam on ${examDate}`);
-              }
-            }
-          }
-        }
-      } catch {}
-    }
   }
 
-  // 2. Scan Teachers for Birthdays
+  // Teachers' birthdays
   try {
     const { data: teachersData } = await supabaseAdmin.from("teachers").select("*");
-    if (teachersData && Array.isArray(teachersData)) {
-      for (const t of teachersData) {
-        const teacherDob = t.dob || t.date_of_birth || t.birth_date;
-        if (teacherDob && t.email) {
-          const parsed = parseDobMonthAndDay(teacherDob);
-          if (parsed && parsed.month === currentMonth && parsed.day === currentDay) {
-            const alreadySent = sentLogs.some(
-              l => l.studentId === t.id && l.type === "BIRTHDAY" && l.year === currentYear
-            );
-
-            if (!alreadySent) {
-              const ok = await sendTeacherBirthdayGreetings({
-                id: t.id,
-                name: t.name || "Faculty Member",
-                email: t.email,
-                phone: t.phone || ""
-              });
-              if (ok) {
-                birthdaysSent++;
-                details.push(`🎉 Birthday email sent to teacher ${t.name} (${t.email})`);
-              }
-            }
-          }
+    for (const t of (teachersData || []) as any[]) {
+      const teacherDob = t.dob || t.date_of_birth || t.birth_date;
+      const parsed = parseDobMonthAndDay(teacherDob);
+      if (parsed && t.email && isBirthdayToday(parsed, now)) {
+        if (await sendTeacherBirthdayGreetings({ id: t.id, name: t.name || "Faculty Member", email: t.email, phone: t.phone || "" })) {
+          birthdaysSent++;
+          details.push(`🎉 Birthday email sent to teacher ${t.name} (${t.email})`);
         }
       }
     }
   } catch (tErr: any) {
-    console.warn("Notice querying Supabase teachers for birthday scan:", tErr.message);
+    console.warn("Notice scanning teacher birthdays:", tErr?.message);
   }
 
   return { birthdaysSent, examWishesSent, details };
 }
 
-// Set automated daily check
+// The scan runs every 30 minutes. It is safe to repeat: email_log allows one wish per person per day,
+// and a restart simply continues. Nothing depends on how long the server has been running.
 let scanInterval: NodeJS.Timeout | null = null;
 export function initializeAutomatedEmailScheduler() {
   if (scanInterval) clearInterval(scanInterval);
 
-  console.log("⏰ Automated Birthday & Exam Email Scanner initialized (Checking every 12 hours)...");
+  console.log(`⏰ Automated birthday & exam email scan started (every 30 minutes, institute time zone ${instituteTimezone()}, from ${Number(process.env.BIRTHDAY_SEND_HOUR ?? 7)}:00)...`);
   setTimeout(() => {
-    runAutomatedEmailScan().catch(err => console.warn("Initial automated email scan notice:", err));
-  }, 5000);
+    runAutomatedEmailScan().catch(err => console.warn("Initial automated email scan notice:", err?.message));
+  }, 15_000);
 
   scanInterval = setInterval(() => {
-    runAutomatedEmailScan().catch(err => console.warn("Automated email scan interval notice:", err));
-  }, 12 * 60 * 60 * 1000);
+    runAutomatedEmailScan().catch(err => console.warn("Automated email scan notice:", err?.message));
+  }, 30 * 60 * 1000);
 }

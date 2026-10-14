@@ -1,5 +1,5 @@
 import { dispatchMultiChannelNotification } from "./notificationService.js";
-import { studentCourseBalancesStore } from "./courseHoursService.js";
+import { consumeAttendanceToken, refundAttendanceToken } from "./tokenService.js";
 import { inMemoryStudentStore } from "./studentService.js";
 
 export type AttendanceStatusEnum = "PRESENT" | "ABSENT" | "LATE" | "EXCUSED";
@@ -129,17 +129,17 @@ export class AttendanceService {
 
     attendanceStore.unshift(newRecord);
 
-    // Decrement 1 Paid Class Credit Hour from StudentCourseBalance
-    const balanceObj = studentCourseBalancesStore.find(
-      b => b.studentId === studentInfo.studentId
-    );
-
-    let remainingHours = 20;
-    if (balanceObj) {
-      balanceObj.usedHours += 1;
-      balanceObj.availableHours = Math.max(0, balanceObj.availableHours - 1);
-      balanceObj.updatedAt = nowIso;
-      remainingHours = balanceObj.availableHours;
+    // One class = one token (kept in Supabase; marking the same class again does nothing)
+    let remainingHours = 0;
+    try {
+      const used = await consumeAttendanceToken({
+        studentIdOrCode: studentInfo.studentId,
+        courseIdOrName: input.courseId || studentInfo.courseId || studentInfo.courseName,
+        classRef: `${input.courseId || studentInfo.courseId || studentInfo.courseName}:${todayStr}`,
+      });
+      remainingHours = used.balance ?? 0;
+    } catch (tokenErr: any) {
+      console.warn("Token deduction notice:", tokenErr?.message);
     }
 
     // Dispatch Arrival Parent Alert
@@ -206,13 +206,12 @@ export class AttendanceService {
       attendanceStore.unshift(record);
       createdRecords.push(record);
 
-      if (isAttended) {
-        const balObj = studentCourseBalancesStore.find(b => b.studentId === entry.studentId);
-        if (balObj) {
-          balObj.usedHours += 1;
-          balObj.availableHours = Math.max(0, balObj.availableHours - 1);
-          balObj.updatedAt = nowIso;
-        }
+      try {
+        const classRef = `${courseId}:${date || nowIso.slice(0, 10)}`;
+        if (isAttended) await consumeAttendanceToken({ studentIdOrCode: entry.studentId, courseIdOrName: courseId, classRef });
+        else await refundAttendanceToken({ studentIdOrCode: entry.studentId, courseIdOrName: courseId, classRef });
+      } catch (tokenErr: any) {
+        console.warn("Token update notice:", tokenErr?.message);
       }
     }
 

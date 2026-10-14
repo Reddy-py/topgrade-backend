@@ -5,6 +5,7 @@ import { dispatchMultiChannelNotification, sendClassScheduleEmail } from "../ser
 import { ScheduleDataService } from "../services/scheduleDataService.js";
 import type { AuthenticatedRequest } from "../middleware/auth.js";
 import { getAccessScope, allowsStudent, allowsTeacher, scopeSchedules } from "../services/accessScope.js";
+import { listOpenSlots, claimSlot, releaseSlot } from "../services/slotClaimService.js";
 
 const router = Router();
 
@@ -27,6 +28,34 @@ router.get("/list", async (req, res): Promise<any> => {
 });
 
 // 2. Fetch existing institutional courses strictly from database/CSV
+// Requirement 8: open classes a teacher may take, and taking / giving back a class.
+const claimFail = (res: Response, err: any) =>
+  res.status(err?.status || 500).json({ success: false, error: err?.message || "Could not complete this." });
+
+router.get("/open", async (req, res): Promise<any> => {
+  try {
+    const user = (req as AuthenticatedRequest).user!;
+    if (user.role !== "TEACHER") return res.status(200).json({ success: true, data: [] });
+    return res.status(200).json({ success: true, data: await listOpenSlots(user) });
+  } catch (err: any) { return claimFail(res, err); }
+});
+
+router.post("/:id/claim", async (req, res): Promise<any> => {
+  try {
+    const user = (req as AuthenticatedRequest).user!;
+    if (user.role !== "TEACHER") return res.status(403).json({ success: false, error: "Only a teacher can take a class. The admin assigns classes by editing them." });
+    const slot = await claimSlot(user, String(req.params.id));
+    return res.status(200).json({ success: true, message: `You are now teaching ${slot.course_name} on ${slot.day_of_week} (${slot.time_slot}).`, data: slot });
+  } catch (err: any) { return claimFail(res, err); }
+});
+
+router.post("/:id/release", async (req, res): Promise<any> => {
+  try {
+    await releaseSlot((req as AuthenticatedRequest).user!, String(req.params.id));
+    return res.status(200).json({ success: true, message: "The class is open for teachers again." });
+  } catch (err: any) { return claimFail(res, err); }
+});
+
 router.get("/existing-courses", async (_req, res): Promise<any> => {
   try {
     const courses = await ScheduleDataService.getExistingCourses();
@@ -52,6 +81,8 @@ const createScheduleSlotHandler = async (req: Request, res: Response): Promise<a
       max_capacity,
       students
     } = req.body;
+    // Requirement 8: a slot with no teacher that teachers can take themselves
+    const openForTeachers = req.body.open_for_teachers === true;
 
     const effectiveStartTime = start_time || (req.body.time_slot ? req.body.time_slot.split("-")[0]?.trim() : "");
     const effectiveEndTime = end_time || (req.body.time_slot ? req.body.time_slot.split("-")[1]?.trim() : "");
@@ -60,7 +91,7 @@ const createScheduleSlotHandler = async (req: Request, res: Response): Promise<a
       ? req.body.days_of_week
       : (Array.isArray(day_of_week) ? day_of_week : (day_of_week ? [day_of_week] : []));
 
-    if (!course_name || !teacher_name || daysList.length === 0 || !effectiveStartTime || !effectiveEndTime) {
+    if (!course_name || (!openForTeachers && !teacher_name) || daysList.length === 0 || !effectiveStartTime || !effectiveEndTime) {
       return res.status(400).json({
         success: false,
         error: "Missing mandatory schedule fields (course_name, teacher_name, day_of_week / days_of_week, start_time, end_time)."
@@ -87,8 +118,9 @@ const createScheduleSlotHandler = async (req: Request, res: Response): Promise<a
       const createdSlots = await ScheduleDataService.createMultiDaySchedules({
         course_id: course_id || `crs-${Date.now()}`,
         course_name,
-        teacher_id: teacher_id || "tchr-1",
-        teacher_name,
+        teacher_id: openForTeachers ? "" : (teacher_id || "tchr-1"),
+        teacher_name: openForTeachers ? "" : teacher_name,
+        open_for_teachers: openForTeachers,
         days_of_week: daysList,
         start_time: effectiveStartTime,
         end_time: effectiveEndTime,
@@ -110,8 +142,9 @@ const createScheduleSlotHandler = async (req: Request, res: Response): Promise<a
       id: req.body.id,
       course_id: course_id || `crs-${Date.now()}`,
       course_name,
-      teacher_id: teacher_id || "tchr-1",
-      teacher_name,
+      teacher_id: openForTeachers ? "" : (teacher_id || "tchr-1"),
+      teacher_name: openForTeachers ? "" : teacher_name,
+      open_for_teachers: openForTeachers,
       day_of_week: daysList[0],
       start_time: effectiveStartTime,
       end_time: effectiveEndTime,

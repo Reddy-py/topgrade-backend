@@ -1,0 +1,32 @@
+/**
+ * "Today" for the institute, not for the server. A server in another time zone (most hosts run on UTC)
+ * would otherwise send birthday wishes on the wrong day. Set INSTITUTE_TIMEZONE, for example Asia/Kolkata
+ * or America/New_York. Default: Asia/Kolkata.
+ */
+export const instituteTimezone = (): string => process.env.INSTITUTE_TIMEZONE || "Asia/Kolkata";
+
+export interface InstituteNow {
+  dateStr: string; // YYYY-MM-DD in the institute's time zone
+  year: number;
+  month: number;   // 1-12
+  day: number;     // 1-31
+  hour: number;    // 0-23
+}
+
+export function instituteNow(at: Date = new Date()): InstituteNow {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: instituteTimezone(),
+    year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23",
+  }).formatToParts(at);
+  const get = (t: string) => Number(parts.find(p => p.type === t)?.value ?? 0);
+  const year = get("year"), month = get("month"), day = get("day"), hour = get("hour");
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return { dateStr: `${year}-${pad(month)}-${pad(day)}`, year, month, day, hour };
+}
+
+/** True when this month/day is the birthday today. A 29 February birthday is celebrated on 28 February in non-leap years. */
+export function isBirthdayToday(dob: { month: number; day: number }, now: InstituteNow): boolean {
+  if (dob.month === now.month && dob.day === now.day) return true;
+  const leap = (now.year % 4 === 0 && now.year % 100 !== 0) || now.year % 400 === 0;
+  return !leap && dob.month === 2 && dob.day === 29 && now.month === 2 && now.day === 28;
+}

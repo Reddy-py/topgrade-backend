@@ -7,7 +7,9 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "verify:access": "tsx src/verify_access.ts"
+    "verify:access": "tsx src/verify_access.ts",
+    "import:students": "tsx src/importStudentsToSupabase.ts",
+    "reset:passwords": "tsx src/resetDefaultPasswords.ts"
   },
   "keywords": [],
   "author": "",

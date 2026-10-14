@@ -1,4 +1,5 @@
 import express from "express";
+import { studentContactEmails } from "../services/studentNotices.js";
 import { runAutomatedEmailScan, sendBirthdayGreetings, sendExamGoodLuckWishes, sendCourseExamNotification, getBirthdayLogs } from "../services/automatedEmailService.js";
 import { inMemoryStudentStore, saveStudentsToDisk } from "../services/studentService.js";
 import { supabaseAdmin } from "../supabase.js";
@@ -11,7 +12,7 @@ const router = express.Router();
  */
 router.post(["/trigger-birthdays", "/scan-birthdays"], async (_req, res): Promise<any> => {
   try {
-    const result = await runAutomatedEmailScan();
+    const result = await runAutomatedEmailScan({ ignoreSendHour: true });
     return res.status(200).json({
       success: true,
       sentCount: result.birthdaysSent,
@@ -31,7 +32,7 @@ router.post(["/trigger-birthdays", "/scan-birthdays"], async (_req, res): Promis
  */
 router.get("/birthday-logs", async (_req, res): Promise<any> => {
   try {
-    const logs = getBirthdayLogs();
+    const logs = await getBirthdayLogs();
     return res.status(200).json({
       success: true,
       count: logs.length,
@@ -48,7 +49,7 @@ router.get("/birthday-logs", async (_req, res): Promise<any> => {
  */
 router.post("/trigger-exam-wishes", async (_req, res): Promise<any> => {
   try {
-    const result = await runAutomatedEmailScan();
+    const result = await runAutomatedEmailScan({ ignoreSendHour: true });
     return res.status(200).json({
       success: true,
       message: `Exam good luck scan completed.`,
@@ -208,11 +209,12 @@ const sendBirthdayWishHandler = async (req: express.Request, res: express.Respon
       saveStudentsToDisk();
     }
 
-    if (!student || (!student.email && (!student.studentEmails || student.studentEmails.length === 0))) {
-      return res.status(400).json({ success: false, error: "Student email address is missing." });
+    if (!student || studentContactEmails(student).length === 0) {
+      return res.status(400).json({ success: false, error: "This student has no student email and no parent email." });
     }
 
-    const ok = await sendBirthdayGreetings(student);
+    // Admin pressed "send now": send even if today's wish already went out.
+    const ok = await sendBirthdayGreetings(student, { force: true });
     return res.status(200).json({
       success: ok,
       message: ok

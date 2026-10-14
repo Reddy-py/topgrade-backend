@@ -28,3 +28,36 @@ export async function resolveTeacherIdentity(user: { id?: string | undefined; em
   }
   return { keys, names };
 }
+
+export interface TeacherRecord {
+  id: string;
+  code: string;
+  name: string;
+  email: string;
+  status: string;
+  availabilityDays: string[];
+}
+
+/** The teachers-table row for a teacher login (matched by user id or exact email), or null. */
+export async function getTeacherRecord(user: { id?: string | undefined; email?: string | undefined }): Promise<TeacherRecord | null> {
+  const email = norm(user.email);
+  try {
+    const { data } = await supabaseAdmin.from("teachers").select("*");
+    for (const t of (data || []) as any[]) {
+      if ((user.id && norm(t.user_id) === norm(user.id)) || (email && norm(t.email) === email)) {
+        const days = t.availability_days ?? t.available_days ?? [];
+        return {
+          id: String(t.id),
+          code: String(t.teacher_id_code || ""),
+          name: String(t.name || ""),
+          email: String(t.email || ""),
+          status: String(t.status || "Active"),
+          availabilityDays: Array.isArray(days) ? days.map((d: any) => String(d)) : [],
+        };
+      }
+    }
+  } catch (err: any) {
+    console.warn("getTeacherRecord notice:", err?.message);
+  }
+  return null;
+}

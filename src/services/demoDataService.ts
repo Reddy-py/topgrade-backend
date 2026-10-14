@@ -1,5 +1,4 @@
 import { attendanceStore, type ScanMethodEnum } from "./attendanceService.js";
-import { studentCourseBalancesStore } from "./courseHoursService.js";
 
 export interface DemoTeacherSeed {
   id: string;
@@ -163,23 +162,8 @@ export class DemoDataService {
     });
     demoStudentsPool.push(...students);
 
-    // D. Hydrate Student Course Balances & Initial Attendance Logs
+    // D. Initial attendance logs
     students.forEach((s, idx) => {
-      studentCourseBalancesStore.push({
-        id: `bal-demo-${s.id}`,
-        studentId: s.id,
-        studentName: s.fullName,
-        courseId: s.enrolledCourseId,
-        courseName: s.enrolledCourseName,
-        pricingModel: "HOURLY_CREDIT_PACKAGE",
-        totalPurchasedHours: s.availableHours + 10,
-        availableHours: s.availableHours,
-        usedHours: 10,
-        status: "ACTIVE",
-        quotaWarningTriggered: s.availableHours <= 2,
-        teacherWarningMessage: s.availableHours <= 2 ? `⚠️ Quota Warning: Only ${s.availableHours} session(s) remaining!` : undefined,
-        updatedAt: new Date().toISOString()
-      });
 
       attendanceStore.push({
         id: `att-demo-${s.id}`,
@@ -219,12 +203,6 @@ export class DemoDataService {
     demoTeachersPool = [];
     demoCoursesPool = [];
     demoStudentsPool = [];
-
-    for (let i = studentCourseBalancesStore.length - 1; i >= 0; i--) {
-      if (studentCourseBalancesStore[i]?.studentId?.startsWith("std-demo-")) {
-        studentCourseBalancesStore.splice(i, 1);
-      }
-    }
 
     for (let i = attendanceStore.length - 1; i >= 0; i--) {
       if (attendanceStore[i]?.studentId?.startsWith("std-demo-") || attendanceStore[i]?.id?.startsWith("att-demo-")) {

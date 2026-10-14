@@ -3,6 +3,8 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { dispatchMultiChannelNotification } from "./notificationService.js";
 import { resolveTeacherIdentity } from "./teacherIdentity.js";
+import { ensureLogin, deleteLogin, emailSetPasswordLink, normEmail, isValidEmail } from "./studentAccounts.js";
+import { sendStudentAddedEmail, sendStudentUpdatedEmail } from "./studentNotices.js";
 import { sendExamGoodLuckWishes, sendBirthdayGreetings } from "./automatedEmailService.js";
 import { inMemoryTeachers } from "../routes/teachers.js";
 import { supabaseAdmin } from "../supabase.js";
@@ -103,37 +105,46 @@ export function calculateAgeFromDOB(dob: Date | string): number {
 // Persistent Storage Layer (Disk File + In-Memory Cache)
 export let inMemoryStudentStore: StudentDossier[] = [];
 
-function loadStudentsFromDisk(): StudentDossier[] {
-  try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-    if (fs.existsSync(DB_FILE_PATH)) {
-      const content = fs.readFileSync(DB_FILE_PATH, "utf-8");
-      const parsed = JSON.parse(content);
-      if (Array.isArray(parsed)) {
-        return parsed;
-      }
-    }
-  } catch (err) {
-    console.warn("Notice reading students_db.json:", err);
-  }
-  return [];
+// Supabase is the ONLY store for students. This array is a short-lived cache that is refreshed from Supabase
+// (every few seconds, and after every change). Nothing is written to disk any more.
+const isUuid = (str?: string | null): boolean =>
+  !!str && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+
+/** The full student record that is saved in the students.dossier column. Never contains a password. */
+function dossierForStorage(student: StudentDossier): any {
+  const { password: _omit, ...rest } = student as any;
+  return rest;
 }
 
-export function saveStudentsToDisk() {
-  try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-    fs.writeFileSync(DB_FILE_PATH, JSON.stringify(inMemoryStudentStore, null, 2), "utf-8");
-  } catch (err) {
-    console.error("Error saving students_db.json:", err);
+/**
+ * Saves the full record of one student to Supabase (students row columns + the student_dossiers table).
+ * student_dossiers is readable only by the backend, so extra details (fees plan, parent contacts) never reach the browser.
+ * Throws if it fails, so callers never report a false success.
+ */
+async function persistDossier(student: StudentDossier, extraColumns: Record<string, unknown> = {}): Promise<void> {
+  let rowId: string | null = isUuid(student.id) ? (student.id as string) : null;
+  if (!rowId) {
+    const { data } = await supabaseAdmin.from("students").select("id").eq("student_id_code", student.studentCode).maybeSingle();
+    rowId = (data?.id as string | undefined) ?? null;
   }
+  if (!rowId) throw new Error("Could not save the student: its row was not found in Supabase.");
+
+  if (Object.keys(extraColumns).length > 0) {
+    const { error: colErr } = await supabaseAdmin.from("students").update(extraColumns).eq("id", rowId);
+    if (colErr) throw new Error(`Could not save the student: ${colErr.message}`);
+  }
+  const { error } = await supabaseAdmin
+    .from("student_dossiers")
+    .upsert({ student_id: rowId, dossier: dossierForStorage(student), updated_at: new Date().toISOString() }, { onConflict: "student_id" });
+  if (error) throw new Error(`Could not save the student: ${error.message}`);
 }
 
-// Initialize from persistent file on startup
-inMemoryStudentStore = loadStudentsFromDisk();
+/** Kept so older callers still compile. It intentionally does nothing: there is no students_db.json any more. */
+export function saveStudentsToDisk(): void {
+  /* no-op */
+}
+
+inMemoryStudentStore = [];
 let lastSupabaseStudentFetch = 0;
 
 /**
@@ -158,7 +169,13 @@ export async function getStudentsService(params: {
   if (params.refresh || Date.now() - lastSupabaseStudentFetch > 3000 || inMemoryStudentStore.length === 0) {
     try {
       const { data, error } = await supabaseAdmin.from("students").select("*").order("name", { ascending: true });
-      if (!error && data && data.length > 0) {
+      const dossierById = new Map<string, any>();
+      if (!error && data) {
+        const { data: dossierRows, error: dossierErr } = await supabaseAdmin.from("student_dossiers").select("student_id, dossier");
+        if (dossierErr) console.warn("Notice reading student_dossiers (run the 20261011 migration):", dossierErr.message);
+        for (const d of (dossierRows || []) as any[]) dossierById.set(d.student_id, d.dossier);
+      }
+      if (!error && data) {
         lastSupabaseStudentFetch = Date.now();
         inMemoryStudentStore = data.map((s: any) => {
           const existing = inMemoryStudentStore.find(ex => ex.id === s.id || ex.studentCode === s.student_id_code);
@@ -168,7 +185,7 @@ export async function getStudentsService(params: {
           const studentAddress = s.student_address || s.alternate_address || existing?.studentAddress || "";
           const examDate = s.exam_date || (s.medical_notes && s.medical_notes.startsWith("EXAM_DATE:") ? s.medical_notes.replace("EXAM_DATE:", "") : (existing?.examDate || ""));
 
-          return {
+          const mapped: any = {
             id: s.id,
             studentCode: s.student_id_code || s.studentCode || existing?.studentCode || `TG-STU-${s.id?.slice(0, 4)}`,
             fullName: s.name || s.full_name || s.fullName || existing?.fullName || "Student",
@@ -204,8 +221,21 @@ export async function getStudentsService(params: {
             feePlan: s.fee_plan || existing?.feePlan || "Standard Plan",
             allocatedCourses: (s.allocated_courses && s.allocated_courses.length > 0) ? s.allocated_courses : (existing?.allocatedCourses && existing.allocatedCourses.length > 0 ? existing.allocatedCourses : (s.program ? [{ courseName: s.program, duration: "3 Months" }] : []))
           };
+          const stored = dossierById.get(s.id) || {};
+          // The saved dossier carries the extended fields. The table columns stay authoritative for the core ones.
+          return {
+            ...mapped,
+            ...stored,
+            id: s.id,
+            studentCode: mapped.studentCode,
+            fullName: mapped.fullName,
+            email: mapped.email,
+            dob: mapped.dob,
+            status: mapped.status,
+            parentEmails: mapped.parentEmails,
+            password: undefined,
+          };
         });
-        saveStudentsToDisk();
       }
     } catch (err) {
       console.warn("Notice syncing students from Supabase:", err);
@@ -404,6 +434,31 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
     cleanStudentEmails.push(payload.email);
   }
 
+  // Parent email is MANDATORY: the parent login is created from it (father and mother = two logins).
+  const uniqueParentEmails = Array.from(new Set(cleanParentEmails.map(normEmail)));
+  if (uniqueParentEmails.length === 0) {
+    throw new Error("Parent email is mandatory. Enter at least one parent email (father and/or mother): the parent login is created from it.");
+  }
+  const badParentEmail = uniqueParentEmails.find(e => !isValidEmail(e));
+  if (badParentEmail) {
+    throw new Error(`'${badParentEmail}' is not a valid parent email.`);
+  }
+  cleanParentEmails.splice(0, cleanParentEmails.length, ...uniqueParentEmails);
+
+  const studentLoginEmail = normEmail(cleanStudentEmails[0] || payload.email);
+  if (studentLoginEmail && !isValidEmail(studentLoginEmail)) {
+    throw new Error(`'${studentLoginEmail}' is not a valid student email.`);
+  }
+  if (studentLoginEmail && uniqueParentEmails.includes(studentLoginEmail)) {
+    throw new Error("A parent email must be different from the student's own email, because each email is one login.");
+  }
+  if (studentLoginEmail) {
+    const { data: dupStudent } = await supabaseAdmin.from("students").select("id").eq("email", studentLoginEmail).limit(1);
+    if (dupStudent && dupStudent.length > 0) {
+      throw new Error("A student with this email already exists.");
+    }
+  }
+
   const allocatedCourses: CourseAllocation[] = payload.allocatedCourses && payload.allocatedCourses.length > 0
     ? payload.allocatedCourses
     : [{ courseName: payload.program || "Standard Curriculum", duration: payload.courseDuration || "6 Months" }];
@@ -447,7 +502,6 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
     purchasedHours: payload.purchasedHours ? Number(payload.purchasedHours) : 20,
     officeAddress: payload.officeAddress || "",
 
-    password: payload.password || "Student@TopGrade2026",
     admissionDate: payload.admissionDate || new Date().toISOString().split("T")[0],
     program: allocatedCourses[0]?.courseName || payload.program || "Standard Curriculum",
     allocatedCourses,
@@ -463,117 +517,79 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
     updatedAt: new Date().toISOString()
   };
 
-  inMemoryStudentStore.unshift(newStudent);
-  saveStudentsToDisk();
-  lastSupabaseStudentFetch = 0; // invalidate cache
+  // 1) Save the student in Supabase FIRST. If this fails nothing else happens and the admin sees the error.
+  const sbAddress = newStudent.residentialAddress
+    ? (newStudent.school ? `${newStudent.residentialAddress} | School: ${newStudent.school}` : newStudent.residentialAddress)
+    : (newStudent.school ? `School: ${newStudent.school}` : "");
+  const sbNationality = newStudent.grade
+    ? (newStudent.grade.startsWith("Grade") ? newStudent.grade : `Grade: ${newStudent.grade}`)
+    : null;
 
-  // ─── Real-time Supabase Database & Auth Sync ───
-  try {
-    let authUserId: string | null = null;
-    if (newStudent.email) {
-      const studentEmail = newStudent.email.trim().toLowerCase();
-      const studentPassword = newStudent.password || "Student@TopGrade2026";
-      const { data: authCreated, error: authErr } = await supabaseAdmin.auth.admin.createUser({
-        email: studentEmail,
-        password: studentPassword,
-        email_confirm: true,
-        user_metadata: {
-          full_name: newStudent.fullName,
-          role: "STUDENT",
-          student_code: newStudent.studentCode
-        }
-      });
-      if (authCreated?.user) {
-        authUserId = authCreated.user.id;
-      } else if (authErr) {
-        console.warn("Notice: student auth createUser:", authErr.message);
-      }
-      // Also record student in profiles table
-      await supabaseAdmin.from("profiles").upsert({
-        ...(authUserId ? { id: authUserId } : {}),
-        email: studentEmail,
-        full_name: newStudent.fullName,
-        role: "STUDENT",
-        status: "Active",
-        updated_at: new Date().toISOString()
-      }, { onConflict: "email" });
-    }
+  const studentRow: any = {
+    name: newStudent.fullName,
+    student_id_code: newStudent.studentCode,
+    gender: newStudent.gender || "Male",
+    dob: newStudent.dob || null,
+    age: newStudent.age || 0,
+    phone: newStudent.primaryMobile || null,
+    email: newStudent.email || null,
+    father_name: newStudent.fatherName || null,
+    mother_name: newStudent.motherName || null,
+    guardian: newStudent.guardianName || null,
+    father_phone: cleanParentPhones[0] || null,
+    parent_emails: cleanParentEmails.map(e => e.trim().toLowerCase()),
+    nationality: sbNationality,
+    address: sbAddress,
+    alternate_address: newStudent.studentAddress || newStudent.alternateAddress || "",
+    purchased_hours: newStudent.purchasedHours || 20,
+    govt_id_url: newStudent.profileImageUrl || newStudent.photoUrl || null,
+    medical_notes: newStudent.examDate ? `EXAM_DATE:${newStudent.examDate}` : null,
+    program: newStudent.program || "General Academic Track",
+    teacher: newStudent.teacher || "Unassigned",
+    status: newStudent.status || "ACTIVE"
+  };
 
-    // Parent Auth & Profile in Supabase
-    if (cleanParentEmails[0]) {
-      const parentEmail = cleanParentEmails[0].trim().toLowerCase();
-      const parentPassword = "Parent@TopGrade2026";
-      let parentAuthId: string | null = null;
-      try {
-        const { data: pAuthCreated } = await supabaseAdmin.auth.admin.createUser({
-          email: parentEmail,
-          password: parentPassword,
-          email_confirm: true,
-          user_metadata: {
-            full_name: newStudent.fatherName || newStudent.motherName || "Parent",
-            role: "PARENT",
-            student_code: newStudent.studentCode,
-            student_name: newStudent.fullName
-          }
-        });
-        if (pAuthCreated?.user) parentAuthId = pAuthCreated.user.id;
-      } catch (pe: any) {
-        console.warn("Parent admin.createUser notice:", pe?.message);
-      }
-
-      try {
-        await supabaseAdmin.from("profiles").upsert({
-          ...(parentAuthId ? { id: parentAuthId } : {}),
-          email: parentEmail,
-          full_name: newStudent.fatherName || newStudent.motherName || "Parent",
-          role: "PARENT",
-          status: "Active",
-          updated_at: new Date().toISOString()
-        }, { onConflict: "email" });
-      } catch (pe: any) {
-        console.warn("Parent profile upsert notice:", pe?.message);
-      }
-    }
-
-    const sbAddress = newStudent.residentialAddress
-      ? (newStudent.school ? `${newStudent.residentialAddress} | School: ${newStudent.school}` : newStudent.residentialAddress)
-      : (newStudent.school ? `School: ${newStudent.school}` : "");
-    const sbNationality = newStudent.grade
-      ? (newStudent.grade.startsWith("Grade") ? newStudent.grade : `Grade: ${newStudent.grade}`)
-      : null;
-
-    const studentRow: any = {
-      name: newStudent.fullName,
-      student_id_code: newStudent.studentCode,
-      gender: newStudent.gender || "Male",
-      dob: newStudent.dob || null,
-      age: newStudent.age || 0,
-      phone: newStudent.primaryMobile || null,
-      email: newStudent.email || null,
-      father_name: newStudent.fatherName || null,
-      mother_name: newStudent.motherName || null,
-      guardian: newStudent.guardianName || null,
-      father_phone: cleanParentPhones[0] || null,
-      parent_emails: cleanParentEmails.map(e => e.trim().toLowerCase()),
-      nationality: sbNationality,
-      address: sbAddress,
-      alternate_address: newStudent.studentAddress || newStudent.alternateAddress || "",
-      purchased_hours: newStudent.purchasedHours || 20,
-      govt_id_url: newStudent.profileImageUrl || newStudent.photoUrl || null,
-      medical_notes: newStudent.examDate ? `EXAM_DATE:${newStudent.examDate}` : null,
-      program: newStudent.program || "General Academic Track",
-      teacher: newStudent.teacher || "Unassigned",
-      status: newStudent.status || "ACTIVE"
-    };
-    if (authUserId) studentRow.user_id = authUserId;
-
-    const { error: stuUpsertErr } = await supabaseAdmin.from("students").upsert(studentRow, { onConflict: "student_id_code" });
-    if (stuUpsertErr) {
-      console.warn("Supabase student upsert notice:", stuUpsertErr.message);
-    }
-  } catch (sbErr: any) {
-    console.warn("Supabase student sync notice:", sbErr?.message);
+  const { data: insertedRow, error: insertErr } = await supabaseAdmin
+    .from("students")
+    .insert(studentRow)
+    .select("id")
+    .single();
+  if (insertErr || !insertedRow) {
+    throw new Error(`Could not save the student: ${insertErr?.message || "no row returned"}`);
   }
+  newStudent.id = insertedRow.id as string;
+  try {
+    await persistDossier(newStudent);
+  } catch (dossierErr: any) {
+    await supabaseAdmin.from("students").delete().eq("id", newStudent.id);
+    throw dossierErr;
+  }
+
+  // 2) One login per email: the student (if they have an email) and EVERY parent email.
+  const newLogins: Array<{ email: string; name: string; role: "STUDENT" | "PARENT"; userId: string }> = [];
+  const existingParentLogins: Array<{ email: string; name: string }> = [];
+  try {
+    if (studentLoginEmail) {
+      const l = await ensureLogin({ email: studentLoginEmail, fullName: newStudent.fullName, role: "STUDENT", metadata: { student_code: newStudent.studentCode } });
+      await supabaseAdmin.from("students").update({ user_id: l.userId }).eq("id", newStudent.id);
+      if (l.created) newLogins.push({ email: studentLoginEmail, name: newStudent.fullName, role: "STUDENT", userId: l.userId });
+    }
+    for (const parentEmail of cleanParentEmails) {
+      const parentName = newStudent.fatherName || newStudent.motherName || "Parent";
+      const l = await ensureLogin({ email: parentEmail, fullName: parentName, role: "PARENT", metadata: { student_code: newStudent.studentCode } });
+      if (l.created) newLogins.push({ email: parentEmail, name: parentName, role: "PARENT", userId: l.userId });
+      else existingParentLogins.push({ email: parentEmail, name: parentName });
+    }
+  } catch (loginErr: any) {
+    // Undo: no half-created student without logins.
+    for (const nl of newLogins) await deleteLogin(nl.userId);
+    await supabaseAdmin.from("students").delete().eq("id", newStudent.id);
+    throw new Error(loginErr?.message || "Could not create the logins for this student.");
+  }
+
+  // 3) Only now does the student exist for the rest of the app.
+  inMemoryStudentStore.unshift(newStudent);
+  lastSupabaseStudentFetch = 0; // invalidate cache
 
   // Automatic Birthday Wish Email Trigger if Birthday is today
   if (newStudent.dob) {
@@ -594,40 +610,32 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
     }
   }
 
-  // Multi-Email Dispatch Notification to Respected Student & Parent Email Addresses
+  // 4) Emails. New logins get a one-time set-password link (no default passwords). A parent who already had a
+  //    login (a second child) gets a notice. The admin gets a summary without any link.
   try {
-    const parentEmail = cleanParentEmails[0] || `parent.${(newStudent.fatherName || newStudent.firstName || "guardian").toLowerCase().replace(/[^a-z0-9]/g, "")}.${(newStudent.studentCode || "").replace(/[^0-9]/g, "") || Math.floor(1000 + Math.random() * 9000)}@parents.topgrade.edu`;
-    const parentPassword = "Parent@TopGrade2026";
-
-    const recipients: Array<{ role: "STUDENT" | "PARENT" | "TEACHER" | "ADMIN"; email: string; name: string; phone: string }> = [];
-    
-    cleanStudentEmails.forEach(e => {
-      recipients.push({ role: "STUDENT", email: e, name: newStudent.fullName, phone: newStudent.primaryMobile || "" });
-    });
-    
-    if (cleanParentEmails.length > 0) {
-      cleanParentEmails.forEach(e => {
-        recipients.push({ role: "PARENT", email: e, name: newStudent.fatherName || "Parent", phone: cleanParentPhones[0] || "" });
+    for (const nl of newLogins) {
+      await emailSetPasswordLink({ email: nl.email, name: nl.name, role: nl.role, childName: newStudent.fullName });
+    }
+    for (const ep of existingParentLogins) {
+      await dispatchMultiChannelNotification({
+        eventType: "ADMISSION_APPROVED",
+        subject: `New student added to your TopGrade parent login: ${newStudent.fullName}`,
+        message: `Dear ${ep.name},\n\n${newStudent.fullName} (${newStudent.studentCode}) was added to your parent login. Sign in with your usual password to see the courses, attendance and schedule.`,
+        recipients: [{ role: "PARENT", email: ep.email, name: ep.name, phone: "" }]
       });
-    } else {
-      recipients.push({ role: "PARENT", email: parentEmail, name: newStudent.fatherName || "Parent", phone: cleanParentPhones[0] || "" });
     }
-
-    if (recipients.length === 0 && newStudent.email) {
-      recipients.push({ role: "STUDENT", email: newStudent.email, name: newStudent.fullName, phone: newStudent.primaryMobile || "" });
-    }
+    // Requirement 2: the student (or the parent, if the student has no email) is told what was registered.
+    await sendStudentAddedEmail(newStudent);
 
     const adminEmail = process.env.ADMIN_EMAIL || "tglbiz101@gmail.com";
-    recipients.push({ role: "ADMIN", email: adminEmail, name: "System Administrator", phone: "" });
-
     await dispatchMultiChannelNotification({
-      eventType: "PAYMENT_COMPLETED",
-      subject: `🎉 Student Enrollment Registered — ${newStudent.fullName} (${newStudent.studentCode})`,
-      message: `Dear ${newStudent.fullName} & Parent,\n\nCongratulations! Your student profile has been registered in TopGrade CRM.\n\n📋 Dossier Summary:\n• Student Name: ${newStudent.fullName}\n• Student ID Code: ${newStudent.studentCode}\n• School: ${newStudent.school}\n• Grade: ${newStudent.grade}\n• Enrolled Courses: ${newStudent.allocatedCourses?.map(c => c.courseName).join(", ")}\n\n🔑 Student Portal Login Credentials:\n• Portal Email: ${newStudent.email}\n• Password: ${newStudent.password}\n• Role: STUDENT\n\n👨‍👩‍👧 Parent Portal Login Credentials:\n• Parent Portal Email: ${parentEmail}\n• Password: ${parentPassword}\n• Role: PARENT\n• Parent Portal Features: Track your child's attendance, weekly schedule slots, fee receipts, and academic reports.\n\nThank you for choosing TopGrade CRM!`,
-      recipients
+      eventType: "ADMISSION_APPROVED",
+      subject: `New student registered: ${newStudent.fullName} (${newStudent.studentCode})`,
+      message: `Student ${newStudent.fullName} (${newStudent.studentCode}) was registered.\nStudent login: ${studentLoginEmail || "none (no student email)"}\nParent logins: ${cleanParentEmails.join(", ")}\nSet-password emails sent to: ${newLogins.map(n => n.email).join(", ") || "nobody (all logins already existed)"}`,
+      recipients: [{ role: "ADMIN", email: adminEmail, name: "System Administrator", phone: "" }]
     });
   } catch (err) {
-    // Non-blocking log
+    console.warn("Notice sending new-student emails:", err);
   }
 
   return newStudent;
@@ -637,119 +645,36 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
  * Service to dispatch Parent Credentials specifically on demand
  */
 export async function sendParentCredentialsService(studentIdOrCode: string): Promise<{ success: boolean; message: string; parentEmail: string }> {
-  const isUUID = (str?: string | null): boolean =>
-    !!str && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
-
-  let student = inMemoryStudentStore.find(s => s.id === studentIdOrCode || s.studentCode === studentIdOrCode);
+  let student = inMemoryStudentStore.find(st => st.id === studentIdOrCode || st.studentCode === studentIdOrCode);
   if (!student) {
-    try {
-      let sbQuery = supabaseAdmin.from("students").select("*");
-      if (isUUID(studentIdOrCode)) {
-        sbQuery = sbQuery.eq("id", studentIdOrCode);
-      } else {
-        sbQuery = sbQuery.eq("student_id_code", studentIdOrCode);
-      }
-      const { data } = await sbQuery.maybeSingle();
-      if (data) {
-        student = {
-          id: data.id,
-          studentCode: data.student_id_code,
-          fullName: data.name,
-          firstName: (data.name || "").split(" ")[0] || "Student",
-          lastName: (data.name || "").split(" ").slice(1).join(" ") || "",
-          email: data.email,
-          dob: data.dob || "2005-01-01",
-          age: data.age || 18,
-          school: data.school || "Top Grade Academy",
-          grade: data.grade || "Grade 10",
-          status: data.status || "ACTIVE",
-          primaryMobile: data.phone || "",
-          studentPhones: [data.phone || ""].filter(Boolean),
-          parentPhones: [data.father_phone || ""].filter(Boolean),
-          studentEmails: [data.email || ""].filter(Boolean),
-          parentEmails: [],
-          fatherName: data.father_name || "Parent",
-          motherName: data.mother_name || "",
-          guardianName: data.guardian || "",
-          program: data.program || "General Track",
-          teacher: data.teacher || "Unassigned",
-          allocatedCourses: data.allocated_courses || [],
-          password: data.password || "Student@123"
-        } as any;
-      }
-    } catch (e) {}
+    await getStudentsService({ refresh: true, limit: 100000 });
+    student = inMemoryStudentStore.find(st => st.id === studentIdOrCode || st.studentCode === studentIdOrCode);
+  }
+  if (!student) throw new Error(`Student '${studentIdOrCode}' not found.`);
+
+  const parentEmails = Array.from(new Set((student.parentEmails || []).map(normEmail).filter(Boolean)));
+  if (parentEmails.length === 0) {
+    throw new Error("This student has no parent email. Add at least one parent email first (it is mandatory).");
   }
 
-  if (!student) {
-    throw new Error(`Student record not found for ID/Code '${studentIdOrCode}'.`);
+  // Creates any login that is missing (for example a second parent added later), then emails a set-password link.
+  const sent: string[] = [];
+  for (const email of parentEmails) {
+    const name = student.fatherName || student.motherName || "Parent";
+    await ensureLogin({ email, fullName: name, role: "PARENT", metadata: { student_code: student.studentCode } });
+    if (await emailSetPasswordLink({ email, name, role: "PARENT", childName: student.fullName })) sent.push(email);
   }
-
-  const cleanParentEmails = (student.parentEmails || []).filter(e => e && e.includes("@"));
-  const defaultParentEmail = `parent.${(student.fatherName || student.firstName || "guardian").toLowerCase().replace(/[^a-z0-9]/g, "")}.${(student.studentCode || "").replace(/[^0-9]/g, "") || "2026"}@parents.topgrade.edu`;
-  const parentEmail = cleanParentEmails[0] || defaultParentEmail;
-  const parentPassword = "Parent@TopGrade2026";
-  const parentName = student.fatherName || student.motherName || student.guardianName || `${student.fullName}'s Parent`;
-
-  // Ensure Parent User exists in Supabase Auth & profiles
-  try {
-    const { data: pAuth } = await supabaseAdmin.auth.admin.createUser({
-      email: parentEmail,
-      password: parentPassword,
-      email_confirm: true,
-      user_metadata: {
-        role: "PARENT",
-        full_name: parentName,
-        child_code: student.studentCode,
-        child_codes: [student.studentCode],
-        child_name: student.fullName
-      }
-    });
-
-    await supabaseAdmin.from("profiles").upsert({
-      ...(pAuth?.user?.id ? { id: pAuth.user.id } : {}),
-      email: parentEmail,
-      full_name: parentName,
-      role: "PARENT",
-      status: "Active",
-      updated_at: new Date().toISOString()
-    }, { onConflict: "email" });
-  } catch (authErr) {
-    // If user already exists, update their metadata
-    try {
-      const { data: userList } = await supabaseAdmin.auth.admin.listUsers();
-      const existingUser = userList?.users?.find(u => u.email?.toLowerCase() === parentEmail.toLowerCase());
-      if (existingUser) {
-        await supabaseAdmin.auth.admin.updateUserById(existingUser.id, {
-          user_metadata: {
-            ...existingUser.user_metadata,
-            role: "PARENT",
-            full_name: parentName,
-            child_code: student.studentCode,
-            child_codes: Array.from(new Set([...(existingUser.user_metadata?.child_codes || []), student.studentCode])),
-            child_name: student.fullName
-          }
-        });
-      }
-    } catch {}
+  const studentEmail = normEmail(student.email);
+  if (studentEmail) {
+    await ensureLogin({ email: studentEmail, fullName: student.fullName, role: "STUDENT", metadata: { student_code: student.studentCode } });
+    if (await emailSetPasswordLink({ email: studentEmail, name: student.fullName, role: "STUDENT" })) sent.push(studentEmail);
   }
-
-  // Dispatch Email
-  const recipients = [
-    { role: "PARENT" as const, email: parentEmail, name: parentName, phone: student.parentPhones?.[0] || "" },
-    { role: "ADMIN" as const, email: process.env.ADMIN_EMAIL || "tglbiz101@gmail.com", name: "TopGrade Admin", phone: "" }
-  ];
-
-  await dispatchMultiChannelNotification({
-    eventType: "PAYMENT_COMPLETED",
-    subject: `🔑 TopGrade CRM — Parent Portal Access Credentials for ${student.fullName}`,
-    message: `Dear ${parentName},\n\nHere are your official TopGrade CRM Parent Portal credentials to access your child's academic schedules, attendance records, course streams, and tuition statements:\n\n👤 Student Information:\n• Student Name: ${student.fullName}\n• Student ID Code: ${student.studentCode}\n• School: ${student.school || "Top Grade Academy"}\n• Grade: ${student.grade || "General"}\n\n🔑 Parent Login Credentials:\n• Parent Portal Email: ${parentEmail}\n• Password: ${parentPassword}\n• Role: PARENT\n\n🌐 Sign In: You can sign in using these credentials at the TopGrade CRM login screen.\n\nThank you,\nTopGrade CRM Administration`,
-    recipients
-  });
+  if (sent.length === 0) throw new Error("Could not create the set-password links. Check the Supabase connection and try again.");
 
   return {
     success: true,
-    message: `Parent credentials successfully dispatched to '${parentEmail}'.`,
-    parentEmail
+    message: `Set-password links sent to ${sent.join(", ")}.`,
+    parentEmail: parentEmails.join(", "),
   };
 }
 
@@ -844,9 +769,20 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
     updatedAt: new Date().toISOString()
   };
 
-  inMemoryStudentStore[index] = updated;
-  saveStudentsToDisk();
-  lastSupabaseStudentFetch = Date.now(); // Keep updated memory cache active
+  // Parent email stays mandatory when editing: at least one valid parent email, different from the student's own email.
+  const nextParentEmails = Array.from(new Set((updated.parentEmails || []).map(normEmail).filter(Boolean)));
+  if (nextParentEmails.length === 0) {
+    throw new Error("Parent email is mandatory. Enter at least one parent email (father and/or mother).");
+  }
+  const badParent = nextParentEmails.find(e => !isValidEmail(e));
+  if (badParent) throw new Error(`'${badParent}' is not a valid parent email.`);
+  const nextStudentEmail = normEmail(updated.email);
+  if (nextStudentEmail && !isValidEmail(nextStudentEmail)) throw new Error(`'${nextStudentEmail}' is not a valid student email.`);
+  if (nextStudentEmail && nextParentEmails.includes(nextStudentEmail)) {
+    throw new Error("A parent email must be different from the student's own email, because each email is one login.");
+  }
+  updated.parentEmails = nextParentEmails;
+  delete (updated as any).password;
 
   // Real-time Supabase Update Sync
   try {
@@ -883,43 +819,61 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
     const targetIdToUpdate = isUUID(updated.id) ? updated.id : (isUUID(id) ? id : null);
     if (targetIdToUpdate) {
       const { error: sbErr } = await supabaseAdmin.from("students").update(updateFields).eq("id", targetIdToUpdate);
-      if (sbErr) console.warn("Notice updating student by id in Supabase:", sbErr.message);
+      if (sbErr) throw new Error(`Could not save the student: ${sbErr.message}`);
     } else {
       const codeToUpdate = updated.studentCode || id;
       const { error: sbErr } = await supabaseAdmin.from("students").update(updateFields).eq("student_id_code", codeToUpdate);
-      if (sbErr) console.warn("Notice updating student by code in Supabase:", sbErr.message);
+      if (sbErr) throw new Error(`Could not save the student: ${sbErr.message}`);
     }
 
-    // Update profiles table in Supabase if email exists
-    if (updated.email) {
-      try {
-        const photoCdnUrl = updated.profileImageUrl || updated.photoUrl || null;
-        if (existing.email && existing.email.toLowerCase() !== updated.email.toLowerCase()) {
-          await supabaseAdmin.from("profiles").update({
-            email: updated.email,
-            full_name: updated.fullName,
-            avatar_url: photoCdnUrl,
-            updated_at: new Date().toISOString()
-          }).eq("email", existing.email);
-        } else {
-          await supabaseAdmin.from("profiles").upsert({
-            email: updated.email,
-            full_name: updated.fullName,
-            avatar_url: photoCdnUrl,
-            role: "STUDENT",
-            status: "Active",
-            updated_at: new Date().toISOString()
-          }, { onConflict: "email" });
+    await persistDossier(updated);
+
+    // Keep the logins in step with the record. One login per email.
+    const photoCdnUrl = updated.profileImageUrl || updated.photoUrl || null;
+    if (nextStudentEmail) {
+      const prevEmail = normEmail(existing.email);
+      if (prevEmail && prevEmail !== nextStudentEmail) {
+        const { data: prof } = await supabaseAdmin.from("profiles").select("id").eq("email", prevEmail).maybeSingle();
+        if (prof) {
+          const { error: authEmailErr } = await supabaseAdmin.auth.admin.updateUserById(prof.id, { email: nextStudentEmail, email_confirm: true });
+          if (authEmailErr) throw new Error(`Could not change the login email: ${authEmailErr.message}`);
+          await supabaseAdmin.from("profiles").update({ email: nextStudentEmail, full_name: updated.fullName, avatar_url: photoCdnUrl, updated_at: new Date().toISOString() }).eq("id", prof.id);
         }
-      } catch (profErr: any) {
-        console.warn("Supabase profiles update notice:", profErr?.message);
+      }
+      const l = await ensureLogin({ email: nextStudentEmail, fullName: updated.fullName, role: "STUDENT", metadata: { student_code: updated.studentCode } });
+      if (l.created) await emailSetPasswordLink({ email: nextStudentEmail, name: updated.fullName, role: "STUDENT" });
+      await supabaseAdmin.from("profiles").update({ full_name: updated.fullName, avatar_url: photoCdnUrl, updated_at: new Date().toISOString() }).eq("id", l.userId);
+      await supabaseAdmin.from("students").update({ user_id: l.userId }).eq("id", updated.id);
+    }
+    // A parent email that is new on this student gets a login (or a notice if that parent already has one).
+    const previousParents = new Set((existing.parentEmails || []).map(normEmail));
+    for (const parentEmail of nextParentEmails) {
+      if (previousParents.has(parentEmail)) continue;
+      const parentName = updated.fatherName || updated.motherName || "Parent";
+      const l = await ensureLogin({ email: parentEmail, fullName: parentName, role: "PARENT", metadata: { student_code: updated.studentCode } });
+      if (l.created) {
+        await emailSetPasswordLink({ email: parentEmail, name: parentName, role: "PARENT", childName: updated.fullName });
+      } else {
+        await dispatchMultiChannelNotification({
+          eventType: "ADMISSION_APPROVED",
+          subject: `New student added to your TopGrade parent login: ${updated.fullName}`,
+          message: `Dear ${parentName},\n\n${updated.fullName} (${updated.studentCode}) was added to your parent login. Sign in with your usual password to see the courses, attendance and schedule.`,
+          recipients: [{ role: "PARENT", email: parentEmail, name: parentName, phone: "" }]
+        });
       }
     }
   } catch (e: any) {
-    console.warn("Supabase student update notice:", e?.message);
+    // Nothing is reported as saved unless Supabase accepted it.
+    throw new Error(e?.message || "Could not save the student.");
   }
 
-  // Silent mutation: Unsolicited profile update & exam emails purged per privacy isolation standards
+  inMemoryStudentStore[index] = updated;
+  lastSupabaseStudentFetch = Date.now();
+
+  // Requirement 2: whenever information is updated, the student (or the parent, if the student has no email)
+  // gets an email listing exactly what changed. Nothing is sent when no listed field changed.
+  void sendStudentUpdatedEmail(existing, updated).catch(err => console.warn("Notice sending the update email:", err?.message));
+
   return updated;
 }
 
@@ -1034,21 +988,11 @@ export async function toggleStudentStatusService(id: string, newStatus?: string)
     targetStatus = targetStatus.toUpperCase();
   }
 
-  current.status = targetStatus;
-  current.updatedAt = new Date().toISOString();
-  inMemoryStudentStore[index] = current;
-  saveStudentsToDisk();
+  const toggled: StudentDossier = { ...current, status: targetStatus, updatedAt: new Date().toISOString() };
+  await persistDossier(toggled, { status: targetStatus });
+  inMemoryStudentStore[index] = toggled;
 
-  // Real-time Supabase Status Toggle Sync
-  (async () => {
-    try {
-      await supabaseAdmin.from("students").update({ status: targetStatus }).eq("student_id_code", current.studentCode);
-    } catch (e: any) {
-      console.warn("Supabase student status toggle notice:", e?.message);
-    }
-  })();
-
-  return current;
+  return toggled;
 }
 
 /**
@@ -1061,8 +1005,8 @@ export async function changeStudentPasswordService(params: {
   newPassword: string;
 }) {
   const { studentId, email, newPassword } = params;
-  if (!newPassword || newPassword.trim().length < 6) {
-    throw new Error("New password must be at least 6 characters long.");
+  if (!newPassword || newPassword.trim().length < 8) {
+    throw new Error("New password must be at least 8 characters long.");
   }
 
   const queryEmail = (email || "").trim().toLowerCase();
@@ -1080,28 +1024,19 @@ export async function changeStudentPasswordService(params: {
     throw new Error("Password change limit reached (1-time allowed). Please request admin to reset your password.");
   }
 
-  student.password = newPassword.trim();
+  // The password itself goes only to Supabase Auth. We keep just the "changed once" flags on the record.
+  const authEmail = normEmail(student.email);
+  const { data: prof } = await supabaseAdmin.from("profiles").select("id").eq("email", authEmail).maybeSingle();
+  if (!prof) throw new Error("This student has no login yet. Ask the institute to send a set-password link.");
+  const { error: pwErr } = await supabaseAdmin.auth.admin.updateUserById(prof.id, { password: newPassword.trim() });
+  if (pwErr) throw new Error(`Could not update the password: ${pwErr.message}`);
+
   student.hasChangedPassword = true;
   student.passwordChangedCount = (student.passwordChangedCount || 0) + 1;
   student.passwordUpdatedAt = new Date().toISOString();
   student.updatedAt = new Date().toISOString();
-
-  saveStudentsToDisk();
-
-  // Real-time Supabase Auth Password Update
-  (async () => {
-    try {
-      if (student.email) {
-        const { data: userList } = await supabaseAdmin.auth.admin.listUsers();
-        const user = userList?.users?.find(u => u.email?.toLowerCase() === student.email.toLowerCase());
-        if (user) {
-          await supabaseAdmin.auth.admin.updateUserById(user.id, { password: newPassword.trim() });
-        }
-      }
-    } catch (e: any) {
-      console.warn("Supabase student password update notice:", e?.message);
-    }
-  })();
+  delete (student as any).password;
+  await persistDossier(student);
 
   // Automatic email notification to Admin
   try {
