@@ -8,7 +8,7 @@ import { dispatchMultiChannelNotification } from "../services/notificationServic
 import { demoTeachersPool } from "../services/demoDataService.js";
 import { ScheduleDataService } from "../services/scheduleDataService.js";
 
-import { OFFICIAL_TEACHERS } from "../ingest_official_courses_and_teachers.js";
+import { OFFICIAL_TEACHERS } from "../constants/officialCatalog.js";
 
 const router = express.Router();
 

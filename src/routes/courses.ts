@@ -54,7 +54,7 @@ export interface CourseData {
   schedule: CourseScheduleSlot[];
 }
 
-import { OFFICIAL_COURSES } from "../ingest_official_courses_and_teachers.js";
+import { OFFICIAL_COURSES } from "../constants/officialCatalog.js";
 
 // Clean state initialized from official courses catalog
 export let inMemoryCourses: CourseData[] = OFFICIAL_COURSES.map((c, idx) => ({

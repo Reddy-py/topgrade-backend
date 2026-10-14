@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "./supabase.js";
-import { OFFICIAL_TEACHERS } from "./ingest_official_courses_and_teachers.js";
+import { OFFICIAL_TEACHERS } from "./constants/officialCatalog.js";
 import fs from "fs";
 import path from "path";
 
