@@ -1,7 +1,7 @@
 import { inMemoryStudentStore } from "./studentService.js";
 import { inMemoryTeachers } from "../routes/teachers.js";
 import { inMemoryCourses } from "../routes/courses.js";
-import { attendanceStore } from "./attendanceService.js";
+import { listAttendance } from "./attendanceRepo.js";
 import { inMemoryPayments } from "../routes/fees.js";
 import { dispatchMultiChannelNotification } from "./notificationService.js";
 
@@ -105,7 +105,7 @@ export class HistoryService {
   /**
    * 4. Retrieve Longitudinal Student History Timeline
    */
-  public static getStudentHistoryTimeline(studentId?: string): StudentLifecycleEvent[] {
+  public static async getStudentHistoryTimeline(studentId?: string): Promise<StudentLifecycleEvent[]> {
     const timeline: StudentLifecycleEvent[] = [];
 
     const students = studentId 
@@ -142,7 +142,7 @@ export class HistoryService {
     });
 
     // 3. Attendance Events
-    attendanceStore.slice(0, 10).forEach((att, idx) => {
+    (await listAttendance({ limit: 10 })).forEach((att, idx) => {
       timeline.push({
         id: `event-att-${att.id || idx}`,
         studentId: att.studentId,
@@ -152,7 +152,7 @@ export class HistoryService {
         title: `Class Attendance Logged (${att.status})`,
         description: `Verified attendance check for ${att.courseName} via ${att.scanMethod}.`,
         timestamp: att.createdAt || new Date().toISOString(),
-        actor: "Faculty Instructor (manikanta)"
+        actor: att.markedBy || "Faculty"
       });
     });
 
@@ -173,12 +173,9 @@ export class HistoryService {
   /**
    * 6. Retrieve Attendance History with Analytics
    */
-  public static getAttendanceHistory(studentId?: string) {
-    let list = attendanceStore;
-    if (studentId) {
-      list = list.filter(a => a.studentId === studentId);
-    }
-    return list;
+  public static async getAttendanceHistory(studentId?: string) {
+    const list = await listAttendance({ limit: 1000 });
+    return studentId ? list.filter(a => a.studentId === studentId || a.studentCode === studentId) : list;
   }
 
   /**

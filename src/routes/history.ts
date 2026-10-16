@@ -48,10 +48,10 @@ router.get("/afterschool", (req, res) => {
 });
 
 // 4. GET LONGITUDINAL STUDENT TIMELINE (GET /api/history/students)
-router.get("/students", (req, res) => {
+router.get("/students", async (req, res) => {
   try {
     const studentId = req.query.studentId ? String(req.query.studentId) : undefined;
-    const timeline = HistoryService.getStudentHistoryTimeline(studentId);
+    const timeline = await HistoryService.getStudentHistoryTimeline(studentId);
     res.status(200).json({ success: true, count: timeline.length, data: timeline });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });
@@ -70,10 +70,10 @@ router.get("/payments", (req, res) => {
 });
 
 // 6. GET ATTENDANCE AUDIT HISTORY (GET /api/history/attendance)
-router.get("/attendance", (req, res) => {
+router.get("/attendance", async (req, res) => {
   try {
     const studentId = req.query.studentId ? String(req.query.studentId) : undefined;
-    const data = HistoryService.getAttendanceHistory(studentId);
+    const data = await HistoryService.getAttendanceHistory(studentId);
     res.status(200).json({ success: true, count: data.length, data });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });

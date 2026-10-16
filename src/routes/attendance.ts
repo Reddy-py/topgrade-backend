@@ -1,13 +1,15 @@
 import express from "express";
-import { AttendanceService, attendanceStore } from "../services/attendanceService.js";
+import { AttendanceService, markAttendance } from "../services/attendanceService.js";
+import { listAttendance, statsFor, normalizeStatus } from "../services/attendanceRepo.js";
+import { instituteNow } from "../services/instituteTime.js";
 import { SessionAttendanceService, classSessionQrStore, type ClassSessionQRRecord } from "../services/sessionAttendanceService.js";
 import { inMemoryStudentStore } from "../services/studentService.js";
 import { supabaseAdmin } from "../supabase.js";
 import { sendDailyAttendanceRollCallEmail, sendMonthlyAttendanceSummaryEmail } from "../services/notificationService.js";
-import { consumeAttendanceToken, refundAttendanceToken, findCourse } from "../services/tokenService.js";
+import { findStudent, isUuid } from "../services/tokenService.js";
 import { ScheduleDataService } from "../services/scheduleDataService.js";
 import type { AuthenticatedRequest } from "../middleware/auth.js";
-import { getAccessScope, allowsStudent, scopeSessions } from "../services/accessScope.js";
+import { getAccessScope, allowsStudent, scopeSessions, slotBelongsToTeacher } from "../services/accessScope.js";
 
 const router = express.Router();
 
@@ -16,203 +18,111 @@ const router = express.Router();
 // ==============================================================
 
 /**
- * Submit Daily Class Attendance Roll-Call for a Scheduled Slot
- * Saves to Supabase `attendance`, recalculates attendance %, dispatches emails, and writes to student history.
+ * Daily roll-call for one class. A teacher can submit only their own classes and only students in that class.
+ * Saved in Supabase: one row per student, per class, per day (saving again updates it). PRESENT uses one class token.
  */
 router.post("/daily-rollcall", async (req, res): Promise<any> => {
   try {
-    const { scheduleId, courseName, date, markedBy, entries } = req.body;
+    const user = (req as AuthenticatedRequest).user!;
+    const { scheduleId, date, entries } = req.body || {};
 
     if (!Array.isArray(entries) || entries.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Missing 'entries' array in daily attendance submission payload."
-      });
+      return res.status(400).json({ success: false, message: "Missing 'entries' array in daily attendance submission payload." });
+    }
+    if (!scheduleId) return res.status(400).json({ success: false, message: "scheduleId (the class) is required." });
+
+    const slot = (await ScheduleDataService.listSchedules()).find(sl => sl.id === scheduleId);
+    if (!slot) return res.status(404).json({ success: false, message: "This class was not found." });
+
+    const scope = await getAccessScope(user);
+    if (user.role === "TEACHER" && !slotBelongsToTeacher(slot, scope)) {
+      return res.status(403).json({ success: false, message: "This class is not yours." });
     }
 
-    const rollDate = date || new Date().toISOString().slice(0, 10);
-    const recordedBy = markedBy || "Course Faculty";
+    const rollDate = String(date || instituteNow().dateStr).slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(rollDate)) return res.status(400).json({ success: false, message: "date must be YYYY-MM-DD." });
+
+    const recordedBy = (user.metadata as any)?.full_name || user.email || "Faculty";
+    const courseName = slot.course_name;
+    const classStudents = new Set(
+      (slot.students || []).flatMap(st => [st.student_id, st.student_code].filter(Boolean).map(k => String(k).toLowerCase()))
+    );
+
     const processedRecords: any[] = [];
+    const rejected: Array<{ studentId: string; reason: string }> = [];
     let presentCount = 0;
     let absentCount = 0;
     let excusedCount = 0;
 
     for (const entry of entries) {
-      const studentId = entry.studentId || entry.student_id;
-      const studentName = entry.studentName || entry.student_name || "Student";
-      const status = (entry.status || "PRESENT").toUpperCase();
+      const studentKey = String(entry.studentId || entry.student_id || "");
       const remarks = entry.remarks || "";
-
-      if (status === "PRESENT") presentCount++;
-      else if (status === "ABSENT") absentCount++;
-      else if (status === "EXCUSED") excusedCount++;
-
-      // 1. Insert into Supabase `attendance` table
-      let insertedId = `att-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
       try {
-        const { data: dbAtt, error: attErr } = await supabaseAdmin
-          .from("attendance")
-          .insert([
-            {
-              student_id: studentId,
-              student_name: studentName,
-              class_name: courseName || "Scheduled Class",
-              status,
-              date: rollDate,
-              remarks,
-              marked_by: recordedBy
-            }
-          ])
-          .select();
-
-        if (!attErr && dbAtt && dbAtt.length > 0) {
-          insertedId = dbAtt[0].id;
+        if (user.role !== "ADMIN" && !classStudents.has(studentKey.toLowerCase()) && !allowsStudent(scope, studentKey)) {
+          rejected.push({ studentId: studentKey, reason: "This student is not in your class." });
+          continue;
         }
-      } catch (err) {
-        console.warn("Supabase attendance insert note:", err);
-      }
+        const status = normalizeStatus(entry.status);
+        const saved = await markAttendance({
+          studentIdOrCode: studentKey, status, courseId: slot.course_id, courseName, scheduleId,
+          date: rollDate, remarks, scanMethod: "TEACHER_ROLLCALL", markedByUserId: user.id, markedByName: recordedBy,
+        });
+        if (status === "PRESENT" || status === "LATE") presentCount++;
+        else if (status === "ABSENT") absentCount++;
+        else excusedCount++;
 
-      // Also record in attendanceStore memory for backward compatibility
-      attendanceStore.push({
-        id: insertedId,
-        studentId,
-        studentName,
-        studentCode: entry.studentCode || entry.student_code || `TG-STU-${studentId.slice(0, 6)}`,
-        courseId: scheduleId || "scheduled-slot",
-        courseName: courseName || "Scheduled Class",
-        date: rollDate,
-        status: status as any,
-        checkInTime: status === "PRESENT" ? `${rollDate}T10:00:00Z` : undefined,
-        scanMethod: "TEACHER_BATCH",
-        notes: remarks,
-        createdAt: new Date().toISOString()
-      });
+        const stats = await statsFor(saved.record.studentId);
+        const studentName = saved.record.studentName;
 
-      // 2. Calculate updated overall attendance % for this student
-      let attendancePercentage = 100;
-      try {
-        const { data: allStudentAtt } = await supabaseAdmin
-          .from("attendance")
-          .select("status")
-          .or(`student_id.eq.${studentId},student_name.ilike.%${studentName}%`);
+        // Student history ledger
+        ScheduleDataService.appendHistoryItem({
+          student_id: saved.record.studentId,
+          student_name: studentName,
+          event_type: "ATTENDANCE_RECORD",
+          title: `Daily Attendance: ${status}`,
+          description: `Marked ${status} for '${courseName}' on ${rollDate}. Marked by: ${recordedBy}.${remarks ? ` Note: ${remarks}` : ""}`,
+          metadata: { attendance_id: saved.record.id, schedule_id: scheduleId, date: rollDate, status, course_name: courseName, marked_by: recordedBy, remarks, attendance_percentage: stats.attendancePercentage },
+          actor: recordedBy
+        });
 
-        if (allStudentAtt && allStudentAtt.length > 0) {
-          const totalSessions = allStudentAtt.length;
-          const presentSessions = allStudentAtt.filter((a: any) => a.status === "PRESENT").length;
-          attendancePercentage = Math.round((presentSessions / totalSessions) * 100);
+        // Parent email
+        const student = await findStudent(studentKey);
+        const parentEmail = student?.parentEmails?.[0] || student?.email;
+        if (parentEmail) {
+          sendDailyAttendanceRollCallEmail({
+            parentEmail, studentName, courseName, date: rollDate, status, remarks,
+            attendancePercentage: stats.attendancePercentage, markedBy: recordedBy
+          }).catch(err => console.warn("Roll-call parent email warning:", err));
         }
-      } catch (e) {
-        console.warn("Attendance percentage compute note:", e);
-      }
 
-      // 3. Append to Node 10: Student History Ledger
-      ScheduleDataService.appendHistoryItem({
-        student_id: studentId,
-        student_name: studentName,
-        event_type: "ATTENDANCE_RECORD",
-        title: `Daily Attendance: ${status}`,
-        description: `Marked ${status} for '${courseName || "Class"}' on ${rollDate}. Marked by: ${recordedBy}.${remarks ? ` Note: ${remarks}` : ""}`,
-        metadata: {
-          attendance_id: insertedId,
-          schedule_id: scheduleId,
-          date: rollDate,
-          status,
-          course_name: courseName,
-          marked_by: recordedBy,
-          remarks,
-          attendance_percentage: attendancePercentage
-        },
-        actor: recordedBy
-      });
-
-      // 4. Node 8: Dispatch Immediate Daily Attendance Summary Email to Parent
-      let parentEmail = entry.parentEmail || entry.parent_email;
-      if (!parentEmail) {
-        try {
-          const { data: stRec } = await supabaseAdmin
-            .from("students")
-            .select("email, parent_emails, father_phone")
-            .eq("id", studentId)
-            .maybeSingle();
-
-          if (stRec) {
-            parentEmail = stRec.parent_emails?.[0] || stRec.email;
-          }
-        } catch (e) {}
-      }
-
-      if (parentEmail) {
-        sendDailyAttendanceRollCallEmail({
-          parentEmail,
+        processedRecords.push({
+          studentId: saved.record.studentId,
           studentName,
-          courseName: courseName || "Scheduled Class",
-          date: rollDate,
           status,
-          remarks,
-          attendancePercentage,
-          markedBy: recordedBy
-        }).catch(err => console.warn("Roll-call parent email warning:", err));
+          attendancePercentage: stats.attendancePercentage,
+          tokens_remaining: saved.token.remaining,
+          isLowQuotaWarning: saved.token.low,
+          warningMessage: saved.token.warning
+        });
+      } catch (entryErr: any) {
+        rejected.push({ studentId: studentKey, reason: entryErr?.message || "Could not save." });
       }
-
-      // 4. One class = one token. PRESENT uses a token, changing to another status gives it back. Repeats do nothing.
-      let tokenDeduction: any = { tokens_remaining: undefined, tokens_consumed: undefined, isLowQuotaWarning: false, warningMessage: undefined };
-      try {
-        let courseKey = courseName || "";
-        if (!(await findCourse(courseKey)) && scheduleId) {
-          const slot = (await ScheduleDataService.listSchedules()).find(sl => sl.id === scheduleId);
-          courseKey = slot?.course_id || courseKey;
-        }
-        const classRef = `${scheduleId || courseKey}:${rollDate}`;
-        if (status === "PRESENT") {
-          const used = await consumeAttendanceToken({ studentIdOrCode: studentId, courseIdOrName: courseKey, classRef, by: recordedBy });
-          if (used.ok) {
-            tokenDeduction = {
-              tokens_remaining: used.balance,
-              isLowQuotaWarning: !!used.low,
-              warningMessage: used.owed ? `No tokens left: ${-(used.balance ?? 0)} class(es) owed. Ask the parent to buy tokens.` : used.low ? `Low tokens: ${used.balance} class(es) left.` : undefined,
-            };
-          } else {
-            tokenDeduction.warningMessage = used.reason;
-          }
-        } else {
-          const back = await refundAttendanceToken({ studentIdOrCode: studentId, courseIdOrName: courseKey, classRef, by: recordedBy });
-          if (back.balance !== undefined) tokenDeduction.tokens_remaining = back.balance;
-        }
-      } catch (tokenErr: any) {
-        tokenDeduction.warningMessage = `Token update failed: ${tokenErr?.message}`;
-      }
-
-      processedRecords.push({
-        studentId,
-        studentName,
-        status,
-        attendancePercentage,
-        tokens_remaining: tokenDeduction.tokens_remaining,
-        tokens_consumed: tokenDeduction.tokens_consumed,
-        isLowQuotaWarning: tokenDeduction.isLowQuotaWarning,
-        warningMessage: tokenDeduction.warningMessage
-      });
     }
 
-    return res.status(200).json({
-      success: true,
-      message: `Daily attendance for ${processedRecords.length} students submitted successfully! Parent emails dispatched.`,
+    const allFailed = processedRecords.length === 0;
+    return res.status(allFailed ? 400 : 200).json({
+      success: !allFailed,
+      message: allFailed
+        ? "Nothing was saved. " + (rejected[0]?.reason || "")
+        : `Attendance saved for ${processedRecords.length} students.${rejected.length ? ` ${rejected.length} could not be saved.` : ""}`,
       data: {
-        date: rollDate,
-        courseName,
-        total: processedRecords.length,
-        present: presentCount,
-        absent: absentCount,
-        excused: excusedCount,
-        records: processedRecords
+        date: rollDate, courseName, total: processedRecords.length,
+        present: presentCount, absent: absentCount, excused: excusedCount,
+        records: processedRecords, rejected
       }
     });
   } catch (err: any) {
-    return res.status(500).json({
-      success: false,
-      message: "Failed to submit daily class attendance.",
-      error: err.message
-    });
+    return res.status(500).json({ success: false, message: "Failed to submit daily class attendance.", error: err.message });
   }
 });
 
@@ -297,11 +207,12 @@ router.post("/session/:sessionId/submit", async (req, res) => {
       });
     }
 
+    const authUser = (req as AuthenticatedRequest).user!;
     const result = await SessionAttendanceService.submitTeacherSessionAttendance({
       classSessionId: sessionId,
       teacherId,
       entries
-    });
+    }, { id: authUser.id, role: authUser.role, ...(authUser.email ? { email: authUser.email } : {}), name: (authUser.metadata as any)?.full_name || authUser.email || "Faculty" });
 
     res.status(200).json({
       success: true,
@@ -309,9 +220,9 @@ router.post("/session/:sessionId/submit", async (req, res) => {
       data: result
     });
   } catch (err: any) {
-    res.status(500).json({
+    res.status(err?.status || 500).json({
       success: false,
-      message: "Failed to submit class attendance.",
+      message: err?.status ? err.message : "Failed to submit class attendance.",
       error: err.message
     });
   }
@@ -329,11 +240,12 @@ router.post("/scan-qr", async (req, res) => {
       });
     }
 
+    const authUser = (req as AuthenticatedRequest).user!;
     const result = await AttendanceService.scanQrCodeCheckInCheckOut({
       studentQrCode,
       courseId,
       scanMethod: scanMethod || "QR_CODE_SCANNER"
-    });
+    }, { id: authUser.id, name: (authUser.metadata as any)?.full_name || authUser.email || "QR scanner" });
 
     res.status(200).json({
       success: true,
@@ -341,9 +253,9 @@ router.post("/scan-qr", async (req, res) => {
       data: result
     });
   } catch (err: any) {
-    res.status(500).json({
+    res.status(err?.status || 500).json({
       success: false,
-      message: "Failed to process QR code attendance scan.",
+      message: err?.status ? err.message : "Failed to process QR code attendance scan.",
       error: err.message
     });
   }
@@ -361,11 +273,17 @@ router.post("/mark-batch", async (req, res) => {
       });
     }
 
+    const authUser = (req as AuthenticatedRequest).user!;
+    const scope = await getAccessScope(authUser);
+    const notYours = entries.find((e: any) => !allowsStudent(scope, e.studentId));
+    if (notYours) {
+      return res.status(403).json({ success: false, message: "One of these students is not in your classes." });
+    }
     const result = await AttendanceService.markBatchAttendance({
       courseId,
-      date: date || new Date().toISOString().slice(0, 10),
+      date: date || instituteNow().dateStr,
       entries
-    });
+    }, { id: authUser.id, name: (authUser.metadata as any)?.full_name || authUser.email || "Teacher" });
 
     res.status(200).json({
       success: true,
@@ -392,7 +310,7 @@ router.get("/student-stats/:studentId", async (req, res) => {
     }
     const threshold = req.query.threshold ? Number(req.query.threshold) : 75;
 
-    const stats = AttendanceService.getStudentAttendanceStats(studentId, threshold);
+    const stats = await AttendanceService.getStudentAttendanceStats(studentId, threshold);
 
     res.status(200).json({
       success: true,
@@ -439,23 +357,20 @@ router.get("/qr-code/:studentId", async (req, res) => {
 
 // 7. GET ALL ATTENDANCE LOGS (GET /api/attendance/list)
 router.get("/list", async (req, res) => {
-  const { studentId, courseId } = req.query;
-  const scope = await getAccessScope((req as AuthenticatedRequest).user!);
-  let filtered = attendanceStore.filter((a: any) => allowsStudent(scope, a.studentId, a.studentCode));
-
-  if (studentId) {
-    filtered = filtered.filter(a => a.studentId === String(studentId));
+  try {
+    const { studentId, courseId, date } = req.query;
+    const scope = await getAccessScope((req as AuthenticatedRequest).user!);
+    const studentIds = scope.unrestricted ? undefined : Array.from(scope.studentKeys).filter(isUuid);
+    let rows = await listAttendance({
+      ...(studentIds ? { studentIds } : {}),
+      ...(courseId ? { courseId: String(courseId) } : {}),
+      ...(date ? { date: String(date) } : {}),
+    });
+    if (studentId) rows = rows.filter(a => a.studentId === String(studentId) || a.studentCode === String(studentId));
+    res.status(200).json({ success: true, count: rows.length, data: rows });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
   }
-
-  if (courseId) {
-    filtered = filtered.filter(a => a.courseId === String(courseId));
-  }
-
-  res.status(200).json({
-    success: true,
-    count: filtered.length,
-    data: filtered
-  });
 });
 
 // 8. GET ALL SCHEDULED COURSE ATTENDANCE SESSIONS BY DAY & SLOT (GET /api/attendance/sessions)

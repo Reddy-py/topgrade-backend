@@ -1,4 +1,8 @@
-import { attendanceStore, type AttendanceRecord } from "./attendanceService.js";
+import { markAttendance } from "./attendanceService.js";
+import type { AttendanceStatusEnum } from "./attendanceRepo.js";
+import { instituteNow } from "./instituteTime.js";
+import { ScheduleDataService } from "./scheduleDataService.js";
+import { resolveTeacherIdentity } from "./teacherIdentity.js";
 import { dispatchMultiChannelNotification } from "./notificationService.js";
 import { supabaseAdmin } from "../supabase.js";
 
@@ -135,7 +139,8 @@ export class SessionAttendanceService {
    */
   public static async processStudentSelfScan(input: StudentSelfScanInput) {
     const { studentId, qrToken, customScanTimeIso } = input;
-    const nowIso = customScanTimeIso || new Date().toISOString();
+    // The scan time is always the server's time. (A custom time is accepted only outside production, for testing.)
+    const nowIso = process.env.NODE_ENV !== "production" && customScanTimeIso ? customScanTimeIso : new Date().toISOString();
 
     const liveSessions = await this.getLiveSessionsFromSupabase();
     const session = liveSessions.find(s => s.qrToken === qrToken) || classSessionQrStore.find(s => s.qrToken === qrToken);
@@ -146,38 +151,43 @@ export class SessionAttendanceService {
       throw err;
     }
 
-    const { data: student } = await supabaseAdmin.from("students").select("*").eq("id", studentId).single();
-    const studentName = student?.name || "Student";
-    const studentCode = student?.student_id_code || `TG-STU-${studentId}`;
+    const { data: student } = await supabaseAdmin.from("students").select("id, name, student_id_code").eq("id", studentId).maybeSingle();
+    if (!student) {
+      const err: any = new Error("Student not found.");
+      err.code = "STUDENT_NOT_FOUND";
+      throw err;
+    }
+    const studentName = student.name || "Student";
 
-    const logRecord = {
-      student_id: studentId,
-      student_name: studentName,
-      class_name: session.courseName,
-      status: "Present",
-      date: nowIso.slice(0, 10),
-      remarks: "Self check-in via QR scan",
-      marked_by: "Student Self-Scan"
-    };
+    // The class must be open now, and the student must be enrolled in it.
+    const start = Date.parse(session.startTime);
+    const end = Date.parse(session.endTime);
+    if (Number.isFinite(start) && Number.isFinite(end) && end > start) {
+      const graceMs = (session.graceMinutes || 15) * 60000;
+      const t = Date.parse(nowIso);
+      if (t < start - 30 * 60000 || t > end + graceMs) {
+        const err: any = new Error("This class is not open for check-in right now.");
+        err.code = "OUTSIDE_CLASS_TIME";
+        throw err;
+      }
+    }
+    const slot = (await ScheduleDataService.listSchedules()).find(sl => sl.id === session.classSessionId);
+    if (slot) {
+      const enrolled = (slot.students || []).some(st =>
+        String(st.student_id).toLowerCase() === String(student.id).toLowerCase() ||
+        (!!st.student_code && String(st.student_code).toLowerCase() === String(student.student_id_code || "").toLowerCase()));
+      if (!enrolled) {
+        const err: any = new Error("You are not enrolled in this class.");
+        err.code = "NOT_ENROLLED";
+        throw err;
+      }
+    }
 
-    await supabaseAdmin.from("attendance").insert([logRecord]);
-
-    attendanceStore.unshift({
-      id: `att-${Date.now()}`,
-      studentId,
-      studentName,
-      studentCode,
-      courseId: session.courseId,
-      courseName: session.courseName,
-      parentEmail: student?.email || "",
-      parentPhone: student?.phone || "",
-      parentName: "Parent",
-      checkInTime: nowIso,
-      status: "PRESENT",
-      scanMethod: "STUDENT_SELF_QR",
-      date: nowIso.slice(0, 10),
-      notes: "Scanned session QR",
-      createdAt: nowIso
+    // One attendance row per student, per class, per day, saved in Supabase. PRESENT uses one class token.
+    await markAttendance({
+      studentIdOrCode: student.id, status: "PRESENT", courseId: session.courseId, courseName: session.courseName,
+      scheduleId: session.classSessionId, date: instituteNow().dateStr, remarks: "Self check-in via QR scan",
+      scanMethod: "STUDENT_SELF_QR", markedByName: "Student self-scan", checkInTime: nowIso,
     });
 
     return {
@@ -361,29 +371,32 @@ export class SessionAttendanceService {
   /**
    * Submits teacher session attendance: Saves to Supabase attendance table & dispatches emails to each student
    */
-  public static async submitTeacherSessionAttendance(input: TeacherSessionSubmitInput) {
-    const { classSessionId, teacherId, entries } = input;
+  public static async submitTeacherSessionAttendance(
+    input: TeacherSessionSubmitInput,
+    actor?: { id?: string; role?: string; email?: string; name?: string }
+  ) {
+    const { classSessionId, entries } = input;
     const nowIso = new Date().toISOString();
-    const todayDate = nowIso.slice(0, 10);
+    const todayDate = instituteNow().dateStr;
 
     const liveSessions = await this.getLiveSessionsFromSupabase();
-    const sessionQr = liveSessions.find(s => s.classSessionId === classSessionId || s.id === classSessionId) || {
-      id: "sqr-temp",
-      classSessionId,
-      courseId: "crs-auto",
-      courseName: "Python programming",
-      courseCode: "CRS-431",
-      teacherId: teacherId || "tch-1",
-      teacherName: "Assigned Faculty",
-      dayOfWeek: "Monday",
-      slotName: "09:00 AM - 10:30 AM",
-      startTime: nowIso,
-      endTime: nowIso,
-      graceMinutes: 15,
-      qrToken: `TG-SESSION-${classSessionId}`,
-      isExpired: false,
-      createdAt: nowIso
-    };
+    const sessionQr = liveSessions.find(s => s.classSessionId === classSessionId || s.id === classSessionId);
+    if (!sessionQr) {
+      const err: any = new Error("This class session was not found.");
+      err.status = 404;
+      throw err;
+    }
+    // A teacher can submit only their own class. The admin can submit any.
+    if (actor?.role === "TEACHER") {
+      const ident = await resolveTeacherIdentity({ id: actor.id, email: actor.email });
+      const mine = ident.keys.has(String(sessionQr.teacherId || "").toLowerCase()) ||
+        ident.names.has(String(sessionQr.teacherName || "").trim().toLowerCase());
+      if (!mine) {
+        const err: any = new Error("This class is not yours.");
+        err.status = 403;
+        throw err;
+      }
+    }
 
     let presentCount = 0;
     let absentCount = 0;
@@ -391,97 +404,65 @@ export class SessionAttendanceService {
     // Fetch students to ensure we have their correct registered emails
     const { data: studentsDb } = await supabaseAdmin.from("students").select("id, name, email, student_id_code");
     const studentsMap = new Map((studentsDb || []).map(s => [s.id, s]));
-
-    const attendanceRows: any[] = [];
+    const warnings: string[] = [];
+    let savedCount = 0;
 
     for (const entry of entries) {
-      const isAttended = entry.status === "PRESENT" || entry.status === "LATE";
-      if (isAttended) presentCount++;
-      else absentCount++;
-
-      const studentInfo = studentsMap.get(entry.studentId) || {
-        id: entry.studentId,
-        name: entry.studentName,
-        email: entry.studentEmail || "student@topgrade.edu",
-        student_id_code: `TG-STU-${entry.studentId}`
-      };
-
-      const studentEmail = entry.studentEmail || studentInfo.email;
-      const statusLabel = isAttended ? "Present" : "Absent";
-
-      const isValidUuid = (val: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
-      const studentUuid = isValidUuid(entry.studentId) ? entry.studentId : null;
-      const teacherUuid = sessionQr.teacherId && isValidUuid(sessionQr.teacherId) ? sessionQr.teacherId : null;
-
-      attendanceRows.push({
-        student_id: studentUuid,
-        student_name: entry.studentName,
-        class_name: sessionQr.courseName,
-        status: statusLabel,
-        date: todayDate,
-        remarks: entry.notes ? `${entry.notes} (Faculty: ${sessionQr.teacherName})` : `Marked by ${sessionQr.teacherName}`,
-        marked_by: teacherUuid
-      });
-
-      // Also record in in-memory attendanceStore for fast sync
-      attendanceStore.unshift({
-        id: `att-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-        studentId: entry.studentId,
-        studentName: entry.studentName,
-        studentCode: studentInfo.student_id_code,
-        courseId: sessionQr.courseId,
-        courseName: sessionQr.courseName,
-        parentEmail: studentEmail,
-        parentPhone: "",
-        parentName: "Parent",
-        checkInTime: isAttended ? nowIso : undefined,
-        status: entry.status,
-        scanMethod: "TEACHER_BATCH",
-        date: todayDate,
-        notes: entry.notes || `Submitted by instructor ${sessionQr.teacherName}`,
-        createdAt: nowIso
-      });
-
-      // 📧 AUTOMATIC EMAIL TO INDIVIDUAL STUDENT
-      const emailSubject = `🔔 TopGrade Attendance: ${sessionQr.courseName} — ${isAttended ? 'Present ✅' : 'Absent ❌'}`;
-      const emailMessage = `Dear ${entry.studentName},\n\nYour attendance for class session '${sessionQr.courseName}' has been officially recorded by your faculty instructor ${sessionQr.teacherName}.\n\n` +
-        `• Course: ${sessionQr.courseName} (${sessionQr.courseCode || 'TopGrade Stream'})\n` +
-        `• Day & Time Slot: ${sessionQr.dayOfWeek || 'Today'} (${sessionQr.slotName || 'Scheduled Session'})\n` +
-        `• Attendance Status: [ ${entry.status} ]\n` +
-        `• Date: ${todayDate}\n` +
-        (entry.notes ? `• Instructor Remarks: ${entry.notes}\n` : '') +
-        `\nIf you have any questions regarding this session, please contact your faculty instructor or center administration.\n\nBest Regards,\nTop Grade Learning Management`;
-
-      dispatchMultiChannelNotification({
-        eventType: "ATTENDANCE_ALERT",
-        subject: emailSubject,
-        message: emailMessage,
-        recipients: [
-          { role: "STUDENT", email: studentEmail, name: entry.studentName }
-        ]
-      }).catch(err => console.warn(`Student attendance email notice for ${studentEmail}:`, err));
-    }
-
-    // Insert attendance records into Supabase attendance table
-    try {
-      const { error: attErr } = await supabaseAdmin
-        .from("attendance")
-        .insert(attendanceRows);
-
-      if (attErr) {
-        console.error("Supabase attendance insert error:", attErr);
+      const status = String(entry.status || "PRESENT").toUpperCase() as AttendanceStatusEnum;
+      const attended = status === "PRESENT" || status === "LATE";
+      const studentInfo = studentsMap.get(entry.studentId);
+      if (!studentInfo) {
+        warnings.push(`${entry.studentName || entry.studentId}: student not found, not saved.`);
+        continue;
       }
-    } catch (sbE) {
-      console.error("Supabase attendance insertion exception:", sbE);
+
+      let saved;
+      try {
+        saved = await markAttendance({
+          studentIdOrCode: studentInfo.id, status,
+          courseId: sessionQr.courseId, courseName: sessionQr.courseName, scheduleId: sessionQr.classSessionId,
+          date: todayDate,
+          remarks: entry.notes ? `${entry.notes} (Faculty: ${sessionQr.teacherName})` : `Marked by ${sessionQr.teacherName}`,
+          scanMethod: "TEACHER_BATCH", markedByName: actor?.name || sessionQr.teacherName,
+          ...(actor?.id ? { markedByUserId: actor.id } : {}),
+        });
+      } catch (saveErr: any) {
+        warnings.push(`${studentInfo.name}: ${saveErr?.message}`);
+        continue;
+      }
+      savedCount++;
+      if (attended) presentCount++; else absentCount++;
+      if (saved.token.warning) warnings.push(`${studentInfo.name}: ${saved.token.warning}`);
+
+      // Email to the student's own address (no placeholder addresses)
+      const studentEmail = entry.studentEmail || studentInfo.email;
+      if (studentEmail && !String(studentEmail).toLowerCase().endsWith("@topgrade.edu")) {
+        const emailSubject = `Attendance: ${sessionQr.courseName} (${attended ? "Present" : "Absent"})`;
+        const emailMessage =
+          `Dear ${studentInfo.name},\n\nYour attendance for the class '${sessionQr.courseName}' was recorded.\n\n` +
+          `• Course: ${sessionQr.courseName}\n` +
+          `• Day and time: ${sessionQr.dayOfWeek || "Today"} (${sessionQr.slotName || "Scheduled session"})\n` +
+          `• Status: ${status}\n` +
+          `• Date: ${todayDate}\n` +
+          (entry.notes ? `• Teacher's note: ${entry.notes}\n` : "") +
+          `\nIf you have questions, please contact your teacher or the institute.`;
+        dispatchMultiChannelNotification({
+          eventType: "ATTENDANCE_ALERT",
+          subject: emailSubject,
+          message: emailMessage,
+          escapeMessage: true,
+          recipients: [{ role: "STUDENT", email: studentEmail, name: studentInfo.name }]
+        }).catch(err => console.warn(`Student attendance email notice for ${studentEmail}:`, err));
+      }
     }
 
     return {
       success: true,
-      message: `Attendance submitted to Supabase for ${entries.length} students. Individual status notification emails dispatched successfully!`,
-      processedCount: entries.length,
+      message: `Attendance saved for ${savedCount} of ${entries.length} students.`,
+      processedCount: savedCount,
       presentCount,
       absentCount,
-      emailsDispatchedCount: entries.length
+      warnings
     };
   }
 }

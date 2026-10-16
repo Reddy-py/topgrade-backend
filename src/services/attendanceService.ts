@@ -1,31 +1,16 @@
 import { dispatchMultiChannelNotification } from "./notificationService.js";
-import { consumeAttendanceToken, refundAttendanceToken } from "./tokenService.js";
-import { inMemoryStudentStore } from "./studentService.js";
+import { consumeAttendanceToken, refundAttendanceToken, findCourse, findStudent } from "./tokenService.js";
+import {
+  saveAttendance, findOpenCheckin, setCheckOut, listAttendance, statsFor, isAttended, classKeyOf,
+  type AttendanceRecord, type AttendanceStatusEnum, type ScanMethodEnum, type RecordInput,
+} from "./attendanceRepo.js";
+import { instituteNow } from "./instituteTime.js";
+import { studentContactEmails } from "./studentNotices.js";
 
-export type AttendanceStatusEnum = "PRESENT" | "ABSENT" | "LATE" | "EXCUSED";
-export type ScanMethodEnum = "QR_CODE_SCANNER" | "MANUAL_MARKING" | "TEACHER_BATCH" | "STUDENT_SELF_QR";
-
-export interface AttendanceRecord {
-  id: string;
-  studentId: string;
-  studentName: string;
-  studentCode: string;
-  courseId: string;
-  courseName: string;
-  parentEmail?: string | undefined;
-  parentPhone?: string | undefined;
-  parentName?: string | undefined;
-  checkInTime?: string | undefined;
-  checkOutTime?: string | undefined;
-  status: AttendanceStatusEnum;
-  scanMethod: ScanMethodEnum;
-  date: string; // YYYY-MM-DD
-  notes?: string | undefined;
-  createdAt: string;
-}
+export type { AttendanceRecord, AttendanceStatusEnum, ScanMethodEnum };
 
 export interface QrScanInput {
-  studentQrCode: string; // e.g. "TG-STU-2026-3632"
+  studentQrCode: string; // the student's ID code, e.g. "TG-STU-2026-3632"
   courseId?: string | undefined;
   scanMethod?: ScanMethodEnum | undefined;
 }
@@ -33,254 +18,141 @@ export interface QrScanInput {
 export interface BatchAttendanceInput {
   courseId: string;
   date: string;
-  entries: Array<{
-    studentId: string;
-    studentName: string;
-    status: AttendanceStatusEnum;
-    notes?: string | undefined;
-  }>;
+  entries: Array<{ studentId: string; studentName?: string; status: AttendanceStatusEnum; notes?: string | undefined }>;
 }
 
-// Live in-memory attendance ledger (0 demo records initially)
-export const attendanceStore: AttendanceRecord[] = [];
+export interface TokenOutcome {
+  remaining?: number | undefined;
+  owed: boolean;
+  low: boolean;
+  warning?: string | undefined;
+}
+
+/**
+ * Saves one attendance mark and keeps the class token in step:
+ * PRESENT or LATE uses one token, any other status gives it back, marking again does nothing extra.
+ * The token and the attendance row use the SAME class key, so every screen counts a class once.
+ */
+export async function markAttendance(p: RecordInput): Promise<{ record: AttendanceRecord; created: boolean; token: TokenOutcome }> {
+  const saved = await saveAttendance(p);
+  const token: TokenOutcome = { owed: false, low: false };
+  const courseKey = p.courseId || p.courseName || "";
+  const classRef = `${classKeyOf(p)}:${p.date}`;
+  try {
+    if (!courseKey || !(await findCourse(courseKey))) {
+      token.warning = "No token was used: this class is not linked to a course.";
+    } else if (isAttended(p.status)) {
+      const used = await consumeAttendanceToken({ studentIdOrCode: p.studentIdOrCode, courseIdOrName: courseKey, classRef, by: p.markedByUserId ?? null });
+      token.remaining = used.balance;
+      token.owed = !!used.owed;
+      token.low = !!used.low;
+      token.warning = used.owed
+        ? `No tokens left: ${-(used.balance ?? 0)} class(es) owed. Ask the parent to buy tokens.`
+        : used.low ? `Low tokens: ${used.balance} class(es) left.` : undefined;
+    } else {
+      const back = await refundAttendanceToken({ studentIdOrCode: p.studentIdOrCode, courseIdOrName: courseKey, classRef, by: p.markedByUserId ?? null });
+      token.remaining = back.balance;
+    }
+  } catch (err: any) {
+    token.warning = `Token update failed: ${err?.message}`;
+  }
+  return { record: saved.record, created: saved.created, token };
+}
+
+async function parentEmailsOf(studentUuid: string, fallback: { email: string; parentEmails: string[] }): Promise<string[]> {
+  const list = studentContactEmails({ email: fallback.email, studentEmails: [], parentEmails: fallback.parentEmails });
+  return list;
+}
 
 export class AttendanceService {
   /**
-   * 1. Process QR Code Scanner Check-In & Check-Out Workflow
+   * QR scanner at the door of a class. First scan = check-in (uses one token), second scan = check-out.
+   * The QR code must belong to a real student: an unknown code is rejected (it never marks another child).
    */
-  public static async scanQrCodeCheckInCheckOut(input: QrScanInput) {
-    const rawQr = (input.studentQrCode || "").trim();
-    
-    // Dynamically lookup from inMemoryStudentStore
-    const matchedStudent = inMemoryStudentStore.find(
-      s => s.studentCode === rawQr || s.id === rawQr || s.fullName.toLowerCase().includes(rawQr.toLowerCase())
-    ) || inMemoryStudentStore[0] || {
-      id: "std-temp",
-      fullName: "Student",
-      studentCode: rawQr || "TG-STU-2026",
-      parentEmails: ["parent@topgrade.edu"],
-      parentPhones: [""],
-      fatherName: "Parent",
-      email: "student@topgrade.edu"
-    };
+  public static async scanQrCodeCheckInCheckOut(input: QrScanInput, actor?: { id?: string; name?: string }) {
+    const code = (input.studentQrCode || "").trim();
+    const student = await findStudent(code);
+    if (!student) throw Object.assign(new Error("This QR code does not match any student."), { status: 404 });
+    if (!input.courseId) throw Object.assign(new Error("Choose the class this scan is for."), { status: 400 });
 
-    const studentInfo = {
-      studentId: matchedStudent.id || "std-temp",
-      studentName: matchedStudent.fullName,
-      studentCode: matchedStudent.studentCode || `TG-STU-${matchedStudent.id}`,
-      parentEmail: (matchedStudent as any).parentEmails?.[0] || matchedStudent.email || "parent@topgrade.edu",
-      parentPhone: (matchedStudent as any).parentPhones?.[0] || (matchedStudent as any).primaryMobile || "",
-      parentName: (matchedStudent as any).fatherName || (matchedStudent as any).parentFirstName || "Parent",
-      courseId: input.courseId || "crs-active",
-      courseName: "Academic Course Stream"
-    };
-
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const course = await findCourse(input.courseId);
+    const courseName = course?.name || input.courseId;
+    const today = instituteNow().dateStr;
     const nowIso = new Date().toISOString();
+    const classKey = classKeyOf({ courseId: input.courseId });
+    const scanMethod = input.scanMethod || "QR_CODE_SCANNER";
 
-    // Check if student already checked IN today without check out
-    const openRecord = attendanceStore.find(
-      r => r.studentId === studentInfo.studentId && r.date === todayStr && !r.checkOutTime
-    );
+    const open = await findOpenCheckin(student.id, classKey, today);
+    const to = await parentEmailsOf(student.id, { email: student.email, parentEmails: student.parentEmails });
 
-    const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_SENDER_EMAIL || "tglbiz101@gmail.com";
-    const parentEmail = studentInfo.parentEmail || adminEmail;
+    if (open) {
+      const record = await setCheckOut(open.id, nowIso);
+      if (to.length > 0) {
+        void dispatchMultiChannelNotification({
+          eventType: "ATTENDANCE_ALERT",
+          subject: `Check-out: ${student.name} (${courseName})`,
+          message: `${student.name} left ${courseName} at ${new Date(nowIso).toLocaleTimeString()}.`,
+          escapeMessage: true,
+          recipients: to.map(e => ({ role: "PARENT" as const, email: e, name: "Parent", phone: "" })),
+        }).catch(() => undefined);
+      }
+      return { action: "CHECK_OUT" as const, message: `Check-out saved for ${student.name}.`, record, parentNotificationSent: to.length > 0 };
+    }
 
-    if (openRecord) {
-      // Execute Check-Out
-      openRecord.checkOutTime = nowIso;
-
-      // Dispatch Departure Parent Alert
-      dispatchMultiChannelNotification({
+    const r = await markAttendance({
+      studentIdOrCode: student.id, status: "PRESENT", courseId: input.courseId, courseName,
+      date: today, scanMethod, checkInTime: nowIso, markedByName: actor?.name || "QR scanner", ...(actor?.id ? { markedByUserId: actor.id } : {}),
+    });
+    if (to.length > 0) {
+      void dispatchMultiChannelNotification({
         eventType: "ATTENDANCE_ALERT",
-        subject: `🔔 TopGrade Attendance Alert — Check-OUT Confirmed (${studentInfo.studentName})`,
-        message: `Dear ${studentInfo.parentName},\n\nThis is an automated notification confirming that ${studentInfo.studentName} has checked OUT at ${new Date(nowIso).toLocaleTimeString()}.\n\nCourse: ${studentInfo.courseName}\nDate: ${todayStr}\n\nBest Regards,\nTopGrade Learning Administration`,
-        recipients: [
-          { role: "PARENT", email: parentEmail, name: studentInfo.parentName },
-          { role: "ADMIN", email: adminEmail, name: "Administrator" }
-        ]
-      }).catch(err => console.warn("Check-out parent notification note:", err));
-
-      return {
-        action: "CHECK_OUT",
-        message: `Check-OUT logged for '${studentInfo.studentName}' at ${new Date(nowIso).toLocaleTimeString()}`,
-        record: openRecord,
-        parentNotificationSent: true
-      };
+        subject: `Check-in: ${student.name} (${courseName})`,
+        message: `${student.name} arrived for ${courseName} at ${new Date(nowIso).toLocaleTimeString()}.`,
+        escapeMessage: true,
+        recipients: to.map(e => ({ role: "PARENT" as const, email: e, name: "Parent", phone: "" })),
+      }).catch(() => undefined);
     }
-
-    // Execute Check-In
-    const newRecord: AttendanceRecord = {
-      id: `att-${Date.now()}`,
-      studentId: studentInfo.studentId,
-      studentName: studentInfo.studentName,
-      studentCode: studentInfo.studentCode,
-      courseId: input.courseId || studentInfo.courseId,
-      courseName: studentInfo.courseName,
-      parentEmail: studentInfo.parentEmail,
-      parentPhone: studentInfo.parentPhone,
-      parentName: studentInfo.parentName,
-      checkInTime: nowIso,
-      status: "PRESENT",
-      scanMethod: input.scanMethod || "QR_CODE_SCANNER",
-      date: todayStr,
-      createdAt: nowIso
-    };
-
-    attendanceStore.unshift(newRecord);
-
-    // One class = one token (kept in Supabase; marking the same class again does nothing)
-    let remainingHours = 0;
-    try {
-      const used = await consumeAttendanceToken({
-        studentIdOrCode: studentInfo.studentId,
-        courseIdOrName: input.courseId || studentInfo.courseId || studentInfo.courseName,
-        classRef: `${input.courseId || studentInfo.courseId || studentInfo.courseName}:${todayStr}`,
-      });
-      remainingHours = used.balance ?? 0;
-    } catch (tokenErr: any) {
-      console.warn("Token deduction notice:", tokenErr?.message);
-    }
-
-    // Dispatch Arrival Parent Alert
-    dispatchMultiChannelNotification({
-      eventType: "ATTENDANCE_ALERT",
-      subject: `🔔 TopGrade Attendance Alert — Check-IN Confirmed (${studentInfo.studentName})`,
-      message: `Dear ${studentInfo.parentName},\n\nThis is an automated notification confirming that ${studentInfo.studentName} has arrived and checked IN for '${studentInfo.courseName}' at ${new Date(nowIso).toLocaleTimeString()}.\n\nRemaining Prepaid Hours: ${remainingHours}\nDate: ${todayStr}\n\nBest Regards,\nTopGrade Learning Administration`,
-      recipients: [
-        { role: "PARENT", email: parentEmail, name: studentInfo.parentName },
-        { role: "ADMIN", email: adminEmail, name: "Administrator" }
-      ]
-    }).catch(err => console.warn("Check-in parent notification note:", err));
-
     return {
-      action: "CHECK_IN",
-      message: `Check-IN verified for '${studentInfo.studentName}'. Parent notification dispatched.`,
-      record: newRecord,
-      remainingHours,
-      parentNotificationSent: true
+      action: "CHECK_IN" as const,
+      message: `Check-in saved for ${student.name}.`,
+      record: r.record,
+      remainingHours: r.token.remaining ?? 0,
+      tokenWarning: r.token.warning,
+      parentNotificationSent: to.length > 0,
     };
   }
 
-  /**
-   * 2. Process Batch Teacher Attendance Marking
-   */
-  public static async markBatchAttendance(input: BatchAttendanceInput) {
+  /** Teacher marks a whole class at once. */
+  public static async markBatchAttendance(input: BatchAttendanceInput, actor?: { id?: string; name?: string }) {
     const { courseId, date, entries } = input;
-    const nowIso = new Date().toISOString();
-
-    const createdRecords: AttendanceRecord[] = [];
-    let presentCount = 0;
-    let absentCount = 0;
+    const course = await findCourse(courseId);
+    const records: AttendanceRecord[] = [];
+    const warnings: string[] = [];
+    let present = 0;
+    let absent = 0;
 
     for (const entry of entries) {
-      const isAttended = entry.status === "PRESENT" || entry.status === "LATE";
-      if (isAttended) presentCount++;
-      else absentCount++;
-
-      const studentMeta = inMemoryStudentStore.find(s => s.id === entry.studentId) || {
-        studentCode: `TG-STU-${entry.studentId}`,
-        parentEmails: ["parent@topgrade.edu"],
-        parentPhones: [""],
-        fatherName: "Parent"
-      };
-
-      const record: AttendanceRecord = {
-        id: `att-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-        studentId: entry.studentId,
-        studentName: entry.studentName,
-        studentCode: studentMeta.studentCode || `TG-STU-${entry.studentId}`,
-        courseId,
-        courseName: "Scheduled Academic Course",
-        parentEmail: studentMeta.parentEmails?.[0] || "parent@topgrade.edu",
-        parentPhone: studentMeta.parentPhones?.[0] || "",
-        parentName: studentMeta.fatherName || "Parent",
-        checkInTime: isAttended ? nowIso : undefined,
-        status: entry.status,
-        scanMethod: "TEACHER_BATCH",
-        date: date || nowIso.slice(0, 10),
-        notes: entry.notes,
-        createdAt: nowIso
-      };
-
-      attendanceStore.unshift(record);
-      createdRecords.push(record);
-
-      try {
-        const classRef = `${courseId}:${date || nowIso.slice(0, 10)}`;
-        if (isAttended) await consumeAttendanceToken({ studentIdOrCode: entry.studentId, courseIdOrName: courseId, classRef });
-        else await refundAttendanceToken({ studentIdOrCode: entry.studentId, courseIdOrName: courseId, classRef });
-      } catch (tokenErr: any) {
-        console.warn("Token update notice:", tokenErr?.message);
-      }
+      const status = entry.status;
+      if (isAttended(status)) present++; else absent++;
+      const r = await markAttendance({
+        studentIdOrCode: entry.studentId, status, courseId, ...(course ? { courseName: course.name } : {}),
+        date, remarks: entry.notes, scanMethod: "TEACHER_BATCH", markedByName: actor?.name || "Teacher", ...(actor?.id ? { markedByUserId: actor.id } : {}),
+      });
+      records.push(r.record);
+      if (r.token.warning) warnings.push(`${r.record.studentName}: ${r.token.warning}`);
     }
-
     return {
       success: true,
-      message: `Batch attendance processed for ${entries.length} students (${presentCount} Present, ${absentCount} Absent).`,
-      records: createdRecords,
-      presentCount,
-      absentCount
+      message: `Batch attendance saved for ${entries.length} students (${present} present, ${absent} not present).`,
+      records, presentCount: present, absentCount: absent, warnings,
     };
   }
 
-  /**
-   * 3. Calculate Real-Time Attendance Statistics for a Student
-   */
-  public static getStudentAttendanceStats(studentId: string, alertThresholdPercentage: number = 75) {
-    const studentRecords = attendanceStore.filter(r => r.studentId === studentId);
-    const totalSessions = studentRecords.length;
-
-    if (totalSessions === 0) {
-      return {
-        studentId,
-        totalSessions: 0,
-        presentSessions: 0,
-        absentSessions: 0,
-        lateSessions: 0,
-        attendancePercentage: 100,
-        isBelowThreshold: false,
-        warningAlert: "No recorded class sessions yet.",
-        records: []
-      };
-    }
-
-    const presentSessions = studentRecords.filter(r => r.status === "PRESENT" || r.status === "LATE").length;
-    const absentSessions = studentRecords.filter(r => r.status === "ABSENT").length;
-    const lateSessions = studentRecords.filter(r => r.status === "LATE").length;
-
-    const attendancePercentage = Math.round((presentSessions / totalSessions) * 100);
-    const isBelowThreshold = attendancePercentage < alertThresholdPercentage;
-
-    return {
-      studentId,
-      totalSessions,
-      presentSessions,
-      absentSessions,
-      lateSessions,
-      attendancePercentage,
-      isBelowThreshold,
-      warningAlert: isBelowThreshold 
-        ? `⚠️ Attendance (${attendancePercentage}%) is below required ${alertThresholdPercentage}% threshold!`
-        : "Attendance in good standing.",
-      records: studentRecords
-    };
+  public static async getStudentAttendanceStats(studentId: string, alertThresholdPercentage = 75) {
+    return statsFor(studentId, alertThresholdPercentage);
   }
 
-  /**
-   * 4. Retrieve Full Attendance History
-   */
-  public static getAllAttendance(filters?: { courseId?: string; date?: string; studentId?: string }) {
-    let list = attendanceStore;
-    if (filters?.courseId) {
-      list = list.filter(r => r.courseId === filters.courseId);
-    }
-    if (filters?.date) {
-      list = list.filter(r => r.date === filters.date);
-    }
-    if (filters?.studentId) {
-      list = list.filter(r => r.studentId === filters.studentId);
-    }
-    return list;
+  public static async getAllAttendance(filters?: { courseId?: string; date?: string; studentIds?: string[] }) {
+    return listAttendance(filters || {});
   }
 }

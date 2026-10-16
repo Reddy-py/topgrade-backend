@@ -1,4 +1,3 @@
-import { attendanceStore, type ScanMethodEnum } from "./attendanceService.js";
 
 export interface DemoTeacherSeed {
   id: string;
@@ -162,26 +161,7 @@ export class DemoDataService {
     });
     demoStudentsPool.push(...students);
 
-    // D. Initial attendance logs
-    students.forEach((s, idx) => {
-
-      attendanceStore.push({
-        id: `att-demo-${s.id}`,
-        studentId: s.id,
-        studentName: s.fullName,
-        studentCode: s.studentCode,
-        courseId: s.enrolledCourseId,
-        courseName: s.enrolledCourseName,
-        parentEmail: s.parentEmail,
-        parentPhone: s.parentPhone,
-        parentName: s.fatherName,
-        checkInTime: new Date(Date.now() - (idx * 3600000)).toISOString(),
-        status: idx % 5 === 0 ? "ABSENT" : "PRESENT",
-        scanMethod: "STUDENT_SELF_QR" as ScanMethodEnum,
-        date: new Date().toISOString().slice(0, 10),
-        createdAt: new Date().toISOString()
-      });
-    });
+    // (Demo data no longer writes attendance: attendance lives only in Supabase.)
 
     return {
       success: true,
@@ -204,11 +184,6 @@ export class DemoDataService {
     demoCoursesPool = [];
     demoStudentsPool = [];
 
-    for (let i = attendanceStore.length - 1; i >= 0; i--) {
-      if (attendanceStore[i]?.studentId?.startsWith("std-demo-") || attendanceStore[i]?.id?.startsWith("att-demo-")) {
-        attendanceStore.splice(i, 1);
-      }
-    }
 
     return {
       success: true,

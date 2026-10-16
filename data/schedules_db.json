@@ -36,7 +36,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-14T06:09:18.281Z"
+    "created_at": "2026-10-16T10:25:53.328Z"
   },
   {
     "id": "sch-1789536766680-tuesday-854",
@@ -67,7 +67,7 @@
         "student_code": "TG-STU-2026-3632"
       }
     ],
-    "created_at": "2026-10-14T06:09:18.282Z"
+    "created_at": "2026-10-16T10:25:53.329Z"
   },
   {
     "id": "sch-1789536766680-wednesday-57",
@@ -89,7 +89,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-14T06:09:18.283Z"
+    "created_at": "2026-10-16T10:25:53.330Z"
   },
   {
     "id": "sch-1789536766680-thursday-170",
@@ -111,7 +111,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-14T06:09:18.284Z"
+    "created_at": "2026-10-16T10:25:53.331Z"
   },
   {
     "id": "sch-1789536766680-friday-439",
@@ -133,7 +133,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-14T06:09:18.285Z"
+    "created_at": "2026-10-16T10:25:53.332Z"
   },
   {
     "id": "sch-1789540113076-wednesday-686",
@@ -154,7 +154,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-14T06:09:18.287Z"
+    "created_at": "2026-10-16T10:25:53.352Z"
   },
   {
     "id": "sch-1789540113076-saturday-562",
@@ -175,28 +175,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-14T06:09:18.288Z"
-  },
-  {
-    "id": "sch-1789540122502",
-    "course_id": "4c3dd745-5260-45d4-8845-9298db7759ca",
-    "course_name": "Coding",
-    "teacher_id": "9172f433-b79a-4a3e-a0e6-b5c2a46d5e62",
-    "teacher_name": "Jignesh Upadhyaya",
-    "open_for_teachers": false,
-    "eligible_teacher_ids": [
-      "9172f433-b79a-4a3e-a0e6-b5c2a46d5e62"
-    ],
-    "day_of_week": "Monday",
-    "start_time": "09:00 AM",
-    "end_time": "10:00 AM",
-    "time_slot": "09:00 AM - 10:00 AM",
-    "room": "Computer Lab 1",
-    "location": "Main Academic Center",
-    "max_capacity": 15,
-    "is_active": true,
-    "students": [],
-    "created_at": "2026-10-14T06:09:18.289Z"
+    "created_at": "2026-10-16T10:25:53.352Z"
   },
   {
     "id": "sch-1790654753376-saturday-29",
@@ -217,28 +196,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-14T06:09:18.279Z"
-  },
-  {
-    "id": "sch-1790654759909",
-    "course_id": "fddcf023-19b1-4b67-9a6e-ca9ca6bf79dc",
-    "course_name": "Biology",
-    "teacher_id": "c717847c-2e46-4d80-82bb-a0ec51edc364",
-    "teacher_name": "Shahrazad Polk",
-    "open_for_teachers": false,
-    "eligible_teacher_ids": [
-      "c717847c-2e46-4d80-82bb-a0ec51edc364"
-    ],
-    "day_of_week": "Monday",
-    "start_time": "10:00 AM",
-    "end_time": "11:00 AM",
-    "time_slot": "10:00 AM - 11:00 AM",
-    "room": "Room 1",
-    "location": "Main Academic Center",
-    "max_capacity": 15,
-    "is_active": true,
-    "students": [],
-    "created_at": "2026-10-14T06:09:18.280Z"
+    "created_at": "2026-10-16T10:25:53.327Z"
   },
   {
     "id": "sch-crs-spn-101-1",
@@ -257,7 +215,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-14T06:09:18.285Z"
+    "created_at": "2026-10-16T10:25:53.333Z"
   },
   {
     "id": "sch-crs-spn-101-2",
@@ -276,7 +234,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-14T06:09:18.286Z"
+    "created_at": "2026-10-16T10:25:53.335Z"
   },
   {
     "id": "sch-crs-rea-101-1",
@@ -295,7 +253,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-14T06:09:18.290Z"
+    "created_at": "2026-10-16T10:25:53.336Z"
   },
   {
     "id": "sch-crs-rea-101-2",
@@ -314,7 +272,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-14T06:09:18.291Z"
+    "created_at": "2026-10-16T10:25:53.338Z"
   },
   {
     "id": "sch-crs-mr-101-1",
@@ -333,7 +291,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-14T06:09:18.293Z"
+    "created_at": "2026-10-16T10:25:53.338Z"
   },
   {
     "id": "sch-crs-mr-101-2",
@@ -352,7 +310,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-14T06:09:18.294Z"
+    "created_at": "2026-10-16T10:25:53.339Z"
   },
   {
     "id": "sch-crs-smp-101-1",
@@ -371,7 +329,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-14T06:09:18.296Z"
+    "created_at": "2026-10-16T10:25:53.340Z"
   },
   {
     "id": "sch-crs-smp-101-2",
@@ -390,7 +348,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-14T06:09:18.297Z"
+    "created_at": "2026-10-16T10:25:53.341Z"
   },
   {
     "id": "sch-crs-wrt-101-1",
@@ -409,7 +367,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-14T06:09:18.298Z"
+    "created_at": "2026-10-16T10:25:53.342Z"
   },
   {
     "id": "sch-crs-wrt-101-2",
@@ -428,26 +386,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-14T06:09:18.299Z"
-  },
-  {
-    "id": "sch-crs-cew-101-1",
-    "course_id": "972e09e1-b3d9-47e6-9b82-43a0064c4b6d",
-    "course_name": "College Essay Workshop & Writing",
-    "teacher_id": "",
-    "teacher_name": "Assigned Faculty",
-    "open_for_teachers": false,
-    "eligible_teacher_ids": [],
-    "day_of_week": "Monday",
-    "start_time": "04:30 PM",
-    "end_time": "06:00 PM",
-    "time_slot": "04:30 PM - 06:00 PM",
-    "room": "Center Room A",
-    "location": "Main Academic Center",
-    "max_capacity": 15,
-    "is_active": true,
-    "students": [],
-    "created_at": "2026-10-14T06:09:18.300Z"
+    "created_at": "2026-10-16T10:25:53.343Z"
   },
   {
     "id": "sch-crs-cew-101-2",
@@ -466,7 +405,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-14T06:09:18.301Z"
+    "created_at": "2026-10-16T10:25:53.351Z"
   },
   {
     "id": "sch-crs-gtp-101-1",
@@ -485,7 +424,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-14T06:09:18.301Z"
+    "created_at": "2026-10-16T10:25:53.344Z"
   },
   {
     "id": "sch-crs-gtp-101-2",
@@ -504,26 +443,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-14T06:09:18.302Z"
-  },
-  {
-    "id": "sch-crs-alg-101-1",
-    "course_id": "12cb9aad-e071-4715-8675-b884e3532c34",
-    "course_name": "Algebra 1 & PAP Algebra 2",
-    "teacher_id": "",
-    "teacher_name": "Assigned Faculty",
-    "open_for_teachers": false,
-    "eligible_teacher_ids": [],
-    "day_of_week": "Monday",
-    "start_time": "04:30 PM",
-    "end_time": "06:00 PM",
-    "time_slot": "04:30 PM - 06:00 PM",
-    "room": "Center Room A",
-    "location": "Main Academic Center",
-    "max_capacity": 15,
-    "is_active": true,
-    "students": [],
-    "created_at": "2026-10-14T06:09:18.303Z"
+    "created_at": "2026-10-16T10:25:53.345Z"
   },
   {
     "id": "sch-crs-alg-101-2",
@@ -542,7 +462,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-14T06:09:18.304Z"
+    "created_at": "2026-10-16T10:25:53.350Z"
   },
   {
     "id": "sch-crs-tsi-101-1",
@@ -561,7 +481,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-14T06:09:18.305Z"
+    "created_at": "2026-10-16T10:25:53.345Z"
   },
   {
     "id": "sch-crs-tsi-101-2",
@@ -580,7 +500,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-14T06:09:18.306Z"
+    "created_at": "2026-10-16T10:25:53.346Z"
   },
   {
     "id": "sch-crs-esl-101-1",
@@ -599,7 +519,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-14T06:09:18.307Z"
+    "created_at": "2026-10-16T10:25:53.347Z"
   },
   {
     "id": "sch-crs-esl-101-2",
@@ -618,7 +538,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-14T06:09:18.308Z"
+    "created_at": "2026-10-16T10:25:53.348Z"
   },
   {
     "id": "sch-crs-hin-101-1",
@@ -637,7 +557,7 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-14T06:09:18.309Z"
+    "created_at": "2026-10-16T10:25:53.349Z"
   },
   {
     "id": "sch-crs-hin-101-2",
@@ -656,6 +576,44 @@
     "max_capacity": 15,
     "is_active": true,
     "students": [],
-    "created_at": "2026-10-14T06:09:18.309Z"
+    "created_at": "2026-10-16T10:25:53.349Z"
+  },
+  {
+    "id": "sch-crs-alg-101-1",
+    "course_id": "12cb9aad-e071-4715-8675-b884e3532c34",
+    "course_name": "Algebra 1 & PAP Algebra 2",
+    "teacher_id": "",
+    "teacher_name": "Assigned Faculty",
+    "open_for_teachers": false,
+    "eligible_teacher_ids": [],
+    "day_of_week": "Monday",
+    "start_time": "04:30 PM",
+    "end_time": "06:00 PM",
+    "time_slot": "04:30 PM - 06:00 PM",
+    "room": "Center Room A",
+    "location": "Main Academic Center",
+    "max_capacity": 15,
+    "is_active": true,
+    "students": [],
+    "created_at": "2026-10-16T09:59:49.523Z"
+  },
+  {
+    "id": "sch-crs-cew-101-1",
+    "course_id": "972e09e1-b3d9-47e6-9b82-43a0064c4b6d",
+    "course_name": "College Essay Workshop & Writing",
+    "teacher_id": "",
+    "teacher_name": "Assigned Faculty",
+    "open_for_teachers": false,
+    "eligible_teacher_ids": [],
+    "day_of_week": "Monday",
+    "start_time": "04:30 PM",
+    "end_time": "06:00 PM",
+    "time_slot": "04:30 PM - 06:00 PM",
+    "room": "Center Room A",
+    "location": "Main Academic Center",
+    "max_capacity": 15,
+    "is_active": true,
+    "students": [],
+    "created_at": "2026-10-16T09:59:57.519Z"
   }
 ]
