@@ -39,6 +39,7 @@ export async function getAccessScope(user: AuthenticatedUser): Promise<AccessSco
     limit: 100000,
     status: "ALL",
     grade: "ALL",
+    refresh: true,
     currentUser: { id: user.id, email: user.email, role: user.role },
   });
   for (const s of (result.data || []) as any[]) {

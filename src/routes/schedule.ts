@@ -2,7 +2,8 @@ import { Router } from "express";
 import type { Request, Response } from "express";
 import { supabaseAdmin } from "../supabase.js";
 import { dispatchMultiChannelNotification, sendClassScheduleEmail } from "../services/notificationService.js";
-import { ScheduleDataService } from "../services/scheduleDataService.js";
+import { sendScheduleClassEvent } from "../services/eventEmailService.js";
+import { ScheduleDataService, getSlotDurationMinutes } from "../services/scheduleDataService.js";
 import type { AuthenticatedRequest } from "../middleware/auth.js";
 import { getAccessScope, allowsStudent, allowsTeacher, scopeSchedules } from "../services/accessScope.js";
 import { listOpenSlots, claimSlot, releaseSlot } from "../services/slotClaimService.js";
@@ -17,11 +18,69 @@ let inMemoryReschedules: Record<string, { count: number; lastSessionTime?: strin
 // ==========================================
 
 // 1. List all active schedule slots with mapped students
-router.get("/list", async (req, res): Promise<any> => {
+router.get(["/", "/list"], async (req, res): Promise<any> => {
   try {
     const scope = await getAccessScope((req as AuthenticatedRequest).user!);
-    const schedules = scopeSchedules(await ScheduleDataService.listSchedules(), scope);
+    let schedules = scopeSchedules(await ScheduleDataService.listSchedules(), scope);
+
+    // Apply query filters: course, teacher, location, program, day
+    const { course, teacher, location, location_id, program, program_type, day } = req.query as Record<string, string>;
+
+    if (course && course !== "ALL") {
+      const cLower = course.toLowerCase().trim();
+      schedules = schedules.filter(s =>
+        s.course_id.toLowerCase() === cLower || s.course_name.toLowerCase().includes(cLower)
+      );
+    }
+
+    if (teacher && teacher !== "ALL") {
+      const tLower = teacher.toLowerCase().trim();
+      schedules = schedules.filter(s =>
+        s.teacher_id.toLowerCase() === tLower || s.teacher_name.toLowerCase().includes(tLower)
+      );
+    }
+
+    const locFilter = (location_id || location || "").toLowerCase().trim();
+    if (locFilter && locFilter !== "ALL") {
+      schedules = schedules.filter(s =>
+        (s.location_id && s.location_id.toLowerCase() === locFilter) ||
+        (s.location && s.location.toLowerCase().includes(locFilter))
+      );
+    }
+
+    const prog = (program_type || program || "").toUpperCase().trim();
+    if (prog && prog !== "ALL") {
+      schedules = schedules.filter(s => {
+        const sp = (s.program_type || s.program || "").toUpperCase();
+        return sp === prog || sp.includes(prog);
+      });
+    }
+
+    if (day && day !== "ALL") {
+      const dayLower = day.toLowerCase().trim();
+      schedules = schedules.filter(s => s.day_of_week.toLowerCase() === dayLower);
+    }
+
     return res.status(200).json({ success: true, count: schedules.length, data: schedules });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 1b. Admin report listing existing slots that are not 60 minutes so they can be fixed
+router.get("/irregular-slots", async (req, res): Promise<any> => {
+  try {
+    const user = (req as AuthenticatedRequest).user!;
+    if (user?.role !== "ADMIN") {
+      return res.status(403).json({ success: false, error: "Only administrators can view the irregular slots report." });
+    }
+    const report = await ScheduleDataService.getIrregularScheduleSlotsReport();
+
+    return res.status(200).json({
+      success: true,
+      count: report.irregularCount,
+      data: report.irregularSlots
+    });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message });
   }
@@ -78,6 +137,10 @@ const createScheduleSlotHandler = async (req: Request, res: Response): Promise<a
       end_time,
       room,
       location,
+      location_id,
+      location_address,
+      program,
+      program_type,
       max_capacity,
       students
     } = req.body;
@@ -114,6 +177,16 @@ const createScheduleSlotHandler = async (req: Request, res: Response): Promise<a
       });
     }
 
+    const duration = getSlotDurationMinutes(effectiveStartTime, effectiveEndTime);
+    if (duration !== 60) {
+      return res.status(400).json({
+        success: false,
+        error: `Class slot must be exactly 60 minutes (1 hour). Received ${duration} minutes (${effectiveStartTime} to ${effectiveEndTime}).`
+      });
+    }
+
+    const effectiveProgram = (program_type || program || "TUTORING").toUpperCase();
+
     if (daysList.length > 1) {
       const createdSlots = await ScheduleDataService.createMultiDaySchedules({
         course_id: course_id || `crs-${Date.now()}`,
@@ -125,7 +198,11 @@ const createScheduleSlotHandler = async (req: Request, res: Response): Promise<a
         start_time: effectiveStartTime,
         end_time: effectiveEndTime,
         room: room || "Room 101",
-        location: location || "Main Campus",
+        location: location || "Main Academic Center",
+        location_id,
+        location_address,
+        program: effectiveProgram,
+        program_type: effectiveProgram,
         max_capacity: max_capacity || 15,
         students
       });
@@ -149,42 +226,34 @@ const createScheduleSlotHandler = async (req: Request, res: Response): Promise<a
       start_time: effectiveStartTime,
       end_time: effectiveEndTime,
       room: room || "Room 101",
-      location: location || "Main Campus",
+      location: location || "Main Academic Center",
+      location_id,
+      location_address,
+      program: effectiveProgram,
+      program_type: effectiveProgram,
       max_capacity: max_capacity || 15,
       students
     });
 
-    // Send Class Schedule Email to Parents of all enrolled students
-    if (students && Array.isArray(students)) {
-      for (const st of students) {
-        let parentEmail = (st as any).parent_email;
-        if (!parentEmail) {
-          try {
-            const { data: sRec } = await supabaseAdmin
-              .from("students")
-              .select("email, parent_emails, father_phone, parent_id")
-              .eq("id", st.student_id)
-              .maybeSingle();
-
-            if (sRec) {
-              parentEmail = sRec.parent_emails?.[0] || sRec.email;
-            }
-          } catch (e) {}
-        }
-
-        if (parentEmail) {
-          sendClassScheduleEmail({
-            parentEmail,
-            studentName: st.student_name,
-            courseName: course_name,
-            dayOfWeek: daysList[0],
-            timeSlot: createdSlot.time_slot,
-            room: createdSlot.room,
-            teacherName: teacher_name,
-            location: createdSlot.location
-          }).catch(e => console.warn("Email dispatch note:", e));
-        }
-      }
+    // Send Class Schedule Email to Parents and Students
+    if (students && Array.isArray(students) && students.length > 0) {
+      void sendScheduleClassEvent({
+        actionType: "CLASS_CREATED",
+        courseName: course_name,
+        dayOfWeek: daysList[0],
+        timeSlot: createdSlot.time_slot,
+        room: createdSlot.room,
+        locationName: createdSlot.location,
+        locationAddress: createdSlot.location_address,
+        teacherName: teacher_name,
+        teacherEmail: (createdSlot as any).teacher_email,
+        students: students.map((st: any) => ({
+          id: st.student_id,
+          name: st.student_name,
+          email: st.student_email || st.email,
+          parentEmails: st.parent_email ? [st.parent_email] : st.parent_emails
+        }))
+      }).catch(e => console.warn("Email dispatch note:", e));
     }
 
     return res.status(201).json({
@@ -193,8 +262,10 @@ const createScheduleSlotHandler = async (req: Request, res: Response): Promise<a
       data: createdSlot
     });
   } catch (err: any) {
-    const isConflict = err.message?.toLowerCase().includes("collision");
-    return res.status(isConflict ? 400 : 500).json({
+    const isBadRequest = err.message?.toLowerCase().includes("collision") ||
+                         err.message?.toLowerCase().includes("duration") ||
+                         err.message?.toLowerCase().includes("60 minutes");
+    return res.status(isBadRequest ? 400 : 500).json({
       success: false,
       error: err.message
     });
@@ -203,31 +274,83 @@ const createScheduleSlotHandler = async (req: Request, res: Response): Promise<a
 
 router.post("/create", createScheduleSlotHandler);
 router.post("/create-multi", createScheduleSlotHandler);
+router.post("/", createScheduleSlotHandler);
 
 // 4. Update schedule slot
-router.put("/edit/:id", async (req, res): Promise<any> => {
+const updateScheduleHandler = async (req: Request, res: Response): Promise<any> => {
   try {
-    const { id } = req.params;
+    const id = String(req.params.id);
+    const existingSlot = (await ScheduleDataService.listSchedules()).find(s => s.id === id);
     const updated = await ScheduleDataService.updateSchedule(id, req.body);
+
+    if (updated) {
+      const isRescheduled = existingSlot && (existingSlot.day_of_week !== updated.day_of_week || existingSlot.time_slot !== updated.time_slot);
+      void sendScheduleClassEvent({
+        actionType: isRescheduled ? "CLASS_RESCHEDULED" : "CLASS_CHANGED",
+        courseName: updated.course_name,
+        dayOfWeek: updated.day_of_week,
+        timeSlot: updated.time_slot,
+        room: updated.room,
+        locationName: updated.location,
+        locationAddress: updated.location_address,
+        teacherName: updated.teacher_name,
+        teacherEmail: (updated as any).teacher_email,
+        students: (updated.students || []).map((st: any) => ({
+          id: st.student_id,
+          name: st.student_name,
+          email: st.student_email || st.email,
+          parentEmails: st.parent_email ? [st.parent_email] : st.parent_emails
+        }))
+      }).catch(() => undefined);
+    }
+
     return res.status(200).json({
       success: true,
       message: "Schedule slot updated successfully.",
       data: updated
     });
   } catch (err: any) {
-    const isConflict = err.message?.toLowerCase().includes("collision");
-    return res.status(isConflict ? 400 : 500).json({
+    const isBadRequest = err.message?.toLowerCase().includes("collision") ||
+                         err.message?.toLowerCase().includes("duration") ||
+                         err.message?.toLowerCase().includes("60 minutes");
+    return res.status(isBadRequest ? 400 : 500).json({
       success: false,
       error: err.message
     });
   }
-});
+};
+
+router.put("/edit/:id", updateScheduleHandler);
+router.put("/:id", updateScheduleHandler);
 
 // 5. Delete schedule slot
 router.delete("/:id", async (req, res): Promise<any> => {
   try {
     const { id } = req.params;
+    const existingSlot = (await ScheduleDataService.listSchedules()).find(s => s.id === id);
     await ScheduleDataService.deleteSchedule(id);
+
+    if (existingSlot) {
+      void sendScheduleClassEvent({
+        actionType: "CLASS_CANCELLED",
+        courseName: existingSlot.course_name,
+        dayOfWeek: existingSlot.day_of_week,
+        timeSlot: existingSlot.time_slot,
+        room: existingSlot.room,
+        locationName: existingSlot.location,
+        locationAddress: existingSlot.location_address,
+        teacherName: existingSlot.teacher_name,
+        teacherEmail: (existingSlot as any).teacher_email,
+        students: (existingSlot.students || []).map((st: any) => ({
+          id: st.student_id,
+          name: st.student_name,
+          email: st.student_email || st.email,
+          parentEmails: st.parent_email ? [st.parent_email] : st.parent_emails
+        })),
+        cancellationReason: req.body?.reason || (req.query as any)?.reason ? String(req.body?.reason || (req.query as any)?.reason) : "Administrative class cancellation"
+      }).catch(() => undefined);
+    }
+
     return res.status(200).json({
       success: true,
       message: "Schedule slot removed successfully."
@@ -309,7 +432,9 @@ router.post("/assign-student", async (req: Request, res: Response): Promise<any>
         timeSlot: updatedSlot.time_slot,
         room: updatedSlot.room,
         teacherName: updatedSlot.teacher_name,
-        location: updatedSlot.location
+        location: updatedSlot.location_address
+          ? `${updatedSlot.location} (${updatedSlot.location_address})`
+          : updatedSlot.location
       }).catch(e => console.warn("Email dispatch note:", e));
     }
 

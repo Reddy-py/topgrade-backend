@@ -28,8 +28,7 @@ export class ReceiptPdfService {
    * 1. Generates Official TopGrade Institutional Receipt HTML Document
    */
   public static generateReceiptHtml(data: ReceiptDataInput): string {
-    const tax = (data.grossAmount * 0.18).toFixed(2);
-    const total = (data.grossAmount * 1.18).toFixed(2);
+    const total = data.totalPayable ? data.totalPayable.toFixed(2) : data.grossAmount.toFixed(2);
 
     return `
 <!DOCTYPE html>
@@ -93,7 +92,7 @@ export class ReceiptPdfService {
           <th>Item / Curriculum Description</th>
           <th>Pricing Package</th>
           <th>Units / Paid Hours</th>
-          <th>Amount (INR)</th>
+          <th>Amount (USD)</th>
         </tr>
       </thead>
       <tbody>
@@ -101,19 +100,15 @@ export class ReceiptPdfService {
           <td>${data.courseName}</td>
           <td>${data.pricingModel === "HOURLY_CREDIT_PACKAGE" ? "Hourly Credit Package" : "Fixed Course Package"}</td>
           <td>${data.purchasedHours ? `${data.purchasedHours} Paid Class Credits` : "Full Term"}</td>
-          <td>₹${data.grossAmount.toFixed(2)}</td>
+          <td>$${data.grossAmount.toFixed(2)}</td>
         </tr>
         <tr>
           <td colspan="3" style="text-align: right;"><strong>Subtotal:</strong></td>
-          <td>₹${data.grossAmount.toFixed(2)}</td>
-        </tr>
-        <tr>
-          <td colspan="3" style="text-align: right;"><strong>18% GST (CGST 9% + SGST 9%):</strong></td>
-          <td>₹${tax}</td>
+          <td>$${data.grossAmount.toFixed(2)}</td>
         </tr>
         <tr class="total-row">
           <td colspan="3" style="text-align: right; font-size: 13px;"><strong>TOTAL AMOUNT PAID:</strong></td>
-          <td style="font-size: 14px;">₹${total}</td>
+          <td style="font-size: 14px;">$${total}</td>
         </tr>
       </tbody>
     </table>
@@ -125,7 +120,7 @@ export class ReceiptPdfService {
         <span style="font-size: 9px; color: #434655;">Verified &amp; Cleared Automatically</span>
       </div>
       <div style="font-size: 10px; color: #737686; align-self: center;">
-        Note: This is a computer-generated tax invoice and receipt. Fees paid are valid for the purchased class hour credits.
+        Note: This is an official institutional payment receipt. Fees paid are valid for the purchased class hour credits.
       </div>
     </div>
   </div>
@@ -154,7 +149,7 @@ export class ReceiptPdfService {
       await dispatchMultiChannelNotification({
         eventType: "PAYMENT_COMPLETED",
         subject: `🧾 Official Payment Receipt — ${data.receiptNumber} (${data.courseName})`,
-        message: `Dear ${data.studentName},\n\nYour payment of ₹${data.totalPayable.toFixed(2)} for '${data.courseName}' has been successfully confirmed!\n\nReceipt Number: ${data.receiptNumber}\nPayment Mode: ${data.paymentMethod} (${data.payerClassification || "Verified"})\n\nYour official institutional receipt PDF has been attached.\n\nBest Regards,\nTopGrade Accounts Division`,
+        message: `Dear ${data.studentName},\n\nYour payment of $${data.totalPayable.toFixed(2)} for '${data.courseName}' has been successfully confirmed!\n\nReceipt Number: ${data.receiptNumber}\nPayment Mode: ${data.paymentMethod} (${data.payerClassification || "Verified"})\n\nYour official institutional receipt PDF has been attached.\n\nBest Regards,\nTopGrade Accounts Division`,
         recipients,
         attachments: [
           {

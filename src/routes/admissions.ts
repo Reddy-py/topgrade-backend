@@ -7,8 +7,6 @@ import { dispatchMultiChannelNotification } from "../services/notificationServic
 
 const router = express.Router();
 
-let inMemoryAdmissions: any[] = [];
-
 // Unified Handler for Public Admission Requests (/inquiry & /register)
 const handleAdmissionSubmission = async (req: express.Request, res: express.Response) => {
   const { 
@@ -43,7 +41,7 @@ const handleAdmissionSubmission = async (req: express.Request, res: express.Resp
   }
 
   const newInquiry = {
-    id: `inq-${Date.now()}`,
+    id: `inq-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     student_name: studentName,
     father_name: fatherName || "",
     mother_name: motherName || "",
@@ -56,31 +54,26 @@ const handleAdmissionSubmission = async (req: express.Request, res: express.Resp
     student_email: targetStudentEmail,
     parent_emails: targetParentEmails,
     email: targetStudentEmail,
+    phone: targetStudentPhone,
     parent_email: targetParentEmails[0] || "",
     grade_level: targetGrade,
     course_interested: targetGrade,
+    referred_by_code: req.body.referredByCode || req.body.referred_by_code || null,
     status: "Pending",
     created_at: new Date().toISOString()
   };
 
-  let savedData = newInquiry;
+  const { data, error } = await supabaseAdmin
+    .from("admission_requests")
+    .insert([newInquiry])
+    .select()
+    .single();
 
-  try {
-    const { data, error } = await supabaseAdmin
-      .from("admission_requests")
-      .insert([newInquiry])
-      .select()
-      .single();
-
-    if (!error && data) {
-      savedData = data;
-    } else {
-      inMemoryAdmissions.unshift(newInquiry);
-    }
-  } catch (err: any) {
-    inMemoryAdmissions.unshift(newInquiry);
+  if (error) {
+    return res.status(500).json({ success: false, message: error.message });
   }
 
+  const savedData = data || newInquiry;
   const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_SENDER_EMAIL || "tglbiz101@gmail.com";
 
   // Build Notification Recipients list
@@ -100,12 +93,12 @@ const handleAdmissionSubmission = async (req: express.Request, res: express.Resp
   });
 
   // Trigger Automatic Emails to Student, Parents, and Admin
-  await dispatchMultiChannelNotification({
+  void dispatchMultiChannelNotification({
     eventType: "ADMISSION_INQUIRY",
     subject: `TopGrade Admission Inquiry Received — ${studentName}`,
     message: `Dear ${studentName},\n\nThank you for submitting your admission enrollment request to TopGrade Learning.\n\n📋 Inquiry Summary:\n• Student Name: ${studentName}\n• Academic Grade: ${targetGrade}\n• Date of Birth: ${dateOfBirth || "N/A"} (${age ? `${age} Yrs` : "N/A"})\n• Father Name: ${fatherName || "N/A"} (${fatherPhone || "N/A"})\n• Mother Name: ${motherName || "N/A"} (${motherPhone || "N/A"})\n\nOur center administration will review your application shortly.`,
     recipients
-  });
+  }).catch(() => undefined);
 
   res.status(201).json({
     success: true,
@@ -126,14 +119,13 @@ router.get("/list", authenticateJwt, authorizePermission("students.view"), async
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (error || !data || data.length === 0) {
-      res.status(200).json({ success: true, data: inMemoryAdmissions });
-      return;
+    if (error) {
+      return res.status(500).json({ success: false, error: error.message });
     }
 
-    res.status(200).json({ success: true, data });
+    res.status(200).json({ success: true, data: data || [] });
   } catch (err: any) {
-    res.status(200).json({ success: true, data: inMemoryAdmissions });
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
@@ -142,36 +134,20 @@ router.post("/approve/:id", authenticateJwt, authorizePermission("students.creat
   const { id } = req.params;
   const adminEmail = process.env.ADMIN_EMAIL || "tglbiz101@gmail.com";
 
-  let targetInquiry: any = null;
+  const { data: targetInquiry, error: findErr } = await supabaseAdmin
+    .from("admission_requests")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
 
-  try {
-    const { data } = await supabaseAdmin
-      .from("admission_requests")
-      .select("*")
-      .eq("id", id)
-      .single();
-
-    if (data) targetInquiry = data;
-
-    await supabaseAdmin
-      .from("admission_requests")
-      .update({ status: "Approved" })
-      .eq("id", id);
-  } catch (err) {
-    const idx = inMemoryAdmissions.findIndex(a => a.id === id);
-    if (idx > -1) {
-      inMemoryAdmissions[idx].status = "Approved";
-      targetInquiry = inMemoryAdmissions[idx];
-    }
+  if (findErr || !targetInquiry) {
+    return res.status(404).json({ success: false, message: `Admission request '${id}' not found.` });
   }
 
-  if (!targetInquiry) {
-    targetInquiry = inMemoryAdmissions.find(a => a.id === id) || { student_name: "Student", email: adminEmail };
-  }
-
-  // Update in-memory record status
-  const memIdx = inMemoryAdmissions.findIndex(a => a.id === id);
-  if (memIdx > -1) inMemoryAdmissions[memIdx].status = "Approved";
+  await supabaseAdmin
+    .from("admission_requests")
+    .update({ status: "Approved" })
+    .eq("id", id);
 
   const studentName = targetInquiry.student_name || "Student";
   const studentEmail = targetInquiry.student_email || targetInquiry.email || adminEmail;
@@ -195,12 +171,12 @@ router.post("/approve/:id", authenticateJwt, authorizePermission("students.creat
   });
 
   // Trigger Approval Email Notifications
-  await dispatchMultiChannelNotification({
+  void dispatchMultiChannelNotification({
     eventType: "ADMISSION_APPROVED",
     subject: `🎉 Admission Approved — Welcome to TopGrade Learning!`,
     message: `Dear ${studentName},\n\nWe are delighted to inform you that your admission request for ${targetInquiry.grade_level || targetInquiry.course_interested || "Academic Program"} has been APPROVED by the Center Administrator!\n\nOur Academic Administration Department will complete your formal enrollment and issue your course schedules.`,
     recipients
-  });
+  }).catch(() => undefined);
 
   res.status(200).json({
     success: true,
@@ -213,36 +189,20 @@ router.post("/reject/:id", authenticateJwt, authorizePermission("students.create
   const { id } = req.params;
   const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_SENDER_EMAIL || "tglbiz101@gmail.com";
 
-  let targetInquiry: any = null;
+  const { data: targetInquiry, error: findErr } = await supabaseAdmin
+    .from("admission_requests")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
 
-  try {
-    const { data } = await supabaseAdmin
-      .from("admission_requests")
-      .select("*")
-      .eq("id", id)
-      .single();
-
-    if (data) targetInquiry = data;
-
-    await supabaseAdmin
-      .from("admission_requests")
-      .update({ status: "Rejected" })
-      .eq("id", id);
-  } catch (err) {
-    const idx = inMemoryAdmissions.findIndex(a => a.id === id);
-    if (idx > -1) {
-      inMemoryAdmissions[idx].status = "Rejected";
-      targetInquiry = inMemoryAdmissions[idx];
-    }
+  if (findErr || !targetInquiry) {
+    return res.status(404).json({ success: false, message: `Admission request '${id}' not found.` });
   }
 
-  if (!targetInquiry) {
-    targetInquiry = inMemoryAdmissions.find(a => a.id === id) || { student_name: "Student", email: adminEmail };
-  }
-
-  // Update in-memory record status
-  const memIdx = inMemoryAdmissions.findIndex(a => a.id === id);
-  if (memIdx > -1) inMemoryAdmissions[memIdx].status = "Rejected";
+  await supabaseAdmin
+    .from("admission_requests")
+    .update({ status: "Rejected" })
+    .eq("id", id);
 
   const studentName = targetInquiry.student_name || "Student";
   const studentEmail = targetInquiry.student_email || targetInquiry.email || adminEmail;
@@ -266,12 +226,12 @@ router.post("/reject/:id", authenticateJwt, authorizePermission("students.create
   });
 
   // Trigger Rejection Email Notifications
-  await dispatchMultiChannelNotification({
+  void dispatchMultiChannelNotification({
     eventType: "ADMISSION_INQUIRY",
     subject: `Admission Application Update — TopGrade Learning`,
     message: `Dear ${studentName},\n\nThank you for your interest in TopGrade Learning. Following a review of your admission application, we regret to inform you that we are unable to process your admission at this time.\n\nIf you have any questions or require further guidance, please feel free to reach out to center administration.`,
     recipients
-  });
+  }).catch(() => undefined);
 
   res.status(200).json({
     success: true,

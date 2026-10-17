@@ -1,9 +1,15 @@
+import { getCachedInstituteSettings } from "./instituteSettingsService.js";
+
 /**
  * "Today" for the institute, not for the server. A server in another time zone (most hosts run on UTC)
- * would otherwise send birthday wishes on the wrong day. Set INSTITUTE_TIMEZONE, for example Asia/Kolkata
- * or America/New_York. Default: Asia/Kolkata.
+ * would otherwise send birthday wishes on the wrong day. Reads the configured time zone from
+ * institute_settings (cached for 60 seconds, updated immediately on change).
+ * Falls back to process.env.INSTITUTE_TIMEZONE, then America/New_York.
  */
-export const instituteTimezone = (): string => process.env.INSTITUTE_TIMEZONE || "Asia/Kolkata";
+export const instituteTimezone = (): string => {
+  const settings = getCachedInstituteSettings();
+  return settings.timezone || process.env.INSTITUTE_TIMEZONE || "America/New_York";
+};
 
 export interface InstituteNow {
   dateStr: string; // YYYY-MM-DD in the institute's time zone
@@ -22,6 +28,11 @@ export function instituteNow(at: Date = new Date()): InstituteNow {
   const year = get("year"), month = get("month"), day = get("day"), hour = get("hour");
   const pad = (n: number) => String(n).padStart(2, "0");
   return { dateStr: `${year}-${pad(month)}-${pad(day)}`, year, month, day, hour };
+}
+
+/** Returns today's date string (YYYY-MM-DD) in the institute's time zone. */
+export function instituteToday(at: Date = new Date()): string {
+  return instituteNow(at).dateStr;
 }
 
 /** True when this month/day is the birthday today. A 29 February birthday is celebrated on 28 February in non-leap years. */

@@ -4,12 +4,12 @@ import { AlertsService } from "../services/alertsService.js";
 const router = express.Router();
 
 // 1. GET ALL ALERT LOGS & HISTORY (GET /api/alerts/logs)
-router.get("/logs", (req, res) => {
+router.get("/logs", async (req, res) => {
   try {
     const triggerType = req.query.triggerType ? String(req.query.triggerType) : undefined;
     const recipientId = req.query.recipientId ? String(req.query.recipientId) : undefined;
 
-    const logs = AlertsService.getAlertLogs({ triggerType, recipientId });
+    const logs = await AlertsService.getAlertLogs({ triggerType, recipientId });
     res.status(200).json({
       success: true,
       count: logs.length,

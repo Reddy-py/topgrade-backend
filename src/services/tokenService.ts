@@ -21,13 +21,11 @@ export interface StudentInfo { id: string; name: string; code: string; email: st
 export async function findCourse(idOrName: string): Promise<CourseInfo | null> {
   const key = String(idOrName ?? "").trim();
   if (!key) return null;
-  const { data } = await supabaseAdmin.from("courses").select("id, name, course_material");
+  const { data } = await supabaseAdmin.from("courses").select("id, name, hourly_rate");
   const rows = (data || []) as any[];
   const hit = rows.find(c => String(c.id) === key) || rows.find(c => String(c.name || "").trim().toLowerCase() === key.toLowerCase());
   if (!hit) return null;
-  let material: any = {};
-  try { material = typeof hit.course_material === "string" ? JSON.parse(hit.course_material) : (hit.course_material || {}); } catch { /* ignore */ }
-  return { id: String(hit.id), name: String(hit.name || ""), price: Number(material.hourly_rate) || 0 };
+  return { id: String(hit.id), name: String(hit.name || ""), price: hit.hourly_rate !== null && hit.hourly_rate !== undefined ? Number(hit.hourly_rate) : 0 };
 }
 
 export async function findStudent(idOrCode: string): Promise<StudentInfo | null> {
@@ -99,7 +97,7 @@ export async function refundAttendanceToken(p: {
   if (!used) return { ok: true, refunded: false };
   const r = await applyTokens({
     studentId: student.id, courseId: course.id, delta: 1, reason: "REFUND",
-    ref: `refund:${base}#${k}`, note: "Attendance changed: token returned", by: p.by ?? null,
+    ref: `refund:${base}#${k}`, note: "Attendance changed: hour returned", by: p.by ?? null,
   });
   return { ok: true, refunded: r.applied, balance: r.balance };
 }
@@ -111,12 +109,10 @@ export interface WalletView {
 }
 
 async function viewWallets(rows: any[]): Promise<WalletView[]> {
-  const { data: courses } = await supabaseAdmin.from("courses").select("id, name, course_material");
+  const { data: courses } = await supabaseAdmin.from("courses").select("id, name, hourly_rate");
   const byId = new Map<string, CourseInfo>();
   for (const c of (courses || []) as any[]) {
-    let m: any = {};
-    try { m = typeof c.course_material === "string" ? JSON.parse(c.course_material) : (c.course_material || {}); } catch { /* ignore */ }
-    byId.set(String(c.id), { id: String(c.id), name: String(c.name || ""), price: Number(m.hourly_rate) || 0 });
+    byId.set(String(c.id), { id: String(c.id), name: String(c.name || ""), price: c.hourly_rate !== null && c.hourly_rate !== undefined ? Number(c.hourly_rate) : 0 });
   }
   return rows.map(w => {
     const c = byId.get(String(w.course_id));
@@ -176,7 +172,7 @@ export async function createOrder(p: {
   if (!(course.price > 0)) throw new Error(`The price per class for ${course.name} is not set. Ask the institute to set it on the course.`);
   const quantity = Math.floor(Number(p.quantity));
   if (!Number.isFinite(quantity) || quantity < 1 || quantity > MAX_TOKENS_PER_ORDER) {
-    throw new Error(`Choose between 1 and ${MAX_TOKENS_PER_ORDER} tokens.`);
+    throw new Error(`Choose between 1 and ${MAX_TOKENS_PER_ORDER} hours.`);
   }
   const amountTotal = Math.round(course.price * 100) * quantity / 100;
 

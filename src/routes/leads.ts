@@ -1,7 +1,5 @@
 import express from "express";
-import { LeadService, leadsStore as inMemoryLeads } from "../services/leadService.js";
-
-export { inMemoryLeads };
+import { LeadService } from "../services/leadService.js";
 
 const router = express.Router();
 
@@ -49,27 +47,28 @@ router.post("/webhook", handleLeadIngestion);
 router.post("/public", handleLeadIngestion);
 
 // 2. GET LEADS (Filtered by status or source)
-router.get("/", (req, res) => {
-  const { status, source } = req.query;
-  let filtered = inMemoryLeads;
+router.get("/", async (req, res) => {
+  try {
+    const filters: { status?: string; source?: string } = {};
+    if (req.query.status) filters.status = String(req.query.status);
+    if (req.query.source) filters.source = String(req.query.source);
+    const leads = await LeadService.listLeads(filters);
 
-  if (status) {
-    filtered = filtered.filter((l: any) => l.status === String(status).toUpperCase());
+    res.json({
+      success: true,
+      count: leads.length,
+      data: leads
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
   }
-
-  if (source) {
-    filtered = filtered.filter((l: any) => l.source === String(source).toUpperCase());
-  }
-
-  res.json({
-    success: true,
-    count: filtered.length,
-    data: filtered
-  });
 });
 
 // 3. LOG COUNSELOR INTERACTION (POST /api/leads/:id/interactions)
-router.post("/:id/interactions", (req, res) => {
+router.post("/:id/interactions", async (req, res) => {
   try {
     const { id } = req.params;
     const { counselorId, interactionType, outcome, notes, scheduledFollowUpAt } = req.body;
@@ -81,7 +80,7 @@ router.post("/:id/interactions", (req, res) => {
       });
     }
 
-    const result = LeadService.logInteraction({
+    const result = await LeadService.logInteraction({
       leadId: id,
       counselorId,
       interactionType,
@@ -104,19 +103,26 @@ router.post("/:id/interactions", (req, res) => {
 });
 
 // 4. GET DUE & OVERDUE FOLLOW-UPS (GET /api/leads/follow-ups/due)
-router.get("/follow-ups/due", (_req, res) => {
-  const dueData = LeadService.getDueFollowUps();
-  res.json({
-    success: true,
-    ...dueData
-  });
+router.get("/follow-ups/due", async (_req, res) => {
+  try {
+    const dueData = await LeadService.getDueFollowUps();
+    res.json({
+      success: true,
+      ...dueData
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      message: err.message
+    });
+  }
 });
 
 // 5. 1-CLICK CONVERSION TO ENROLLMENT (POST /api/leads/:id/convert)
-router.post("/:id/convert", (req, res) => {
+router.post("/:id/convert", async (req, res) => {
   try {
     const { id } = req.params;
-    const result = LeadService.convertLeadToEnrollment(id);
+    const result = await LeadService.convertLeadToEnrollment(id);
 
     res.json({
       success: true,
@@ -132,10 +138,10 @@ router.post("/:id/convert", (req, res) => {
 });
 
 // 6. STALE LEAD AUTO-ARCHIVING ROUTINE (POST /api/leads/archive-stale)
-router.post("/archive-stale", (req, res) => {
+router.post("/archive-stale", async (req, res) => {
   try {
     const staleDays = req.body?.staleDaysThreshold ? Number(req.body.staleDaysThreshold) : 30;
-    const result = LeadService.archiveStaleLeads(staleDays);
+    const result = await LeadService.archiveStaleLeads(staleDays);
 
     res.json({
       success: true,

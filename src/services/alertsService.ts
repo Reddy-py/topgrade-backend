@@ -1,5 +1,5 @@
-import { inMemoryStudentStore } from "./studentService.js";
-import { dispatchMultiChannelNotification, type NotificationPayload } from "./notificationService.js";
+import { supabaseAdmin } from "../supabase.js";
+import { dispatchMultiChannelNotification } from "./notificationService.js";
 
 export interface AlertLogRecord {
   id: string;
@@ -39,37 +39,23 @@ export interface AutomationWorkflowConfig {
   frequency: "Instant" | "Daily 09:00 AM" | "Weekly Friday" | "Monthly 1st";
 }
 
-// In-Memory Persistent Audit Trail of All Alert Deliveries
-export const alertLogsStore: AlertLogRecord[] = [
-  {
-    id: "log-1",
-    triggerType: "WELCOME_EMAIL",
-    recipientId: "std-1787565325848-825",
-    recipientName: "Siva Reddy",
-    recipientEmail: "sivareddy683970@gmail.com",
-    recipientPhone: "+1 7780648562",
-    recipientRole: "STUDENT",
-    channel: "MULTI_CHANNEL",
-    subject: "🎓 Welcome to TopGrade Learning — Student Onboarding Packet",
-    messagePreview: "Dear Siva Reddy, Welcome to TopGrade Learning! Your student dossier (TG-STU-2026-3632) has been activated...",
-    status: "DELIVERED",
-    timestamp: "2026-08-24T09:55:30.000Z"
-  },
-  {
-    id: "log-2",
-    triggerType: "WELCOME_EMAIL",
-    recipientId: "std-1787569238941-822",
-    recipientName: "rajesh ganta",
-    recipientEmail: "rajeshganta@gmail.com",
-    recipientPhone: "+1 1234567894",
-    recipientRole: "STUDENT",
-    channel: "MULTI_CHANNEL",
-    subject: "🎓 Welcome to TopGrade Learning — Student Onboarding Packet",
-    messagePreview: "Dear rajesh ganta, Welcome to TopGrade Learning! Your student dossier (TG-STU-2026-4231) has been activated...",
-    status: "DELIVERED",
-    timestamp: "2026-08-24T11:01:00.000Z"
-  }
-];
+function mapAlertLogRow(row: any): AlertLogRecord {
+  return {
+    id: row.id,
+    triggerType: row.trigger_type,
+    recipientId: row.recipient_id || "",
+    recipientName: row.recipient_name,
+    recipientEmail: row.recipient_email,
+    recipientPhone: row.recipient_phone || "",
+    recipientRole: row.recipient_role || "STUDENT",
+    channel: row.channel || "MULTI_CHANNEL",
+    subject: row.subject,
+    messagePreview: row.message_preview,
+    status: row.status || "DELIVERED",
+    timestamp: row.timestamp || row.created_at,
+    metadata: row.metadata || undefined
+  };
+}
 
 // Pre-configured automated templates
 export const automationWorkflows: AutomationWorkflowConfig[] = [
@@ -176,30 +162,38 @@ export const automationWorkflows: AutomationWorkflowConfig[] = [
 
 export class AlertsService {
   /**
-   * 1. Get all logs with optional filtering
+   * 1. Get all logs with optional filtering from Supabase alert_logs
    */
-  public static getAlertLogs(filters?: { triggerType?: string | undefined; recipientId?: string | undefined }) {
-    let list = alertLogsStore;
+  public static async getAlertLogs(filters?: { triggerType?: string | undefined; recipientId?: string | undefined }): Promise<AlertLogRecord[]> {
+    let query = supabaseAdmin.from("alert_logs").select("*").order("timestamp", { ascending: false });
+
     if (filters?.triggerType) {
-      list = list.filter(l => l.triggerType === filters.triggerType);
+      query = query.eq("trigger_type", filters.triggerType);
     }
     if (filters?.recipientId) {
-      list = list.filter(l => l.recipientId === filters.recipientId);
+      query = query.eq("recipient_id", filters.recipientId);
     }
-    return list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+    const { data, error } = await query;
+    if (error) {
+      console.warn("Could not query alert_logs from Supabase:", error.message);
+      return [];
+    }
+
+    return (data || []).map(mapAlertLogRow);
   }
 
   /**
    * 2. Get Automation Workflows List
    */
-  public static getWorkflows() {
+  public static getWorkflows(): AutomationWorkflowConfig[] {
     return automationWorkflows;
   }
 
   /**
    * 3. Toggle Workflow Active State
    */
-  public static toggleWorkflow(workflowId: string, isActive: boolean) {
+  public static toggleWorkflow(workflowId: string, isActive: boolean): AutomationWorkflowConfig | null {
     const wf = automationWorkflows.find(w => w.id === workflowId);
     if (wf) {
       wf.isActive = isActive;
@@ -209,7 +203,7 @@ export class AlertsService {
   }
 
   /**
-   * 4. Central Dispatch & Audit Logger
+   * 4. Central Dispatch & Audit Logger in Supabase alert_logs
    */
   public static async executeAlertTrigger(input: {
     triggerType: AlertLogRecord["triggerType"];
@@ -222,19 +216,25 @@ export class AlertsService {
     const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_SENDER_EMAIL || "tglbiz101@gmail.com";
     const nowIso = new Date().toISOString();
 
-    const targetStudents = input.studentId 
-      ? inMemoryStudentStore.filter(s => s.id === input.studentId)
-      : inMemoryStudentStore;
+    let studentQuery = supabaseAdmin.from("students").select("*");
+    if (input.studentId) {
+      studentQuery = studentQuery.or(`id.eq.${input.studentId},student_id_code.eq.${input.studentId}`);
+    }
 
+    const { data: students, error: stuErr } = await studentQuery;
+    if (stuErr) {
+      console.warn("Failed to fetch target students for alert trigger:", stuErr.message);
+    }
+
+    const targetStudents = students || [];
     const dispatchedResults: AlertLogRecord[] = [];
 
     for (const student of targetStudents) {
       const studentEmail = student.email || adminEmail;
-      const studentPhone = student.primaryMobile || student.studentPhones?.[0] || "+1 778 064 8562";
-      const studentName = student.fullName;
-      const studentCode = student.studentCode || `TG-STU-${student.id}`;
+      const studentPhone = student.primary_mobile || student.contact_number || "";
+      const studentName = student.name || "Student";
+      const studentCode = student.student_id_code || `TG-STU-${student.id}`;
 
-      // Build subject & message
       let subject = input.customSubject || `🔔 Notification from TopGrade Learning`;
       let message = input.customMessage || `Hello ${studentName},\n\nThis is an automated notification from TopGrade Learning Administration.`;
 
@@ -256,7 +256,7 @@ export class AlertsService {
 
         case "CLASS_SCHEDULE_EMAIL":
           subject = `📅 Weekly Class Timetable & Schedule — ${studentName}`;
-          message = `Dear ${studentName},\n\nHere is your scheduled academic timetable:\n\n• Monday: 09:00 AM - 10:30 AM (Room 101)\n• Wednesday: 09:00 AM - 10:30 AM (Room 101)\n• Saturday: 10:00 AM - 11:30 AM (Lab 1)\n\nAssigned Faculty: manikanta (TG-FAC-101)\n\nTopGrade Academic Operations`;
+          message = `Dear ${studentName},\n\nHere is your scheduled academic timetable:\n\n• Monday: 09:00 AM - 10:30 AM (Room 101)\n• Wednesday: 09:00 AM - 10:30 AM (Room 101)\n• Saturday: 10:00 AM - 11:30 AM (Lab 1)\n\nTopGrade Academic Operations`;
           break;
 
         case "ATTENDANCE_SUMMARY_EMAIL":
@@ -291,9 +291,9 @@ export class AlertsService {
           break;
       }
 
-      // Create Audit Log Record
+      const logId = `log-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
       const logRecord: AlertLogRecord = {
-        id: `log-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        id: logId,
         triggerType: input.triggerType,
         recipientId: student.id || `std-${studentName}`,
         recipientName: studentName,
@@ -308,10 +308,26 @@ export class AlertsService {
         ...(input.metadata ? { metadata: input.metadata } : {})
       };
 
-      alertLogsStore.unshift(logRecord);
+      // Persist to Supabase alert_logs
+      await supabaseAdmin.from("alert_logs").insert({
+        id: logRecord.id,
+        trigger_type: logRecord.triggerType,
+        recipient_id: logRecord.recipientId,
+        recipient_name: logRecord.recipientName,
+        recipient_email: logRecord.recipientEmail,
+        recipient_phone: logRecord.recipientPhone,
+        recipient_role: logRecord.recipientRole,
+        channel: logRecord.channel,
+        subject: logRecord.subject,
+        message_preview: logRecord.messagePreview,
+        status: logRecord.status,
+        timestamp: logRecord.timestamp,
+        metadata: logRecord.metadata || null
+      });
+
       dispatchedResults.push(logRecord);
 
-      // Asynchronous background email dispatch (non-blocking so API responds immediately)
+      // Asynchronous background email dispatch
       setImmediate(async () => {
         try {
           await dispatchMultiChannelNotification({

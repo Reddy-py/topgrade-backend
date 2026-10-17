@@ -40,21 +40,21 @@ export async function markAttendance(p: RecordInput): Promise<{ record: Attendan
   const classRef = `${classKeyOf(p)}:${p.date}`;
   try {
     if (!courseKey || !(await findCourse(courseKey))) {
-      token.warning = "No token was used: this class is not linked to a course.";
+      token.warning = "No hour was used: this class is not linked to a course.";
     } else if (isAttended(p.status)) {
       const used = await consumeAttendanceToken({ studentIdOrCode: p.studentIdOrCode, courseIdOrName: courseKey, classRef, by: p.markedByUserId ?? null });
       token.remaining = used.balance;
       token.owed = !!used.owed;
       token.low = !!used.low;
       token.warning = used.owed
-        ? `No tokens left: ${-(used.balance ?? 0)} class(es) owed. Ask the parent to buy tokens.`
-        : used.low ? `Low tokens: ${used.balance} class(es) left.` : undefined;
+        ? `No hours left: ${-(used.balance ?? 0)} class(es) owed. Ask the parent to buy hours.`
+        : used.low ? `Low hours: ${used.balance} class(es) left.` : undefined;
     } else {
       const back = await refundAttendanceToken({ studentIdOrCode: p.studentIdOrCode, courseIdOrName: courseKey, classRef, by: p.markedByUserId ?? null });
       token.remaining = back.balance;
     }
   } catch (err: any) {
-    token.warning = `Token update failed: ${err?.message}`;
+    token.warning = `Hour update failed: ${err?.message}`;
   }
   return { record: saved.record, created: saved.created, token };
 }
@@ -146,6 +146,23 @@ export class AttendanceService {
       message: `Batch attendance saved for ${entries.length} students (${present} present, ${absent} not present).`,
       records, presentCount: present, absentCount: absent, warnings,
     };
+  }
+
+  public static async markAttendance(input: any) {
+    const studentIdOrCode = input.studentId || input.studentIdOrCode;
+    const courseId = input.courseId;
+    const course = courseId ? await findCourse(courseId) : undefined;
+    const res = await markAttendance({
+      studentIdOrCode,
+      status: input.status || "PRESENT",
+      courseId,
+      courseName: course?.name || input.courseName || "Course",
+      date: input.date || instituteNow().dateStr,
+      remarks: input.remarks || input.notes,
+      scanMethod: input.scanMethod || "TEACHER_BATCH",
+      markedByName: input.markedBy || "Teacher",
+    });
+    return res.record;
   }
 
   public static async getStudentAttendanceStats(studentId: string, alertThresholdPercentage = 75) {

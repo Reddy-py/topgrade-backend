@@ -102,6 +102,7 @@ export const getStudentsHandler = async (req: AuthenticatedRequest, res: express
     const search = (req.query.search as string) || (req.query.q as string) || "";
     const status = (req.query.status as string) || "ALL";
     const grade = (req.query.grade as string) || "ALL";
+    const program_type = (req.query.program_type as string) || (req.query.program as string) || "ALL";
 
     // The role ALWAYS comes from the verified login (never from a query string or header sent by the browser).
     if (!req.user) {
@@ -110,7 +111,7 @@ export const getStudentsHandler = async (req: AuthenticatedRequest, res: express
     }
     const currentUser = { id: req.user.id || "", email: req.user.email || "", role: String(req.user.role), metadata: req.user.metadata };
 
-    const result = await getStudentsService({ page, limit, search, status, grade, currentUser });
+    const result = await getStudentsService({ page, limit, search, status, grade, program_type, currentUser });
     res.status(200).json(result);
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message || "Failed to fetch student list." });
@@ -230,8 +231,8 @@ router.get("/parents/list", authenticateJwt, authorizePermission("parents.view")
   res.status(200).json({
     success: true,
     data: [
-      { id: "prt-1", email: "venkat.reddy@gmail.com", full_name: "Venkat Reddy", phone: "+91 94926 02243", role: "PARENT" },
-      { id: "prt-2", email: "rajesh.sharma@corp.com", full_name: "Rajesh Sharma", phone: "+91 98765 12345", role: "PARENT" }
+      { id: "prt-1", email: "venkat.reddy@gmail.com", full_name: "Venkat Reddy", phone: "+1 (555) 019-2834", role: "PARENT" },
+      { id: "prt-2", email: "rajesh.sharma@corp.com", full_name: "Rajesh Sharma", phone: "+1 (555) 019-2835", role: "PARENT" }
     ]
   });
 });

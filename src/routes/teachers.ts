@@ -5,53 +5,29 @@ import { getAccessScope, allowsTeacher, scopeSchedules, publicTeacherView } from
 import type { AuthenticatedRequest } from "../middleware/auth.js";
 import { authorizePermission } from "../middleware/authorize.js";
 import { dispatchMultiChannelNotification } from "../services/notificationService.js";
-import { demoTeachersPool } from "../services/demoDataService.js";
 import { ScheduleDataService } from "../services/scheduleDataService.js";
-
-import { OFFICIAL_TEACHERS } from "../constants/officialCatalog.js";
+import { resolveTeacherIdentity } from "../services/teacherIdentity.js";
 
 const router = express.Router();
 
-export let inMemoryTeachers: any[] = OFFICIAL_TEACHERS.map((t, idx) => ({
-  id: `tch-${101 + idx}`,
-  teacher_id_code: t.teacher_id_code,
-  name: t.name,
-  dob: t.dob,
-  age: t.age,
-  qualification: t.qualification,
-  qualification_certificate_url: null,
-  resume_url: null,
-  photo_url: null,
-  phone: t.phone,
-  email: t.email,
-  specialization: t.specialization,
-  experience: "5+ Years",
-  joining_date: t.joining_date,
-  salary: "$55,000",
-  hourly_rate: 45.00,
-  weekly_assigned_sessions: 0,
-  weekly_max_sessions: 20,
-  document_folder_submitted: true,
-  photo_waiver_signed: true,
-  photo_waiver_signed_at: "2026-01-12T10:00:00Z",
-  status: "Active",
-  availability_days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
-  availability_slots: ["Morning - 09:00 AM - 12:00 PM", "Afternoon - 01:00 PM - 04:00 PM", "Evening - 05:00 PM - 08:00 PM"]
-}));
-
-// GET: List teachers. Admin: all details. Teacher: own record only. Parent / student: only the teachers of their own
-// classes, name and subject only (no phone, email, salary, birth date or documents).
+// GET: List teachers strictly from Supabase.
+// Admin: all details.
+// Teacher: own record only.
+// Parent / student: only the teachers of their own classes (publicTeacherView: name and subject only).
 export const getTeachersHandler = async (req: express.Request, res: express.Response) => {
   let list: any[] = [];
   try {
-    const { data, error } = await supabaseAdmin.from("teachers").select("*").order("name", { ascending: true });
+    const { data, error } = await supabaseAdmin
+      .from("teachers")
+      .select("*")
+      .order("name", { ascending: true });
+
     if (!error && data && data.length > 0) {
       list = [...data];
     }
   } catch (err) {
     console.warn("Notice querying Supabase teachers in getTeachersHandler:", err);
   }
-  if (list.length === 0) list = [...inMemoryTeachers];
   list.sort((a: any, b: any) => (a.name || "").localeCompare(b.name || "", undefined, { sensitivity: "base" }));
 
   const user = (req as AuthenticatedRequest).user;
@@ -102,7 +78,7 @@ async function teacherSelfOrAdmin(req: express.Request, res: express.Response, t
 router.get("/list", getTeachersHandler);
 router.get("/", getTeachersHandler);
 
-// POST: Add new faculty teacher profile with fail-safe fallback
+// POST: Add new faculty teacher profile in Supabase
 export const createTeacherHandler = async (req: express.Request, res: express.Response) => {
   const t = req.body;
   const uniqueId = t.teacher_id_code || `TG-FAC-${Math.floor(100 + Math.random() * 900)}`;
@@ -112,8 +88,7 @@ export const createTeacherHandler = async (req: express.Request, res: express.Re
     .map((s: string) => s.replace(/\(|\)/g, "").replace(/\s*-\s*/, " - ").trim())
     .filter((s: string) => !s.toLowerCase().includes("night"));
 
-  const newTeacher = {
-    id: `tch-${Date.now()}`,
+  const newTeacher: any = {
     teacher_id_code: uniqueId,
     name: t.name,
     dob: t.dateOfBirth || null,
@@ -124,8 +99,6 @@ export const createTeacherHandler = async (req: express.Request, res: express.Re
     photo_url: t.photoUrl || null,
     phone: t.phone || null,
     email: t.email ? t.email.trim().toLowerCase() : null,
-    password: defaultPassword,
-    role: "TEACHER",
     specialization: t.specialization || null,
     experience: t.experience || null,
     joining_date: t.joiningDate || new Date().toISOString().split("T")[0],
@@ -136,9 +109,9 @@ export const createTeacherHandler = async (req: express.Request, res: express.Re
     availability_slots: cleanSlots
   };
 
-  inMemoryTeachers.unshift(newTeacher);
+  let savedTeacher: any = newTeacher;
 
-  // Real-time Supabase Database & Auth sync
+  // Supabase Database & Auth sync
   try {
     let teacherAuthId: string | null = null;
     if (newTeacher.email) {
@@ -169,27 +142,18 @@ export const createTeacherHandler = async (req: express.Request, res: express.Re
       }, { onConflict: "email" });
     }
 
-    const teacherRow: any = {
-      name: newTeacher.name,
-      teacher_id_code: uniqueId,
-      dob: newTeacher.dob || null,
-      age: newTeacher.age || 0,
-      qualification: newTeacher.qualification || null,
-      phone: newTeacher.phone || null,
-      email: newTeacher.email || null,
-      specialization: newTeacher.specialization || null,
-      experience: newTeacher.experience || null,
-      joining_date: newTeacher.joining_date || null,
-      salary: newTeacher.salary || null,
-      availability_days: newTeacher.availability_days,
-      availability_slots: newTeacher.availability_slots,
-      status: newTeacher.status || "Active"
-    };
-    if (teacherAuthId) teacherRow.user_id = teacherAuthId;
+    if (teacherAuthId) newTeacher.user_id = teacherAuthId;
 
-    const { error: tUpsertErr } = await supabaseAdmin.from("teachers").upsert(teacherRow, { onConflict: "teacher_id_code" });
+    const { data: inserted, error: tUpsertErr } = await supabaseAdmin
+      .from("teachers")
+      .upsert(newTeacher, { onConflict: "teacher_id_code" })
+      .select()
+      .single();
+
     if (tUpsertErr) {
       console.warn("Supabase teacher upsert error:", tUpsertErr.message);
+    } else if (inserted) {
+      savedTeacher = inserted;
     }
   } catch (error: any) {
     console.warn("Supabase teacher creation notice:", error?.message);
@@ -214,7 +178,6 @@ export const createTeacherHandler = async (req: express.Request, res: express.Re
                `• Teacher ID: ${uniqueId}\n` +
                `• Specialization: ${newTeacher.specialization || "General"}\n` +
                `• Official Email: ${newTeacher.email || "N/A"}\n` +
-               `• Initial Password: ${defaultPassword}\n` +
                `• Status: Active\n\n` +
                `Please sign in at the TopGrade CRM Faculty Portal to manage your course schedules and attendance rosters.\n\n` +
                `TopGrade Administration Center`,
@@ -227,7 +190,7 @@ export const createTeacherHandler = async (req: express.Request, res: express.Re
   res.status(201).json({
     success: true,
     message: `Teacher '${newTeacher.name}' added successfully! Email notification dispatched to teacher and admin.`,
-    data: newTeacher
+    data: savedTeacher
   });
 };
 
@@ -235,7 +198,7 @@ router.post("/create", createTeacherHandler);
 router.post("/add", createTeacherHandler);
 router.post("/", createTeacherHandler);
 
-// PUT: Update faculty teacher profile in real time
+// PUT: Update faculty teacher profile in Supabase
 export const updateTeacherHandler = async (req: express.Request, res: express.Response) => {
   const teacherId = String(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id);
   const t = req.body;
@@ -247,135 +210,74 @@ export const updateTeacherHandler = async (req: express.Request, res: express.Re
   const isUUID = (str?: any): boolean =>
     typeof str === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
 
-  let idx = inMemoryTeachers.findIndex(tch => 
-    tch.id === teacherId || 
-    tch.teacher_id_code === teacherId || 
-    (t.email && tch.email?.toLowerCase() === t.email.toLowerCase())
-  );
-
-  let currentTeacher = idx !== -1 ? inMemoryTeachers[idx] : null;
-
-  // If not found in memory, query Supabase
-  if (!currentTeacher) {
-    try {
-      let sbQuery = supabaseAdmin.from("teachers").select("*");
-      if (isUUID(teacherId)) {
-        sbQuery = sbQuery.eq("id", teacherId);
-      } else {
-        sbQuery = sbQuery.eq("teacher_id_code", teacherId);
-      }
-      const { data: sbTeacher } = await sbQuery.maybeSingle();
-      if (sbTeacher) {
-        currentTeacher = sbTeacher;
-      } else if (t.email) {
-        const { data: sbByEmail } = await supabaseAdmin.from("teachers").select("*").eq("email", t.email).maybeSingle();
-        if (sbByEmail) currentTeacher = sbByEmail;
-      }
-    } catch (sbErr) {
-      console.warn("Notice querying teacher for update:", sbErr);
-    }
-  }
-
-  const baseTeacher = currentTeacher || {
-    id: teacherId,
-    teacher_id_code: t.teacher_id_code || `TG-FAC-${teacherId.slice(0, 4)}`,
-    name: t.name || "Teacher",
-    email: t.email || ""
-  };
-
-  const updatedTeacher = {
-    ...baseTeacher,
-    name: t.name !== undefined ? t.name : baseTeacher.name,
-    dob: t.dateOfBirth !== undefined ? t.dateOfBirth : baseTeacher.dob,
-    age: t.age !== undefined ? parseInt(t.age) : baseTeacher.age,
-    qualification: t.qualification !== undefined ? t.qualification : baseTeacher.qualification,
-    qualification_certificate_url: t.qualificationCertificateUrl !== undefined ? t.qualificationCertificateUrl : baseTeacher.qualification_certificate_url,
-    resume_url: t.resumeUrl !== undefined ? t.resumeUrl : baseTeacher.resume_url,
-    photo_url: t.photoUrl !== undefined ? t.photoUrl : baseTeacher.photo_url,
-    phone: t.phone !== undefined ? t.phone : baseTeacher.phone,
-    email: t.email !== undefined ? t.email : baseTeacher.email,
-    specialization: t.specialization !== undefined ? t.specialization : baseTeacher.specialization,
-    experience: t.experience !== undefined ? t.experience : baseTeacher.experience,
-    joining_date: t.joiningDate !== undefined ? t.joiningDate : baseTeacher.joining_date,
-    salary: t.salary !== undefined ? t.salary : baseTeacher.salary,
-    status: t.status !== undefined ? t.status : baseTeacher.status,
-    working_days_count: t.workingDaysCount !== undefined ? t.workingDaysCount : (t.availabilityDays?.length || baseTeacher.working_days_count || 5),
-    availability_days: t.availabilityDays !== undefined ? t.availabilityDays : baseTeacher.availability_days,
-    availability_slots: t.availabilitySlots !== undefined ? t.availabilitySlots : baseTeacher.availability_slots
-  };
-
-  if (idx !== -1) {
-    inMemoryTeachers[idx] = updatedTeacher;
-  } else {
-    inMemoryTeachers.push(updatedTeacher);
-  }
-
-  // Real-time Supabase Database Update
+  let currentTeacher: any = null;
   try {
-    const updateRow: any = {
-      name: updatedTeacher.name,
-      dob: updatedTeacher.dob || null,
-      age: updatedTeacher.age || 0,
-      qualification: updatedTeacher.qualification || null,
-      phone: updatedTeacher.phone || null,
-      email: updatedTeacher.email || null,
-      specialization: updatedTeacher.specialization || null,
-      experience: updatedTeacher.experience || null,
-      joining_date: updatedTeacher.joining_date || null,
-      salary: updatedTeacher.salary || null,
-      availability_days: updatedTeacher.availability_days,
-      availability_slots: updatedTeacher.availability_slots,
-      status: updatedTeacher.status || "Active"
-    };
-
+    let sbQuery = supabaseAdmin.from("teachers").select("*");
     if (isUUID(teacherId)) {
-      await supabaseAdmin.from("teachers").update(updateRow).eq("id", teacherId);
-    } else if (baseTeacher.id && isUUID(baseTeacher.id)) {
-      await supabaseAdmin.from("teachers").update(updateRow).eq("id", baseTeacher.id);
+      sbQuery = sbQuery.eq("id", teacherId);
+    } else {
+      sbQuery = sbQuery.eq("teacher_id_code", teacherId);
+    }
+    const { data: sbTeacher } = await sbQuery.maybeSingle();
+    if (sbTeacher) {
+      currentTeacher = sbTeacher;
+    } else if (t.email) {
+      const { data: sbByEmail } = await supabaseAdmin.from("teachers").select("*").eq("email", t.email).maybeSingle();
+      if (sbByEmail) currentTeacher = sbByEmail;
+    }
+  } catch (sbErr) {
+    console.warn("Notice querying teacher for update:", sbErr);
+  }
+
+  const updateRow: any = {
+    updated_at: new Date().toISOString()
+  };
+
+  if (t.name !== undefined) updateRow.name = t.name;
+  if (t.dateOfBirth !== undefined) updateRow.dob = t.dateOfBirth;
+  if (t.age !== undefined) updateRow.age = parseInt(t.age) || 0;
+  if (t.qualification !== undefined) updateRow.qualification = t.qualification;
+  if (t.qualificationCertificateUrl !== undefined) updateRow.qualification_certificate_url = t.qualificationCertificateUrl;
+  if (t.resumeUrl !== undefined) updateRow.resume_url = t.resumeUrl;
+  if (t.photoUrl !== undefined) updateRow.photo_url = t.photoUrl;
+  if (t.phone !== undefined) updateRow.phone = t.phone;
+  if (t.email !== undefined) updateRow.email = t.email;
+  if (t.specialization !== undefined) updateRow.specialization = t.specialization;
+  if (t.experience !== undefined) updateRow.experience = t.experience;
+  if (t.joiningDate !== undefined) updateRow.joining_date = t.joiningDate;
+  if (t.salary !== undefined) updateRow.salary = t.salary;
+  if (t.status !== undefined) updateRow.status = t.status;
+  if (t.workingDaysCount !== undefined) updateRow.working_days_count = t.workingDaysCount;
+  if (t.availabilityDays !== undefined) updateRow.availability_days = t.availabilityDays;
+  if (t.availabilitySlots !== undefined) updateRow.availability_slots = t.availabilitySlots;
+
+  let updatedTeacher: any = { ...currentTeacher, ...updateRow };
+
+  try {
+    let filterColumn = isUUID(teacherId) ? "id" : "teacher_id_code";
+    let filterVal = teacherId;
+    if (currentTeacher?.id) {
+      filterColumn = "id";
+      filterVal = currentTeacher.id;
     }
 
-    if (baseTeacher.teacher_id_code) {
-      await supabaseAdmin.from("teachers").update(updateRow).eq("teacher_id_code", baseTeacher.teacher_id_code);
-    }
-    if (updatedTeacher.email) {
-      await supabaseAdmin.from("teachers").update(updateRow).eq("email", updatedTeacher.email);
-    }
+    const { data: resData, error: updErr } = await supabaseAdmin
+      .from("teachers")
+      .update(updateRow)
+      .eq(filterColumn, filterVal)
+      .select()
+      .single();
 
-    // Real-time sync into Supabase profiles table for instant "My Profile" teacher updates
-    if (updatedTeacher.email) {
-      await supabaseAdmin.from("profiles").upsert({
-        email: updatedTeacher.email,
-        full_name: updatedTeacher.name,
-        role: "TEACHER",
-        status: updatedTeacher.status || "Active",
-        updated_at: new Date().toISOString()
-      }, { onConflict: "email" });
-
-      // Update Supabase Auth user metadata
-      try {
-        const { data: authList } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 200 });
-        const matchedUser = authList?.users?.find(u => u.email?.toLowerCase() === updatedTeacher.email.toLowerCase());
-        if (matchedUser) {
-          await supabaseAdmin.auth.admin.updateUserById(matchedUser.id, {
-            user_metadata: {
-              ...matchedUser.user_metadata,
-              full_name: updatedTeacher.name,
-              role: "TEACHER",
-              teacher_id_code: updatedTeacher.teacher_id_code
-            }
-          });
-        }
-      } catch (authErr) {
-        console.warn("Notice updating teacher auth metadata:", authErr);
-      }
+    if (!updErr && resData) {
+      updatedTeacher = resData;
     }
   } catch (err: any) {
-    console.warn("Supabase teacher update notice:", err?.message);
+    console.warn("Notice Supabase teacher update:", err?.message);
   }
 
   res.status(200).json({
     success: true,
-    message: `Teacher '${updatedTeacher.name}' updated successfully in real time.`,
+    message: `Teacher '${updatedTeacher?.name || teacherId}' updated successfully!`,
     data: updatedTeacher
   });
 };
@@ -393,10 +295,16 @@ export const deleteTeacherHandler = async (req: express.Request, res: express.Re
   const isUUID = (str?: string | null): boolean =>
     !!str && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
 
-  const idx = inMemoryTeachers.findIndex(t => t.id === teacherId || t.teacher_id_code === teacherId);
-  const deletedTeacher = idx !== -1 ? inMemoryTeachers.splice(idx, 1)[0] : null;
-
+  let deletedTeacher: any = null;
   try {
+    const { data: target } = await supabaseAdmin
+      .from("teachers")
+      .select("*")
+      .or(`id.eq.${teacherId},teacher_id_code.eq.${teacherId}`)
+      .maybeSingle();
+
+    deletedTeacher = target;
+
     if (deletedTeacher?.id && isUUID(deletedTeacher.id)) {
       await supabaseAdmin.from("teachers").delete().eq("id", deletedTeacher.id);
     } else if (isUUID(teacherId)) {
@@ -427,104 +335,96 @@ export const deleteTeacherHandler = async (req: express.Request, res: express.Re
 router.delete("/:id", deleteTeacherHandler);
 router.delete("/delete/:id", deleteTeacherHandler);
 
-// POST: Assign Course to Teacher (Triggers notification to Teacher & Admin with Accept / Decline)
+// POST: Assign Course to Teacher
 router.post("/assign-course", authenticateJwt, authorizePermission("teachers.edit"), async (req: AuthenticatedRequest, res) => {
   const { teacherId, teacherName, courseId, courseName, teacherEmail, weeklySessions } = req.body;
 
   const sessionsToAdd = parseInt(weeklySessions) || 4;
   const maxWeekly = 20;
 
-  // Track teacher workload
-  let assignedSessions = 18; // Default threshold simulation (18 / 20 sessions used)
-  const targetTeacher = inMemoryTeachers.find((t) => t.id === teacherId || t.name === teacherName);
-  
-  if (targetTeacher) {
-    if (targetTeacher.weekly_assigned_sessions !== undefined) {
-      assignedSessions = targetTeacher.weekly_assigned_sessions;
-    } else {
-      targetTeacher.weekly_max_sessions = maxWeekly;
-      targetTeacher.weekly_assigned_sessions = 18;
-    }
+  let assignedSessions = 18;
+  const { data: targetTeacher } = await supabaseAdmin
+    .from("teachers")
+    .select("*")
+    .or(`id.eq.${teacherId},name.eq.${teacherName}`)
+    .maybeSingle();
+
+  if (targetTeacher && targetTeacher.weekly_assigned_sessions !== undefined) {
+    assignedSessions = targetTeacher.weekly_assigned_sessions;
   }
 
   const remainingBefore = maxWeekly - assignedSessions;
 
-  // Workload Warning Alert Rule
-  let warningMessage: string | null = null;
-  if (remainingBefore <= 2 && remainingBefore > 0) {
-    warningMessage = `You have only ${remainingBefore} sessions remaining in your allocated hours.`;
-  } else if (remainingBefore <= 0) {
-    res.status(400).json({
+  if (sessionsToAdd > remainingBefore) {
+    return res.status(409).json({
       success: false,
-      code: "FACULTY_CAPACITY_EXCEEDED",
-      error: "Faculty Workload Capacity Exceeded: This teacher has no remaining session hours in their weekly quota."
+      message: `Workload Collision: ${teacherName} has only ${remainingBefore} weekly session(s) available. Cannot assign ${sessionsToAdd} new session(s).`,
+      data: {
+        teacherName,
+        assignedSessions,
+        maxWeekly,
+        remainingBefore,
+        requestedSessions: sessionsToAdd
+      }
     });
-    return;
   }
 
-  if (targetTeacher) {
-    targetTeacher.weekly_assigned_sessions += sessionsToAdd;
+  const updatedAssigned = assignedSessions + sessionsToAdd;
+  if (targetTeacher?.id) {
+    await supabaseAdmin
+      .from("teachers")
+      .update({ weekly_assigned_sessions: updatedAssigned })
+      .eq("id", targetTeacher.id);
   }
+
+  const teacherEmailTarget = teacherEmail || targetTeacher?.email || "teacher@topgrade.edu";
+  const adminEmail = process.env.ADMIN_EMAIL || "tglbiz101@gmail.com";
 
   try {
-    await supabaseAdmin
-      .from("teacher_course_assignments")
-      .insert([
-        {
-          teacher_id: teacherId,
-          teacher_name: teacherName,
-          course_id: courseId,
-          course_name: courseName,
-          status: "Pending"
-        }
-      ]);
-  } catch (err) {
-    console.warn("Course assignment fallback note:", err);
+    await dispatchMultiChannelNotification({
+      eventType: "TEACHER_ASSIGNMENT",
+      subject: `📚 Course Assignment: ${courseName} — Response Required`,
+      message: `Dear ${teacherName},\n\nYou have been assigned to teach: ${courseName}.\n\nAssigned Weekly Sessions: ${sessionsToAdd}\nCurrent Workload: ${updatedAssigned} / ${maxWeekly} sessions/week.\n\nPlease confirm your availability and accept this course assignment.\n\nBest Regards,\nTopGrade Learning Administration`,
+      recipients: [
+        { role: "TEACHER", email: teacherEmailTarget, name: teacherName },
+        { role: "ADMIN", email: adminEmail, name: "Administrator" }
+      ]
+    });
+  } catch (emailErr) {
+    console.warn("Notice: Course assignment notification error:", emailErr);
   }
 
-  // Send Notification to Teacher & Admin with Accept/Decline request
-  await dispatchMultiChannelNotification({
-    eventType: "TEACHER_ASSIGNMENT",
-    subject: `📚 Course Assignment Request: ${courseName}`,
-    message: `Dear ${teacherName},\nYou have been assigned to teach course "${courseName}". Please accept or decline this course assignment in your TopGrade Portal.\n\nWorkload Quota Status: ${assignedSessions + sessionsToAdd} / ${maxWeekly} sessions used.${warningMessage ? `\n⚠️ Warning: ${warningMessage}` : ""}`,
-    recipients: [
-      { role: "TEACHER", email: teacherEmail || "teacher@topgrade.edu", name: teacherName },
-      { role: "ADMIN", email: process.env.ADMIN_EMAIL || "tglbiz101@gmail.com", name: "System Administrator" }
-    ]
-  });
-
-  res.status(201).json({
+  res.status(200).json({
     success: true,
-    message: warningMessage 
-      ? `Course assigned successfully! ⚠️ ${warningMessage}`
-      : "Course assignment sent to Teacher & Admin for approval!",
-    warning: warningMessage,
-    data: { 
-      id: "asgn-1", 
-      teacher_name: teacherName, 
-      course_name: courseName, 
-      status: "Pending",
-      weekly_assigned_sessions: assignedSessions + sessionsToAdd,
-      weekly_max_sessions: maxWeekly,
-      remaining_sessions: Math.max(0, maxWeekly - (assignedSessions + sessionsToAdd))
+    message: `Course '${courseName}' assigned to ${teacherName} (${sessionsToAdd} sessions/wk). Notifications dispatched!`,
+    data: {
+      teacherName,
+      courseName,
+      weeklyAssignedSessions: updatedAssigned,
+      weeklyMaxSessions: maxWeekly,
+      workloadPercentage: Math.round((updatedAssigned / maxWeekly) * 100)
     }
   });
 });
 
-// POST: Teacher Accept or Decline Course Assignment
-router.post("/respond-course/:assignmentId", authenticateJwt, requireRoles("TEACHER", "ADMIN"), async (req: AuthenticatedRequest, res) => {
-  const { assignmentId } = req.params;
-  const { action } = req.body;
+// POST: Teacher Responds to Course Assignment
+router.post("/respond-course/:courseId", authenticateJwt, requireRoles("TEACHER"), async (req: AuthenticatedRequest, res) => {
+  const { courseId } = req.params;
+  const { teacherId, teacherName, action, courseName } = req.body;
 
-  // Notify Admin of Teacher's response
-  await dispatchMultiChannelNotification({
-    eventType: "ADMISSION_APPROVED",
-    subject: `Teacher Course Response: ${action}`,
-    message: `Teacher has ${action} the assigned course assignment (Ref: ${assignmentId}). Schedule updated.`,
-    recipients: [
-      { role: "ADMIN", email: process.env.ADMIN_EMAIL || "tglbiz101@gmail.com", name: "System Administrator" }
-    ]
-  });
+  const adminEmail = process.env.ADMIN_EMAIL || "tglbiz101@gmail.com";
+  try {
+    await dispatchMultiChannelNotification({
+      eventType: "TEACHER_ASSIGNMENT",
+      subject: `Faculty Course Response: ${teacherName} ${action === "ACCEPT" ? "ACCEPTED" : "DECLINED"} ${courseName || courseId}`,
+      message: `Teacher ${teacherName} has ${action === "ACCEPT" ? "ACCEPTED" : "DECLINED"} the assignment for course: ${courseName || courseId}.\n\nStatus recorded at ${new Date().toLocaleString()}.`,
+      recipients: [
+        { role: "ADMIN", email: adminEmail, name: "Administrator" }
+      ]
+    });
+  } catch (e) {
+    console.warn("Assignment response notification error:", e);
+  }
 
   res.status(200).json({
     success: true,
@@ -532,28 +432,19 @@ router.post("/respond-course/:assignmentId", authenticateJwt, requireRoles("TEAC
   });
 });
 
-// POST: Smart Faculty Matching Algorithm (Lowest Hourly Rate Prioritization)
+// POST: Smart Faculty Matching Algorithm
 router.post("/smart-match", authenticateJwt, requireRoles("ADMIN"), async (req: AuthenticatedRequest, res) => {
-  const { subject, grade } = req.body;
-
   try {
     let teachers: any[] = [];
-    try {
-      const { data } = await supabaseAdmin.from("teachers").select("*").eq("status", "Active");
-      if (data && data.length > 0) teachers = data;
-      else teachers = inMemoryTeachers;
-    } catch {
-      teachers = inMemoryTeachers;
-    }
+    const { data } = await supabaseAdmin.from("teachers").select("*").eq("status", "Active");
+    if (data && data.length > 0) teachers = data;
 
-    // 1. Filter active teachers with remaining session capacity
     const eligible = teachers.filter(t => {
       const maxSessions = t.weekly_max_sessions || 20;
       const assigned = t.weekly_assigned_sessions || 0;
       return assigned < maxSessions;
     });
 
-    // 2. Sort by lowest hourly rate ASC ($/hr) for cost optimization
     eligible.sort((a, b) => (a.hourly_rate || 45) - (b.hourly_rate || 38));
 
     res.status(200).json({
@@ -571,37 +462,130 @@ router.post("/onboarding-waiver", authenticateJwt, requireRoles("TEACHER"), asyn
   const { teacherId, gdriveFolderUrl, photoWaiverSigned } = req.body;
 
   try {
-    const teacher = inMemoryTeachers.find(t => t.id === teacherId || t.teacher_id_code === teacherId);
-    if (teacher) {
-      teacher.document_folder_submitted = !!gdriveFolderUrl;
-      teacher.gdrive_folder_url = gdriveFolderUrl;
-      teacher.photo_waiver_signed = !!photoWaiverSigned;
-      teacher.photo_waiver_signed_at = new Date().toISOString();
-    }
+    await supabaseAdmin.from("teachers").update({
+      document_folder_submitted: !!gdriveFolderUrl,
+      gdrive_folder_url: gdriveFolderUrl,
+      photo_waiver_signed: !!photoWaiverSigned,
+      photo_waiver_signed_at: new Date().toISOString()
+    }).or(`id.eq.${teacherId},teacher_id_code.eq.${teacherId}`);
 
-    try {
-      await supabaseAdmin.from("teachers").update({
-        document_folder_submitted: !!gdriveFolderUrl,
-        gdrive_folder_url: gdriveFolderUrl,
-        photo_waiver_signed: !!photoWaiverSigned,
-        photo_waiver_signed_at: new Date().toISOString()
-      }).eq("id", teacherId);
-    } catch {
-      // In-memory fallback updated
-    }
+    const adminEmail = process.env.ADMIN_EMAIL || "tglbiz101@gmail.com";
+    await dispatchMultiChannelNotification({
+      eventType: "TEACHER_ASSIGNMENT",
+      subject: `📋 Faculty Compliance Update: ${teacherId} Submitted Documents & Photo Waiver`,
+      message: `Teacher ${teacherId} has signed the Digital Photo/Media Waiver and provided Google Drive documents:\nFolder URL: ${gdriveFolderUrl || "None provided"}\n\nCompliance records updated.`,
+      recipients: [
+        { role: "ADMIN", email: adminEmail, name: "Administrator" }
+      ]
+    });
 
     res.status(200).json({
       success: true,
-      message: "Teacher onboarding credentials and photo media release waiver successfully recorded!"
+      message: "Onboarding documents folder & digital media waiver recorded successfully!"
     });
-  } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// ==========================================
-// NODE 3: TEACHER ROSTER & AVAILABILITY
-// ==========================================
+// Helper to estimate hours from time slot string (e.g., "04:00 PM - 05:30 PM")
+function parseSlotHours(timeSlot?: string): number {
+  if (!timeSlot || !timeSlot.includes("-")) return 1.0;
+  try {
+    const parts = timeSlot.split("-").map(p => p.trim());
+    if (parts.length < 2 || !parts[0] || !parts[1]) return 1.0;
+    const parseTime = (t: string) => {
+      const match = t.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+      if (!match || !match[1] || !match[2]) return null;
+      let h = parseInt(match[1], 10);
+      const m = parseInt(match[2], 10);
+      const ampm = match[3]?.toUpperCase();
+      if (ampm === "PM" && h < 12) h += 12;
+      if (ampm === "AM" && h === 12) h = 0;
+      return h + m / 60;
+    };
+    const start = parseTime(parts[0]);
+    const end = parseTime(parts[1]);
+    if (start !== null && end !== null && end > start) {
+      return Math.round((end - start) * 10) / 10;
+    }
+  } catch {}
+  return 1.0;
+}
+
+// GET: Teacher Assigned Students (grouped by course)
+router.get("/:id/assigned-students", async (req, res): Promise<any> => {
+  try {
+    const { id } = req.params;
+    if (!(await teacherSelfOrAdmin(req, res, id))) return;
+
+    const all = await ScheduleDataService.listSchedules();
+    const { keys, names } = await resolveTeacherIdentity({ id, email: id });
+    keys.add(id.toLowerCase());
+
+    const teacherSlots = all.filter(s => {
+      const sTeacherId = String(s.teacher_id || "").toLowerCase();
+      const sTeacherName = String(s.teacher_name || "").toLowerCase();
+      return keys.has(sTeacherId) || names.has(sTeacherName) || keys.has(sTeacherName);
+    });
+
+    const courseMap = new Map<string, Map<string, any>>();
+    for (const slot of teacherSlots) {
+      const courseName = slot.course_name || "General / Unassigned";
+      if (!courseMap.has(courseName)) {
+        courseMap.set(courseName, new Map());
+      }
+      const studentMap = courseMap.get(courseName)!;
+      for (const st of slot.students || []) {
+        const studentKey = st.student_id || st.student_code || st.student_name;
+        if (!studentMap.has(studentKey)) {
+          studentMap.set(studentKey, {
+            student_id: st.student_id,
+            student_name: st.student_name,
+            student_code: st.student_code,
+            slots: []
+          });
+        }
+        studentMap.get(studentKey)!.slots.push({
+          schedule_id: slot.id,
+          day_of_week: slot.day_of_week,
+          time_slot: slot.time_slot,
+          room: slot.room,
+          location: slot.location
+        });
+      }
+    }
+
+    const grouped: any[] = [];
+    const uniqueStudentIds = new Set<string>();
+
+    for (const [courseName, studentMap] of courseMap.entries()) {
+      const studentsList = Array.from(studentMap.values()).sort((a, b) =>
+        (a.student_name || "").localeCompare(b.student_name || "", undefined, { sensitivity: "base" })
+      );
+      studentsList.forEach(s => {
+        if (s.student_id) uniqueStudentIds.add(s.student_id);
+      });
+      grouped.push({
+        course_name: courseName,
+        count: studentsList.length,
+        students: studentsList
+      });
+    }
+
+    grouped.sort((a, b) => a.course_name.localeCompare(b.course_name, undefined, { sensitivity: "base" }));
+
+    return res.status(200).json({
+      success: true,
+      total_students: uniqueStudentIds.size,
+      count: grouped.length,
+      courses: grouped,
+      data: grouped
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 // GET: Teacher Assigned Students Roster
 router.get("/:id/roster", async (req, res): Promise<any> => {
@@ -615,25 +599,121 @@ router.get("/:id/roster", async (req, res): Promise<any> => {
   }
 });
 
-// GET: Teacher Past Conducted Sessions History
+// GET: Teacher History (classes taught per month, hours taught, courses taught)
 router.get("/:id/history", async (req, res): Promise<any> => {
   try {
     const { id } = req.params;
     if (!(await teacherSelfOrAdmin(req, res, id))) return;
-    let teacherName = id;
-    const match = inMemoryTeachers.find(t => t.id === id || t.teacher_id_code === id);
-    if (match) teacherName = match.name;
 
-    const { data: pastSessions } = await supabaseAdmin
-      .from("attendance")
-      .select("*")
-      .or(`marked_by.ilike.%${teacherName}%,marked_by.eq.${id}`)
-      .order("date", { ascending: false });
+    const { keys, names } = await resolveTeacherIdentity({ id, email: id });
+    keys.add(id.toLowerCase());
+
+    // Fetch attendance marked by teacher or belonging to teacher
+    let pastSessions: any[] = [];
+    try {
+      const orClauses: string[] = [];
+      keys.forEach(k => orClauses.push(`marked_by.eq.${k}`));
+      names.forEach(n => {
+        orClauses.push(`marked_by.ilike.%${n}%`);
+        orClauses.push(`marked_by_name.ilike.%${n}%`);
+      });
+      if (orClauses.length > 0) {
+        const { data } = await supabaseAdmin
+          .from("attendance")
+          .select("*")
+          .or(orClauses.join(","))
+          .order("date", { ascending: false });
+        if (data) pastSessions = data;
+      }
+    } catch {}
+
+    // Fetch teacher slots to cross-reference course durations and courses taught
+    const allSlots = await ScheduleDataService.listSchedules();
+    const teacherSlots = allSlots.filter(s => {
+      const sTeacherId = String(s.teacher_id || "").toLowerCase();
+      const sTeacherName = String(s.teacher_name || "").toLowerCase();
+      return keys.has(sTeacherId) || names.has(sTeacherName) || keys.has(sTeacherName);
+    });
+
+    const slotMap = new Map<string, any>(teacherSlots.map(s => [s.id, s]));
+    const coursesTaughtSet = new Set<string>();
+    teacherSlots.forEach(s => {
+      if (s.course_name) coursesTaughtSet.add(s.course_name);
+    });
+
+    const sessions = pastSessions || [];
+    const monthlyMap = new Map<string, { count: number; hours: number }>();
+    let totalHoursTaught = 0;
+
+    for (const s of sessions) {
+      const courseName = s.course_name || s.class_name;
+      if (courseName) coursesTaughtSet.add(courseName);
+
+      const dateStr = s.date || s.created_at || new Date().toISOString();
+      const monthKey = dateStr.slice(0, 7); // "YYYY-MM"
+
+      let sessionHours = 1.0;
+      if (s.check_in_time && s.check_out_time) {
+        try {
+          const diffMs = new Date(s.check_out_time).getTime() - new Date(s.check_in_time).getTime();
+          if (diffMs > 0 && diffMs < 24 * 3600 * 1000) {
+            sessionHours = Math.round((diffMs / (3600 * 1000)) * 10) / 10;
+          }
+        } catch {}
+      } else if (s.schedule_id && slotMap.has(s.schedule_id)) {
+        sessionHours = parseSlotHours(slotMap.get(s.schedule_id).time_slot);
+      }
+
+      totalHoursTaught += sessionHours;
+
+      if (!monthlyMap.has(monthKey)) {
+        monthlyMap.set(monthKey, { count: 0, hours: 0 });
+      }
+      const m = monthlyMap.get(monthKey)!;
+      m.count += 1;
+      m.hours = Math.round((m.hours + sessionHours) * 10) / 10;
+    }
+
+    // If there are schedule slots but no attendance records yet, provide current month projected/scheduled summary
+    if (sessions.length === 0 && teacherSlots.length > 0) {
+      const currentMonth = new Date().toISOString().slice(0, 7);
+      let weeklyHours = 0;
+      for (const slot of teacherSlots) {
+        weeklyHours += parseSlotHours(slot.time_slot);
+      }
+      const projectedMonthHours = Math.round(weeklyHours * 4 * 10) / 10;
+      const projectedClasses = teacherSlots.length * 4;
+      monthlyMap.set(currentMonth, { count: projectedClasses, hours: projectedMonthHours });
+      totalHoursTaught = projectedMonthHours;
+    }
+
+    const classesPerMonth = Array.from(monthlyMap.entries())
+      .map(([month, data]) => ({
+        month,
+        classes_count: data.count,
+        hours_taught: Math.round(data.hours * 10) / 10
+      }))
+      .sort((a, b) => b.month.localeCompare(a.month));
+
+    const totalClassesTaught = sessions.length > 0 ? sessions.length : (monthlyMap.get(new Date().toISOString().slice(0, 7))?.count || 0);
+
+    const historyPayload = {
+      total_classes: totalClassesTaught,
+      total_hours: Math.round(totalHoursTaught * 10) / 10,
+      total_classes_taught: totalClassesTaught,
+      total_hours_taught: Math.round(totalHoursTaught * 10) / 10,
+      courses_taught: Array.from(coursesTaughtSet).sort(),
+      monthly_breakdown: classesPerMonth,
+      classes_per_month: classesPerMonth
+    };
 
     return res.status(200).json({
       success: true,
-      count: pastSessions?.length || 0,
-      data: pastSessions || []
+      history: historyPayload,
+      summary: historyPayload,
+      data: historyPayload,
+      count: sessions.length,
+      sessions: sessions
     });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message });
@@ -647,18 +727,10 @@ router.put("/:id/availability", async (req, res): Promise<any> => {
     if (!(await teacherSelfOrAdmin(req, res, id))) return;
     const { availabilityDays, availabilitySlots } = req.body;
 
-    const teacher = inMemoryTeachers.find(t => t.id === id || t.teacher_id_code === id);
-    if (teacher) {
-      if (availabilityDays) teacher.availability_days = availabilityDays;
-      if (availabilitySlots) teacher.availability_slots = availabilitySlots;
-    }
-
-    try {
-      await supabaseAdmin.from("teachers").update({
-        availability_days: availabilityDays,
-        availability_slots: availabilitySlots
-      }).eq("id", id);
-    } catch (e) {}
+    await supabaseAdmin.from("teachers").update({
+      availability_days: availabilityDays,
+      availability_slots: availabilitySlots
+    }).or(`id.eq.${id},teacher_id_code.eq.${id}`);
 
     return res.status(200).json({
       success: true,

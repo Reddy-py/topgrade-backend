@@ -16,12 +16,23 @@ import leadsRouter from "./routes/leads.js";
 import campaignsRouter from "./routes/campaigns.js";
 import enrollmentsRouter from "./routes/enrollments.js";
 import paymentsRouter from "./routes/payments.js";
-import demoRouter from "./routes/demo.js";
 import sessionQrRouter from "./routes/sessionQr.js";
 import reportsRouter from "./routes/reports.js";
 import historyRouter from "./routes/history.js";
 import alertsRouter from "./routes/alerts.js";
 import notificationsRouter from "./routes/notifications.js";
+import settingsRouter from "./routes/settings.js";
+import locationsRouter from "./routes/locations.js";
+import emailTemplatesRouter from "./routes/emailTemplates.js";
+import emailLogsRouter from "./routes/emailLogs.js";
+import announcementsRouter from "./routes/announcements.js";
+import unsubscribeRouter from "./routes/unsubscribe.js";
+import monthlyNotesRouter from "./routes/monthlyNotes.js";
+import referralsRouter from "./routes/referrals.js";
+import engagementRouter from "./routes/engagement.js";
+import upsellRouter from "./routes/upsell.js";
+import performanceRouter from "./routes/performance.js";
+import { TimedEmailScheduler } from "./services/timedEmailScheduler.js";
 import { initializeAutomatedEmailScheduler } from "./services/automatedEmailService.js";
 import { authenticateJwt } from "./middleware/auth.js";
 import { authorizePermission } from "./middleware/authorize.js";
@@ -73,8 +84,8 @@ import {
   verifyLoginRoleHandler
 } from "./routes/students.js";
 import { inMemoryStudentStore } from "./services/studentService.js";
-import { inMemoryCourses, getCoursesHandler, createCourseHandler, editCourseHandler, deleteCourseHandler } from "./routes/courses.js";
-import { inMemoryTeachers, getTeachersHandler, createTeacherHandler, updateTeacherHandler, deleteTeacherHandler } from "./routes/teachers.js";
+import { getCoursesHandler, createCourseHandler, editCourseHandler, deleteCourseHandler } from "./routes/courses.js";
+import { getTeachersHandler, createTeacherHandler, updateTeacherHandler, deleteTeacherHandler } from "./routes/teachers.js";
 import { classSessionQrStore } from "./services/sessionAttendanceService.js";
 
 // ============================================================================
@@ -89,6 +100,7 @@ app.post("/api/leads/webhook", PUBLIC_LIMIT);
 app.post("/api/leads/public", PUBLIC_LIMIT);
 app.post("/api/admissions/inquiry", PUBLIC_LIMIT);
 app.post("/api/admissions/register", PUBLIC_LIMIT);
+app.use("/api/unsubscribe", PUBLIC_LIMIT, unsubscribeRouter);
 
 app.use("/api/students", routeGuard("students", [
   { method: "POST", path: /^\/request-password-reset\/?$/, permission: "PUBLIC" },
@@ -101,7 +113,7 @@ app.use("/api/teachers", routeGuard("teachers", [
   { method: "POST", path: /^\/(respond-course\/[^/]+|onboarding-waiver)\/?$/, permission: "dashboard.view" },
 ]));
 app.use("/api/courses", routeGuard("courses"));
-app.use("/api/schedules", routeGuard("classes", [
+app.use(["/api/schedules", "/api/schedule"], routeGuard("classes", [
   { method: "GET", path: /^\/existing-courses\/?$/, permission: "classes.create" },
   { method: "GET", path: /^\/teacher\/[^/]+\/roster\/?$/, permission: "attendance.create" },
   { method: "GET", path: /^\/open\/?$/, permission: "attendance.create" },
@@ -130,20 +142,34 @@ app.use("/api/session-qr", routeGuard("attendance", [
   { method: "POST", path: /^\/student-scan\/?$/, permission: "attendance.view" },
   { method: "GET", path: /^\/live-roster\//, permission: "attendance.create" },
 ]));
-app.use("/api/enrollments", routeGuard("students.create"));
+app.use("/api/enrollments", routeGuard("students.create", [
+  { method: "GET", path: /^\/student\/[^/]+\/?$/, permission: "students.view" },
+  { method: "POST", path: /^\/quote\/?$/, permission: "students.view" },
+  { method: "GET", path: /^\/?$/, permission: "students.view" },
+]));
 app.use("/api/search", routeGuard("users.view"));
 app.use("/api/reports", routeGuard("reports.view"));
-app.use("/api/history", routeGuard("history.view"));
+app.use("/api/history", routeGuard("history.view", [
+  { method: "GET", path: /^\/student\/[^/]+\/?$/, permission: "students.view" }
+]));
 app.use("/api/alerts", routeGuard("alerts.manage"));
 app.use("/api/notifications", routeGuard("alerts.manage"));
 app.use("/api/campaigns", routeGuard("students.edit"));
 app.use("/api/leads", routeGuard("students.create", [
   { method: "POST", path: /^\/(webhook|public)\/?$/, permission: "PUBLIC" },
 ]));
-app.use("/api/demo", routeGuard("settings.manage"));
-if (process.env.NODE_ENV === "production" && process.env.ALLOW_DEMO !== "true") {
-  app.use("/api/demo", (_req, res) => res.status(404).json({ success: false, message: "Demo tools are disabled in production." }));
-}
+app.use("/api/settings", routeGuard("settings.view", [
+  { method: "GET", path: /^\/public-contact\/?$/, permission: "PUBLIC" },
+  { method: "GET", path: /^\/institute\/?$/, permission: "dashboard.view" },
+  { method: "GET", path: /^\/program-types\/?$/, permission: "dashboard.view" },
+  { method: "GET", path: /^\/course-categories\/?$/, permission: "dashboard.view" },
+]));
+app.use("/api/settings", settingsRouter);
+app.use("/api/locations", routeGuard("classes", [
+  { method: "GET", path: /^\/?$/, permission: "dashboard.view" },
+  { method: "GET", path: /^\/[^/]+\/?$/, permission: "dashboard.view" },
+]));
+app.use("/api/locations", locationsRouter);
 
 // A parent may pay only for their own child; a student only scans for themselves.
 app.post(["/api/payments/stripe/create-checkout-session", "/api/payments/zelle-request"], requireOwnStudent("student_id"));
@@ -252,7 +278,7 @@ app.put("/api/teachers/:id", updateTeacherHandler);
 app.delete("/api/teachers/:id", deleteTeacherHandler);
 
 // API Routers
-app.use("/api/schedules", scheduleRouter);
+app.use(["/api/schedules", "/api/schedule"], scheduleRouter);
 app.use("/api/search", searchRouter);
 app.use("/api/students", studentsRouter);
 app.use("/api/teachers", teachersRouter);
@@ -264,31 +290,31 @@ app.use("/api/leads", leadsRouter);
 app.use("/api/campaigns", campaignsRouter);
 app.use("/api/enrollments", enrollmentsRouter);
 app.use("/api/payments", paymentsRouter);
-app.use("/api/demo", demoRouter);
 app.use("/api/session-qr", sessionQrRouter);
 app.use("/api/reports", reportsRouter);
 app.use("/api/history", historyRouter);
 app.use("/api/alerts", alertsRouter);
 app.use("/api/notifications", notificationsRouter);
-
-import { runDatabaseSeed } from "./seeds/seedData.js";
-
-// Database Seed Endpoint
-app.get("/api/seed", routeGuard("settings.manage"), async (_req, res) => {
-  if (process.env.NODE_ENV === "production" && process.env.ALLOW_DEMO !== "true") {
-    res.status(404).json({ success: false, message: "Seeding is disabled in production." });
-    return;
-  }
-  const result = await runDatabaseSeed();
-  res.status(200).json(result);
-});
-
-// Operational System Metrics Endpoint
-app.get("/api/crm-info", routeGuard("dashboard.view"), (_req, res) => {
-  const totalStudents = inMemoryStudentStore.length;
-  const activeStudents = inMemoryStudentStore.filter(s => (s.status || "").toUpperCase() === "ACTIVE").length;
-  const activeCourses = inMemoryCourses.length;
-  const teachersAvailable = inMemoryTeachers.length;
+app.use("/api/email-templates", routeGuard("settings.view"), emailTemplatesRouter);
+app.use("/api/email-logs", routeGuard("dashboard.view"), emailLogsRouter);
+app.use("/api/emails/announcements", routeGuard("settings.view"), announcementsRouter);
+app.use("/api/monthly-notes", routeGuard("attendance.create"), monthlyNotesRouter);
+app.use("/api/referrals", referralsRouter);
+app.use("/api/engagement", engagementRouter);
+app.use("/api/upsell", upsellRouter);
+app.use("/api/performance", performanceRouter);
+app.get("/api/crm-info", routeGuard("dashboard.view"), async (_req, res) => {
+  const [
+    { count: totalStudents },
+    { count: activeStudents },
+    { count: activeCourses },
+    { count: teachersAvailable }
+  ] = await Promise.all([
+    supabaseAdmin.from("students").select("id", { count: "exact", head: true }),
+    supabaseAdmin.from("students").select("id", { count: "exact", head: true }).eq("status", "Active"),
+    supabaseAdmin.from("courses").select("id", { count: "exact", head: true }),
+    supabaseAdmin.from("teachers").select("id", { count: "exact", head: true })
+  ]);
   const todayClasses = classSessionQrStore.length;
 
   res.json({
@@ -297,10 +323,10 @@ app.get("/api/crm-info", routeGuard("dashboard.view"), (_req, res) => {
     status: "Operational",
     database: "Supabase PostgreSQL (Connected)",
     liveMetrics: {
-      totalStudents,
-      newAdmissions: activeStudents,
-      activeCourses,
-      teachersAvailable,
+      totalStudents: totalStudents || inMemoryStudentStore.length,
+      newAdmissions: activeStudents || inMemoryStudentStore.filter(s => (s.status || "").toUpperCase() === "ACTIVE").length,
+      activeCourses: activeCourses || 0,
+      teachersAvailable: teachersAvailable || 0,
       todayClasses
     }
   });
@@ -314,11 +340,21 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "online", system: "Topgrade CRM API Engine v1.0.0" });
 });
 
+import { runDailyPackageExpiryJob } from "./services/enrollmentExpiryService.js";
+import { startInstituteSettingsBackgroundRefresh } from "./services/instituteSettingsService.js";
+
 // Start listening
 if (process.env.NODE_ENV !== "test") {
   const server = app.listen(PORT, () => {
     console.log(`🚀 TopGrade Backend Engine active on port ${PORT}`);
+    startInstituteSettingsBackgroundRefresh();
     initializeAutomatedEmailScheduler();
+    TimedEmailScheduler.startScheduler();
+    runDailyPackageExpiryJob("startup-claim").catch(e => console.warn("Initial daily expiry job notice:", e?.message));
+    // Check every hour; atomic claim ensures it only runs once per calendar day
+    setInterval(() => {
+      runDailyPackageExpiryJob("hourly-check").catch(e => console.warn("Periodic daily expiry job notice:", e?.message));
+    }, 3600000);
   });
 
   server.on("error", (err: any) => {

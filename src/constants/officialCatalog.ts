@@ -1,7 +1,10 @@
-// Official TopGrade Courses & Teachers Catalog
-// Centralized data constants for production routes and services
 // ============================================================================
-// 1. THE 36 OFFICIAL COURSES (FROM USER SHEET)
+// DOCUMENTED SAMPLE CATALOG (REFERENCE ONLY)
+// Note: The Supabase PostgreSQL database holds 48 active institutional courses
+// as the single source of truth.
+// The courses below serve strictly as a documented reference / baseline sample
+// for initializing an empty development database and must NEVER overwrite or
+// truncate existing courses in Supabase.
 // ============================================================================
 export const OFFICIAL_COURSES = [
   {

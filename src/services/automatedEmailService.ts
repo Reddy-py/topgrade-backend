@@ -335,8 +335,8 @@ export async function sendTeacherBirthdayGreetings(teacher: { id: string; name: 
 
 /** Recent automatic emails (birthdays, exam wishes, student added / updated), newest first. */
 export async function getBirthdayLogs() {
-  const rows = await listEmailLog(500);
-  return rows.map(r => ({
+  const result = await listEmailLog({ limit: 500 });
+  return (result?.logs || []).map((r: any) => ({
     studentId: r.subject_key,
     type: r.kind,
     dateSent: r.send_date,

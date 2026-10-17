@@ -2,6 +2,11 @@ import nodemailer from "nodemailer";
 import dotenv from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { getCachedInstituteSettings, emailFooter } from "./instituteSettingsService.js";
+import { renderTemplate } from "./emailTemplateService.js";
+import { logEmail, statusFromDispatch } from "./emailLog.js";
+import { instituteToday } from "./instituteTime.js";
+export { emailFooter } from "./instituteSettingsService.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -10,7 +15,6 @@ dotenv.config({ path: backendEnvPath });
 dotenv.config();
 
 export interface NotificationPayload {
-  /** When true the message is plain text: HTML is escaped and line breaks are kept. Use for anything built from user data. */
   escapeMessage?: boolean;
   recipients: Array<{
     role: "STUDENT" | "PARENT" | "TEACHER" | "ADMIN";
@@ -34,6 +38,9 @@ export interface NotificationPayload {
  * Dynamic Gmail Transporter Setup (Reads latest GMAIL_USER and GMAIL_APP_PASSWORD from .env)
  */
 function getTransporter(): { transporter: nodemailer.Transporter | null; gmailUser: string } {
+  if (process.env.SIMULATE_EMAILS === "true" || process.env.NODE_ENV === "test" || process.env.SIMULATE_MAILER === "true") {
+    return { transporter: null, gmailUser: "simulated-mailer@topgrade.edu" };
+  }
   dotenv.config({ path: backendEnvPath });
   const gmailUser = process.env.GMAIL_USER || process.env.GMAIL_SENDER_EMAIL || "tglbiz101@gmail.com";
   const gmailPass = process.env.GMAIL_APP_PASSWORD || "";
@@ -64,7 +71,7 @@ export function escapeHtml(value: unknown): string {
     .replace(/'/g, "&#39;");
 }
 
-function buildHtmlEmailTemplate(subject: string, message: string, role: string, recipientNameRaw: string, actionUrl?: string, plainText = false): string {
+export function buildHtmlEmailTemplate(subject: string, message: string, role: string, recipientNameRaw: string, actionUrl?: string, plainText = false): string {
   const recipientName = escapeHtml(recipientNameRaw);
   if (plainText) message = escapeHtml(message).replace(/\n/g, "<br>");
   if (actionUrl) actionUrl = escapeHtml(actionUrl);
@@ -107,7 +114,10 @@ function buildHtmlEmailTemplate(subject: string, message: string, role: string, 
           <p style="font-size: 12px; color: #64748b; margin-top: 25px;">If you have any questions or need assistance, please reply directly to this email or contact your center administrator.</p>
         </div>
         <div class="footer">
-          <p>&copy; ${new Date().getFullYear()} Top Grade Learning CRM. All rights reserved.</p>
+          <div style="margin-bottom: 8px; font-weight: 600; color: #475569; font-size: 11px; line-height: 1.5;">
+            ${escapeHtml(emailFooter()).replace(/\n/g, "<br>")}
+          </div>
+          <p>&copy; ${new Date().getFullYear()} ${escapeHtml(getCachedInstituteSettings().institute_name || "Top Grade Learning CRM")}. All rights reserved.</p>
         </div>
       </div>
     </body>
@@ -150,7 +160,7 @@ export async function dispatchMultiChannelNotification(payload: NotificationPayl
       try {
         const senderAddress = process.env.GMAIL_SENDER_EMAIL || "tglbiz101@gmail.com";
         const isRawHtml = (payload.message || "").trim().startsWith("<");
-        const htmlContent = isRawHtml ? payload.message : buildHtmlEmailTemplate(
+        let htmlContent = isRawHtml ? payload.message : buildHtmlEmailTemplate(
           payload.subject,
           payload.message,
           recipient.role,
@@ -159,8 +169,21 @@ export async function dispatchMultiChannelNotification(payload: NotificationPayl
           payload.escapeMessage === true
         );
 
+        if (isRawHtml) {
+          const footerText = emailFooter();
+          const cleanFooter = escapeHtml(footerText).replace(/\n/g, "<br>");
+          if (!htmlContent.includes(cleanFooter) && !htmlContent.includes(footerText)) {
+            htmlContent += `
+              <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 15px 20px; font-size: 11px; color: #64748b; border-top: 1px solid #e2e8f0; margin-top: 20px;">
+                <p style="margin: 0; font-weight: 600; color: #475569;">${cleanFooter}</p>
+                <p style="margin: 4px 0 0 0;">&copy; ${new Date().getFullYear()} ${escapeHtml(getCachedInstituteSettings().institute_name || "Top Grade Learning")}. All rights reserved.</p>
+              </div>
+            `;
+          }
+        }
+
         await transporter.sendMail({
-          from: `"Top Grade Learning" <${senderAddress}>`,
+          from: `"${escapeHtml(getCachedInstituteSettings().institute_name || "Top Grade Learning")}" <${senderAddress}>`,
           to: emailTarget,
           subject: payload.subject,
           html: htmlContent,
@@ -256,30 +279,32 @@ export async function sendDailyAttendanceRollCallEmail(params: {
 }): Promise<boolean> {
   const normStatus = params.status.toUpperCase();
   const statusEmoji = normStatus === "PRESENT" ? "✅" : normStatus === "ABSENT" ? "🚨" : "ℹ️";
-  const subject = `${statusEmoji} Daily Attendance Notice: ${params.studentName} — ${normStatus} (${params.courseName})`;
+  let subject = `${statusEmoji} Attendance Notice: ${params.studentName} — ${normStatus} (${params.courseName})`;
+  let message = `Daily Attendance Notice: ${params.studentName} attended ${params.courseName} on ${params.date}.`;
 
-  let statusBanner = "";
-  if (normStatus === "PRESENT") {
-    statusBanner = `VERIFIED PRESENCE: ${params.studentName} attended today's session in ${params.courseName}.`;
-  } else if (normStatus === "ABSENT") {
-    statusBanner = `ATTENDANCE ALERT: ${params.studentName} was marked ABSENT for today's class in ${params.courseName}. If this was unexpected, please contact the center immediately.`;
-  } else {
-    statusBanner = `EXCUSED ABSENCE: An excused absence was logged for ${params.studentName} for today's session in ${params.courseName}.`;
+  try {
+    const tpl = await renderTemplate("ATTENDANCE_DAILY_SUMMARY", {
+      parent_name: "Parent",
+      student_name: params.studentName,
+      course_name: params.courseName,
+      attendance_date: params.date,
+      status: normStatus,
+      teacher_name: params.markedBy || "Course Faculty",
+      remarks_block: params.remarks ? `<strong>Instructor Notes:</strong> ${escapeHtml(params.remarks)}<br>` : "",
+      attendance_percent: params.attendancePercentage ?? 100
+    });
+    if (!tpl.enabled) return false;
+    subject = tpl.subject;
+    message = tpl.htmlBody;
+  } catch {
+    // Fallback
   }
-
-  const message = `${statusBanner}\n\n` +
-    `• Date: ${params.date}\n` +
-    `• Course: ${params.courseName}\n` +
-    `• Attendance Status: ${normStatus}\n` +
-    `• Marked By: ${params.markedBy || "Course Faculty"}\n` +
-    (params.remarks ? `• Notes: ${params.remarks}\n` : "") +
-    (params.attendancePercentage ? `• Current Overall Attendance: ${params.attendancePercentage}%\n` : "") +
-    `\nThank you for partnering with Top Grade Learning for academic excellence.`;
 
   const result = await dispatchMultiChannelNotification({
     eventType: "ATTENDANCE_ALERT",
     subject,
     message,
+    escapeMessage: false,
     recipients: [
       {
         role: "PARENT",
@@ -288,6 +313,17 @@ export async function sendDailyAttendanceRollCallEmail(params: {
       }
     ]
   });
+
+  await logEmail(
+    "ATTENDANCE_DAILY",
+    params.studentName,
+    params.date || instituteToday(),
+    [params.parentEmail],
+    subject,
+    statusFromDispatch(result),
+    result.failures.join("; ") || undefined,
+    message
+  );
 
   return result.success;
 }
@@ -304,21 +340,33 @@ export async function sendMonthlyAttendanceSummaryEmail(params: {
   attendedClasses: number;
   percentage: number;
 }): Promise<boolean> {
-  const subject = `📊 Monthly Attendance Report — ${params.studentName} (${params.month})`;
   const statusText = params.percentage >= 85 ? "Excellent Attendance! Keep up the great work." : params.percentage >= 75 ? "Satisfactory Attendance." : "Attention Needed: Attendance is below 75%.";
+  let subject = `📊 Monthly Attendance Report — ${params.studentName} (${params.month})`;
+  let message = `Monthly Attendance: ${params.studentName} attended ${params.attendedClasses}/${params.totalClasses} classes.`;
 
-  const message = `Here is the monthly attendance summary for ${params.studentName} for ${params.month}:\n\n` +
-    (params.courseName ? `• Course: ${params.courseName}\n` : "") +
-    `• Total Conducted Sessions: ${params.totalClasses}\n` +
-    `• Sessions Attended: ${params.attendedClasses}\n` +
-    `• Attendance Percentage: ${params.percentage}%\n` +
-    `• Status: ${statusText}\n\n` +
-    `You can view complete session history and report cards in the Top Grade Learning portal.`;
+  try {
+    const tpl = await renderTemplate("ATTENDANCE_MONTHLY_SUMMARY", {
+      parent_name: "Parent",
+      student_name: params.studentName,
+      month_name: params.month,
+      course_name: params.courseName || "All Enrolled Courses",
+      total_conducted: params.totalClasses,
+      total_attended: params.attendedClasses,
+      attendance_percent: params.percentage,
+      attendance_evaluation: statusText
+    });
+    if (!tpl.enabled) return false;
+    subject = tpl.subject;
+    message = tpl.htmlBody;
+  } catch {
+    // Fallback
+  }
 
   const result = await dispatchMultiChannelNotification({
     eventType: "ATTENDANCE_ALERT",
     subject,
     message,
+    escapeMessage: false,
     recipients: [
       {
         role: "PARENT",
@@ -327,6 +375,17 @@ export async function sendMonthlyAttendanceSummaryEmail(params: {
       }
     ]
   });
+
+  await logEmail(
+    "ATTENDANCE_MONTHLY",
+    params.studentName,
+    instituteToday(),
+    [params.parentEmail],
+    subject,
+    statusFromDispatch(result),
+    result.failures.join("; ") || undefined,
+    message
+  );
 
   return result.success;
 }
@@ -346,20 +405,20 @@ export async function sendPaymentConfirmationReceiptEmail(params: {
   transactionId: string;
   receiptDate?: string;
 }): Promise<boolean> {
-  const subject = `🧾 Payment Receipt: ${params.tokensPurchased} Class Hour Tokens Credited for ${params.studentName}`;
+  const subject = `🧾 Payment Receipt: ${params.tokensPurchased} Class Hours Credited for ${params.studentName}`;
   const nowStr = params.receiptDate || new Date().toLocaleString("en-US", { timeZone: "America/New_York" });
 
   const message = `Dear ${params.parentName || "Parent"},\n\n` +
-    `Thank you for your payment! We have successfully credited ${params.tokensPurchased} Class Hour Token${params.tokensPurchased > 1 ? "s" : ""} to ${params.studentName}'s account for ${params.courseName}.\n\n` +
+    `Thank you for your payment! We have successfully credited ${params.tokensPurchased} Class Hour${params.tokensPurchased > 1 ? "s" : ""} to ${params.studentName}'s account for ${params.courseName}.\n\n` +
     `• Student: ${params.studentName}\n` +
     `• Course: ${params.courseName}\n` +
-    `• Tokens Credited: +${params.tokensPurchased} Hour${params.tokensPurchased > 1 ? "s" : ""}\n` +
-    `• Available Token Balance: ${params.tokensRemaining} Class Hours\n` +
+    `• Hours Credited: +${params.tokensPurchased} Hour${params.tokensPurchased > 1 ? "s" : ""}\n` +
+    `• Available Balance: ${params.tokensRemaining} Class Hours\n` +
     `• Amount Paid: $${params.amountUsd.toFixed(2)} USD\n` +
     `• Payment Channel: ${params.paymentMethod}\n` +
     `• Transaction / Reference ID: ${params.transactionId}\n` +
     `• Timestamp: ${nowStr}\n\n` +
-    `Token Consumption Policy: Each time ${params.studentName} is marked PRESENT during roll call, 1 token is deducted. An automated low-quota alert will notify you when the token balance falls to 2 or fewer hours.\n\n` +
+    `Class Hour Consumption Policy: Each time ${params.studentName} is marked PRESENT during roll call, 1 hour is deducted. An automated low-quota alert will notify you when the hour balance falls to 2 or fewer hours.\n\n` +
     `Warm regards,\nTop Grade Learning Accounts Division\ntglbiz101@gmail.com`;
 
   const result = await dispatchMultiChannelNotification({

@@ -18,8 +18,11 @@ export async function resolveTeacherIdentity(user: { id?: string | undefined; em
       .from("teachers")
       .select("id, teacher_id_code, name, email, user_id");
     for (const t of (teachers || []) as any[]) {
-      if ((user.id && norm(t.user_id) === norm(user.id)) || (email && norm(t.email) === email)) {
-        [t.id, t.teacher_id_code, t.user_id].forEach(k => k && keys.add(norm(k)));
+      const uid = norm(user.id);
+      const isMatch = (uid && (norm(t.user_id) === uid || norm(t.id) === uid || norm(t.teacher_id_code) === uid || norm(t.email) === uid)) ||
+                      (email && (norm(t.email) === email || norm(t.user_id) === email || norm(t.id) === email));
+      if (isMatch) {
+        [t.id, t.teacher_id_code, t.user_id, t.email].forEach(k => k && keys.add(norm(k)));
         if (t.name) names.add(norm(t.name));
       }
     }

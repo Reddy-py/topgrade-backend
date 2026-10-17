@@ -57,8 +57,8 @@ export class StripeService {
           price_data: {
             currency: order.currency,
             product_data: {
-              name: `${course.name}: ${order.quantity} class token${order.quantity > 1 ? "s" : ""}`,
-              description: `Prepaid class tokens for ${student.name}. One class uses one token.`,
+              name: `${course.name}: ${order.quantity} class hour${order.quantity > 1 ? "s" : ""}`,
+              description: `Prepaid class hours for ${student.name}. One class uses one hour.`,
             },
             unit_amount: cents(order.unit_price),
           },

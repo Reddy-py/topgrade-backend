@@ -85,11 +85,11 @@ router.post("/zelle-request", async (req, res): Promise<any> => {
     void dispatchMultiChannelNotification({
       eventType: "ADMISSION_APPROVED",
       subject: `Zelle payment to confirm: ${student.name} (${order.order_number})`,
-      message: `A parent reported a Zelle payment.\n\nStudent: ${student.name} (${student.code})\nCourse: ${order.course_name}\nTokens: ${order.quantity}\nAmount due: ${order.amount_total} ${order.currency.toUpperCase()}\nZelle code: ${refCode.toUpperCase()}\n\nCheck your bank, then confirm or reject it in the Fees page.`,
+      message: `A parent reported a Zelle payment.\n\nStudent: ${student.name} (${student.code})\nCourse: ${order.course_name}\nHours: ${order.quantity}\nAmount due: ${order.amount_total} ${order.currency.toUpperCase()}\nZelle code: ${refCode.toUpperCase()}\n\nCheck your bank, then confirm or reject it in the Fees page.`,
       escapeMessage: true,
       recipients: [{ role: "ADMIN", email: process.env.ADMIN_EMAIL || "tglbiz101@gmail.com", name: "Administrator", phone: "" }],
     }).catch(() => undefined);
-    return res.status(201).json({ success: true, message: "Thank you. The institute will confirm your payment and add the tokens.", order });
+    return res.status(201).json({ success: true, message: "Thank you. The institute will confirm your payment and add the hours.", order });
   } catch (err: any) {
     const msg = String(err?.message || "");
     return fail(res, msg.includes("duplicate") || err?.code === "23505" ? Object.assign(err, { message: "This Zelle code was already submitted." }) : err, 400);
@@ -127,7 +127,7 @@ router.post("/orders/:id/confirm", async (req, res): Promise<any> => {
     if (order.status === "PAID") return res.json({ success: true, message: "Already confirmed.", order });
     if (order.status !== "PENDING") return res.status(400).json({ success: false, message: `This order is ${order.status.toLowerCase()}.` });
     const r = await fulfillOrder(order, userOf(req).id);
-    return res.json({ success: true, message: `${order.quantity} token(s) added.`, balance: r.balance });
+    return res.json({ success: true, message: `${order.quantity} hour(s) added.`, balance: r.balance });
   } catch (err: any) { return fail(res, err); }
 });
 
@@ -155,7 +155,7 @@ router.post("/manual-credit", async (req, res): Promise<any> => {
       note: note ? String(note).slice(0, 300) : null, by: userOf(req).id,
     });
     const r = await fulfillOrder(order, userOf(req).id);
-    return res.status(201).json({ success: true, message: `${order.quantity} token(s) added for ${order.course_name}.`, balance: r.balance, order });
+    return res.status(201).json({ success: true, message: `${order.quantity} hour(s) added for ${order.course_name}.`, balance: r.balance, order });
   } catch (err: any) { return fail(res, err, 400); }
 });
 
@@ -190,7 +190,7 @@ router.get("/balance/:studentId", async (req, res): Promise<any> => {
       data: {
         tokens_remaining: remaining, tokens_consumed: used, hourly_rate: first?.pricePerToken ?? 0,
         isLowQuota: remaining <= LOW_TOKEN_LIMIT,
-        teacherWarningMessage: remaining < 0 ? `Tokens owed: ${-remaining}. Please buy tokens.` : remaining <= LOW_TOKEN_LIMIT ? `Low tokens: ${remaining} class(es) left.` : undefined,
+        teacherWarningMessage: remaining < 0 ? `Hours owed: ${-remaining}. Please buy hours.` : remaining <= LOW_TOKEN_LIMIT ? `Low hours: ${remaining} class(es) left.` : undefined,
       },
       courses: wallets,
     });
@@ -217,7 +217,7 @@ router.get("/teacher-roster", async (req, res): Promise<any> => {
       success: true,
       data: rows.map(r => ({
         ...r, tokens_remaining: r.balance, availableHours: r.balance,
-        remainingClassesText: r.owed ? `${-r.balance} class(es) owed` : `${r.balance} classes remaining`,
+        remainingClassesText: r.owed ? `${-r.balance} hour(s) owed` : `${r.balance} hours remaining`,
         isLowQuotaWarning: r.low,
       })),
     });
@@ -235,13 +235,11 @@ router.get("/receipt/:orderId/html", async (req, res): Promise<any> => {
   } catch (err: any) { return res.status(500).send(err?.message || "Could not build the receipt."); }
 });
 
-// ───────────────────────── Removed ─────────────────────────
-// Razorpay, UPI and the old "settle" endpoint trusted prices and payment proof typed in the browser
-// (a 12-digit number was enough to receive tokens). They are switched off. Use Stripe, Zelle (confirmed by the admin)
-// or manual-credit.
+// ───────────────────────── Legacy Endpoints ─────────────────────────
+// Legacy payment endpoints that trusted client-reported proofs are disabled.
+// Use Stripe, Zelle (confirmed by admin), or staff-credited hours.
 const removed = (_req: Request, res: Response) =>
-  res.status(410).json({ success: false, message: "This payment method is no longer available. Use card (Stripe) or ask the institute." });
-router.use(["/razorpay", "/upi"], removed);
+  res.status(410).json({ success: false, message: "This payment method is no longer available. Use card (Stripe) or contact the institute." });
 router.post(["/settle", "/manual/zelle-confirm"], removed);
 
 export default router;

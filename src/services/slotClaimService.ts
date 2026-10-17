@@ -1,7 +1,8 @@
 import { supabaseAdmin } from "../supabase.js";
-import { ScheduleDataService, doTimesOverlap, type ScheduleSlot } from "./scheduleDataService.js";
+import { ScheduleDataService, doTimesOverlap, inMemorySchedules, type ScheduleSlot } from "./scheduleDataService.js";
 import { getTeacherRecord, type TeacherRecord } from "./teacherIdentity.js";
 import { dispatchMultiChannelNotification } from "./notificationService.js";
+import { sendTeacherScheduleActionNotice } from "./eventEmailService.js";
 import type { AuthenticatedUser } from "../middleware/auth.js";
 
 /**
@@ -86,13 +87,25 @@ export async function claimSlot(user: AuthenticatedUser, slotId: string): Promis
     throw new ClaimError(`Could not save your choice (run migration 20261013): ${error.message}`, 500);
   }
 
-  void dispatchMultiChannelNotification({
-    eventType: "ADMISSION_APPROVED",
-    subject: `Class taken: ${slot.course_name}, ${slot.day_of_week} ${slot.time_slot}`,
-    message: `${teacher.name} chose the class ${slot.course_name} on ${slot.day_of_week} (${slot.time_slot}, ${slot.room}).`,
-    escapeMessage: true,
-    recipients: [{ role: "ADMIN", email: process.env.ADMIN_EMAIL || "tglbiz101@gmail.com", name: "Administrator", phone: "" }],
+  void sendTeacherScheduleActionNotice({
+    eventType: "CLASS_TAKEN",
+    teacherName: teacher.name,
+    teacherEmail: teacher.email,
+    courseName: slot.course_name,
+    dayOfWeek: slot.day_of_week,
+    timeSlot: slot.time_slot,
+    room: slot.room,
+    locationName: slot.location,
+    enrolledCount: slot.students?.length || 0
   }).catch(() => undefined);
+
+  const memSlot = inMemorySchedules.get(slot.id);
+  if (memSlot) {
+    memSlot.teacher_id = teacher.id;
+    memSlot.teacher_name = teacher.name;
+    memSlot.claimed_by_teacher = true;
+    memSlot.open_for_teachers = false;
+  }
 
   return { ...slot, teacher_id: teacher.id, teacher_name: teacher.name, claimed_by_teacher: true };
 }
@@ -102,16 +115,29 @@ export async function releaseSlot(user: AuthenticatedUser, slotId: string): Prom
   const { data: claim } = await supabaseAdmin.from("teacher_slot_claims").select("*").eq("slot_id", slotId).maybeSingle();
   if (!claim) throw new ClaimError("This class is not taken by a teacher.", 404);
 
+  const slot = (await ScheduleDataService.listSchedules()).find(s => s.id === slotId);
+
   if (!isAdmin) {
     const teacher = await requireTeacher(user);
     if (norm(claim.teacher_id) !== norm(teacher.id)) throw new ClaimError("This class is not yours.", 403);
-    const slot = (await ScheduleDataService.listSchedules()).find(s => s.id === slotId);
     if ((slot?.students || []).length > 0) {
       throw new ClaimError("Students are enrolled in this class, so you cannot give it back yourself. Ask the institute to reassign it.", 409);
     }
   }
   const { error } = await supabaseAdmin.from("teacher_slot_claims").delete().eq("slot_id", slotId);
   if (error) throw new ClaimError(error.message, 500);
+
+  void sendTeacherScheduleActionNotice({
+    eventType: "CLASS_RELEASED",
+    teacherName: claim.teacher_name || "Faculty",
+    teacherEmail: claim.teacher_email || "",
+    courseName: slot?.course_name || "Course Session",
+    dayOfWeek: slot?.day_of_week || "",
+    timeSlot: slot?.time_slot || "",
+    room: slot?.room,
+    locationName: slot?.location,
+    enrolledCount: slot?.students?.length || 0
+  }).catch(() => undefined);
 }
 
 export { ClaimError };

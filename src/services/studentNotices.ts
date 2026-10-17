@@ -75,31 +75,46 @@ function recipientsFor(student: StudentDossier, emails: string[]) {
   }));
 }
 
+import { renderTemplate } from "./emailTemplateService.js";
+
 /** "Your details were registered" email to the student (or the parent if the student has no email). */
 export async function sendStudentAddedEmail(student: StudentDossier): Promise<void> {
   const to = studentContactEmails(student);
   const key = student.id || student.studentCode || "";
-  const subject = `Registration confirmed: ${student.fullName} (${student.studentCode || ""})`;
   const { dateStr } = instituteNow();
   if (to.length === 0 || !key) return;
+
   try {
-    const lines = FIELDS
-      .map(f => ({ label: f.label, value: clean(f.get(student)) }))
-      .filter(x => x.value && !["Status"].includes(x.label))
-      .map(x => `• ${x.label}: ${x.value}`);
+    let subject = `Registration confirmed: ${student.fullName} (${student.studentCode || ""})`;
+    let message = `${student.fullName} is now registered at TopGrade Learning${student.studentCode ? ` (student ID ${student.studentCode})` : ""}.`;
+
+    try {
+      const tpl = await renderTemplate("NEW_STUDENT_REGISTRATION_SUMMARY", {
+        recipient_name: student.fullName || "Student & Family",
+        student_name: student.fullName,
+        student_code: student.studentCode || "",
+        school: student.school || "N/A",
+        grade: student.grade || "N/A",
+        program: student.program || "Standard Curriculum",
+        courses: Array.isArray(student.allocatedCourses) ? student.allocatedCourses.map((c: any) => c.courseName).join(", ") : (student.program || "Standard Curriculum")
+      });
+      if (!tpl.enabled) return;
+      subject = tpl.subject;
+      message = tpl.htmlBody;
+    } catch {
+      // Fallback to default text
+    }
+
     const result = await dispatchMultiChannelNotification({
       eventType: "ADMISSION_APPROVED",
       subject,
-      message:
-        `${student.fullName} is now registered at TopGrade Learning${student.studentCode ? ` (student ID ${student.studentCode})` : ""}.\n\n` +
-        `The details we have on record:\n${lines.join("\n")}\n\n` +
-        `If anything here is wrong, please tell the institute so we can correct it.`,
-      escapeMessage: true,
+      message,
+      escapeMessage: false,
       recipients: recipientsFor(student, to),
     });
-    await logEmail("STUDENT_ADDED", key, dateStr, to, subject, statusFromDispatch(result), result.failures.join("; ") || undefined);
+    await logEmail("NEW_STUDENT_REGISTERED", key, dateStr, to, subject, statusFromDispatch(result), result.failures.join("; ") || undefined, message);
   } catch (err: any) {
-    await logEmail("STUDENT_ADDED", key, dateStr, to, subject, "failed", err?.message);
+    await logEmail("NEW_STUDENT_REGISTERED", key, dateStr, to, `Registration: ${student.fullName}`, "failed", err?.message);
   }
 }
 
@@ -119,23 +134,41 @@ export async function sendStudentUpdatedEmail(before: StudentDossier, after: Stu
   const oldOwn = realEmail(before.email);
   const newOwn = realEmail(after.email);
   const oldEmailNotice = oldOwn && newOwn && oldOwn !== newOwn ? oldOwn : null;
-  const subject = `Your details were updated: ${after.fullName}`;
+  let subject = `Your details were updated: ${after.fullName}`;
   if ((to.length === 0 && !oldEmailNotice) || !key) return;
 
   try {
-    const list = changes.map(c => `• ${c.label}: ${c.before}  →  ${c.after}`).join("\n");
+    const listHtml = `
+      <ul style="margin:8px 0;padding-left:20px;line-height:1.6;">
+        ${changes.map(c => `<li><strong>${c.label}:</strong> <span style="text-decoration:line-through;color:#94a3b8;">${c.before || "(empty)"}</span> &rarr; <span style="color:#004ac6;font-weight:600;">${c.after || "(empty)"}</span></li>`).join("")}
+      </ul>
+    `;
+    let message = `The details of ${after.fullName} at TopGrade Learning were updated on ${dateStr}.\n\nWhat changed:\n${changes.map(c => `• ${c.label}: ${c.before} → ${c.after}`).join("\n")}`;
+
+    try {
+      const tpl = await renderTemplate("STUDENT_DETAILS_UPDATED", {
+        recipient_name: after.fullName || "Student & Family",
+        student_name: after.fullName,
+        student_code: after.studentCode || "",
+        changes_list: listHtml
+      });
+      if (!tpl.enabled) return;
+      subject = tpl.subject;
+      message = tpl.htmlBody;
+    } catch {
+      // Fallback
+    }
+
     const main = to.length > 0
       ? await dispatchMultiChannelNotification({
           eventType: "ADMISSION_APPROVED",
           subject,
-          message:
-            `The details of ${after.fullName} at TopGrade Learning were updated on ${dateStr}.\n\n` +
-            `What changed:\n${list}\n\n` +
-            `If you did not expect these changes, please contact the institute.`,
-          escapeMessage: true,
+          message,
+          escapeMessage: false,
           recipients: recipientsFor(after, to),
         })
       : null;
+
     if (oldEmailNotice) {
       await dispatchMultiChannelNotification({
         eventType: "ADMISSION_APPROVED",
@@ -147,8 +180,9 @@ export async function sendStudentUpdatedEmail(before: StudentDossier, after: Stu
         recipients: [{ role: "STUDENT", email: oldEmailNotice, name: before.fullName, phone: "" }],
       });
     }
+
     const status = main ? statusFromDispatch(main) : "sent";
-    await logEmail("STUDENT_UPDATED", key, dateStr, [...to, ...(oldEmailNotice ? [oldEmailNotice] : [])], subject, status, main?.failures.join("; ") || undefined);
+    await logEmail("STUDENT_UPDATED", key, dateStr, [...to, ...(oldEmailNotice ? [oldEmailNotice] : [])], subject, status, main?.failures.join("; ") || undefined, message);
   } catch (err: any) {
     await logEmail("STUDENT_UPDATED", key, dateStr, to, subject, "failed", err?.message);
   }

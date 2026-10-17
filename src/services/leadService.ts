@@ -1,3 +1,4 @@
+import { supabaseAdmin } from "../supabase.js";
 import { dispatchMultiChannelNotification } from "./notificationService.js";
 
 export type LeadSourceType = "WEBSITE" | "META" | "GOOGLE_ADS" | "MANUAL";
@@ -59,10 +60,43 @@ export interface LeadInteractionRecord {
   createdAt: string;
 }
 
-// In-Memory store for fast execution & fallback
-export const leadsStore: LeadRecord[] = [];
-export const leadInteractionsStore: LeadInteractionRecord[] = [];
-export const enrollmentsStore: any[] = [];
+function mapLeadRow(row: any, interactions: LeadInteractionRecord[] = []): LeadRecord {
+  return {
+    id: row.id,
+    source: (row.source || "WEBSITE") as LeadSourceType,
+    fullName: row.full_name || row.student_name || "Prospective Student",
+    studentName: row.student_name || row.full_name || "Prospective Student",
+    parentName: row.parent_name || "",
+    contactNumber: row.contact_number || row.phone || "",
+    phone: row.phone || row.contact_number || "",
+    email: row.email || "",
+    academicGrade: row.academic_grade || row.target_grade || "General Enrollment",
+    targetGrade: row.target_grade || row.academic_grade || "General Enrollment",
+    message: row.message || "",
+    notes: row.notes || "",
+    utmParameters: row.utm_parameters || null,
+    status: (row.status || "PENDING") as LeadStatusType,
+    isConverted: Boolean(row.is_converted),
+    convertedAt: row.converted_at || undefined,
+    lastInteractionAt: row.last_interaction_at || undefined,
+    createdAt: row.created_at || new Date().toISOString(),
+    updatedAt: row.updated_at || new Date().toISOString(),
+    interactions
+  };
+}
+
+function mapInteractionRow(row: any): LeadInteractionRecord {
+  return {
+    id: row.id,
+    leadId: row.lead_id,
+    counselorId: row.counselor_id || undefined,
+    interactionType: row.interaction_type as InteractionTypeEnum,
+    outcome: row.outcome as InteractionOutcomeEnum,
+    notes: row.notes || "",
+    scheduledFollowUpAt: row.scheduled_follow_up_at || undefined,
+    createdAt: row.created_at
+  };
+}
 
 export class LeadService {
   /**
@@ -84,63 +118,84 @@ export class LeadService {
   }
 
   /**
-   * 1. Lead Ingestion & Deduplication Logic
+   * 1. Lead Ingestion & Deduplication Logic in Supabase
    * Checks existing records by email and phone. Appends note if duplicate, creates new record if fresh.
    */
   public static async ingestAndDeduplicateLead(payload: IngestLeadPayload): Promise<{ lead: LeadRecord; isDuplicate: boolean; message: string }> {
     const cleanEmail = (payload.email || "").toLowerCase().trim();
-    const cleanPhone = (payload.phone || payload.phone || "").replace(/\D/g, "");
+    const cleanPhone = (payload.phone || "").replace(/\D/g, "");
     const source = this.normalizeSource(payload.source);
     const fullName = payload.fullName || "Prospective Student";
     const targetGrade = payload.targetGrade || "General Enrollment";
     const nowIso = new Date().toISOString();
 
     // Check existing leads for deduplication by email or phone
-    const existingLead = leadsStore.find(l => 
-      (cleanEmail && l.email.toLowerCase() === cleanEmail) ||
-      (cleanPhone && l.phone.replace(/\D/g, "") === cleanPhone)
-    );
+    let existingQuery = supabaseAdmin.from("leads").select("*");
+    if (cleanEmail && cleanPhone) {
+      existingQuery = existingQuery.or(`email.ilike.${cleanEmail},phone.ilike.%${cleanPhone}%`);
+    } else if (cleanEmail) {
+      existingQuery = existingQuery.ilike("email", cleanEmail);
+    } else if (cleanPhone) {
+      existingQuery = existingQuery.ilike("phone", `%${cleanPhone}%`);
+    }
 
-    if (existingLead) {
-      // Append inquiry note & touch updatedAt
+    const { data: existingRows } = await existingQuery.limit(1);
+    const existing = existingRows?.[0];
+
+    if (existing) {
       const newNote = `\n[Ingestion (${source}) - ${new Date().toLocaleDateString()}]: ${payload.notes || "New inquiry received."}`;
-      existingLead.notes = existingLead.notes ? `${existingLead.notes}${newNote}` : newNote;
-      existingLead.updatedAt = nowIso;
+      const updatedNotes = existing.notes ? `${existing.notes}${newNote}` : newNote;
+
+      const { data: updatedRows, error: updateErr } = await supabaseAdmin
+        .from("leads")
+        .update({
+          notes: updatedNotes,
+          updated_at: nowIso
+        })
+        .eq("id", existing.id)
+        .select()
+        .single();
+
+      if (updateErr) throw new Error(`Failed to update duplicate lead: ${updateErr.message}`);
 
       return {
-        lead: existingLead,
+        lead: mapLeadRow(updatedRows),
         isDuplicate: true,
-        message: `Existing lead identified for '${existingLead.fullName}'. Appended inquiry note and updated timestamp.`
+        message: `Existing lead identified for '${existing.full_name || existing.student_name}'. Appended inquiry note and updated timestamp.`
       };
     }
 
-    // Create New Lead Record
+    // Create New Lead Record in Supabase
     const utmStr = typeof payload.utmParameters === "object" ? JSON.stringify(payload.utmParameters) : payload.utmParameters || null;
+    const newId = `lead-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
-    const newLead: LeadRecord = {
-      id: `lead-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      source,
-      fullName,
-      studentName: fullName,
-      parentName: payload.parentName || "",
-      contactNumber: payload.phone,
-      phone: payload.phone,
-      email: cleanEmail,
-      academicGrade: targetGrade,
-      targetGrade,
-      message: payload.notes || "New lead inquiry.",
-      notes: payload.notes || "",
-      utmParameters: utmStr,
-      status: "PENDING",
-      isConverted: false,
-      createdAt: nowIso,
-      updatedAt: nowIso,
-      interactions: []
-    };
+    const { data: inserted, error: insertErr } = await supabaseAdmin
+      .from("leads")
+      .insert({
+        id: newId,
+        source,
+        full_name: fullName,
+        student_name: fullName,
+        parent_name: payload.parentName || "",
+        contact_number: payload.phone,
+        phone: payload.phone,
+        email: cleanEmail,
+        academic_grade: targetGrade,
+        target_grade: targetGrade,
+        message: payload.notes || "New lead inquiry.",
+        notes: payload.notes || "",
+        utm_parameters: utmStr,
+        status: "PENDING",
+        is_converted: false,
+        created_at: nowIso,
+        updated_at: nowIso
+      })
+      .select()
+      .single();
 
-    leadsStore.unshift(newLead);
+    if (insertErr) throw new Error(`Failed to create lead in Supabase: ${insertErr.message}`);
 
-    // Event Hook: Trigger Automated Welcome Email/SMS & Counselor Alert (Non-blocking async dispatch)
+    // Non-blocking welcome dispatch
     const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_SENDER_EMAIL || "tglbiz101@gmail.com";
     dispatchMultiChannelNotification({
       eventType: "ADMISSION_INQUIRY",
@@ -153,152 +208,244 @@ export class LeadService {
     }).catch(err => console.warn("Welcome notification event hook note:", err));
 
     return {
-      lead: newLead,
+      lead: mapLeadRow(inserted),
       isDuplicate: false,
       message: `New lead created successfully for '${fullName}' via ${source}.`
     };
   }
 
   /**
-   * 2. Log Counselor Follow-Up Interaction
+   * 2. Log Counselor Follow-Up Interaction in Supabase
    */
-  public static logInteraction(input: LeadInteractionInput): { interaction: LeadInteractionRecord; lead: LeadRecord } {
-    const lead = leadsStore.find(l => l.id === input.leadId);
-    if (!lead) {
+  public static async logInteraction(input: LeadInteractionInput): Promise<{ interaction: LeadInteractionRecord; lead: LeadRecord }> {
+    const { data: leadRow, error: findErr } = await supabaseAdmin
+      .from("leads")
+      .select("*")
+      .eq("id", input.leadId)
+      .maybeSingle();
+
+    if (findErr || !leadRow) {
       throw new Error(`Lead with ID '${input.leadId}' not found.`);
     }
 
     const nowIso = new Date().toISOString();
-    const interaction: LeadInteractionRecord = {
-      id: `intr-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      leadId: input.leadId,
-      counselorId: input.counselorId || "counselor-admin",
-      interactionType: input.interactionType,
-      outcome: input.outcome,
-      notes: input.notes,
-      scheduledFollowUpAt: input.scheduledFollowUpAt || undefined,
-      createdAt: nowIso
-    };
+    const interactionId = `intr-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
-    leadInteractionsStore.unshift(interaction);
-    if (!lead.interactions) lead.interactions = [];
-    lead.interactions.unshift(interaction);
-    lead.lastInteractionAt = nowIso;
-    lead.updatedAt = nowIso;
+    const { data: interactionRow, error: intrErr } = await supabaseAdmin
+      .from("lead_interactions")
+      .insert({
+        id: interactionId,
+        lead_id: input.leadId,
+        counselor_id: input.counselorId || "counselor-admin",
+        interaction_type: input.interactionType,
+        outcome: input.outcome,
+        notes: input.notes,
+        scheduled_follow_up_at: input.scheduledFollowUpAt || null,
+        created_at: nowIso
+      })
+      .select()
+      .single();
+
+    if (intrErr) throw new Error(`Failed to record interaction: ${intrErr.message}`);
 
     // Update lead status based on outcome
+    let nextStatus = leadRow.status;
     if (input.outcome === "NOT_INTERESTED") {
-      lead.status = "INACTIVE_ARCHIVED";
-    } else if (lead.status === "PENDING") {
-      lead.status = "CONTACTED";
+      nextStatus = "INACTIVE_ARCHIVED";
+    } else if (leadRow.status === "PENDING") {
+      nextStatus = "CONTACTED";
     }
 
-    return { interaction, lead };
+    const { data: updatedLead, error: leadUpdateErr } = await supabaseAdmin
+      .from("leads")
+      .update({
+        status: nextStatus,
+        last_interaction_at: nowIso,
+        updated_at: nowIso
+      })
+      .eq("id", input.leadId)
+      .select()
+      .single();
+
+    if (leadUpdateErr) throw new Error(`Failed to update lead interaction timestamp: ${leadUpdateErr.message}`);
+
+    return {
+      interaction: mapInteractionRow(interactionRow),
+      lead: mapLeadRow(updatedLead)
+    };
   }
 
   /**
-   * 3. Get Due & Overdue Follow-Ups
+   * 3. Get Due & Overdue Follow-Ups from Supabase
    */
-  public static getDueFollowUps(): { count: number; data: any[] } {
-    const now = new Date();
+  public static async getDueFollowUps(): Promise<{ count: number; data: any[] }> {
+    const nowIso = new Date().toISOString();
 
-    const dueList = leadInteractionsStore.filter(intr => {
-      if (!intr.scheduledFollowUpAt) return false;
-      const followUpDate = new Date(intr.scheduledFollowUpAt);
-      const parentLead = leadsStore.find(l => l.id === intr.leadId);
-      
-      // Filter leads that have follow-ups scheduled for today or overdue
-      return followUpDate <= now && parentLead && parentLead.status !== "INACTIVE_ARCHIVED" && !parentLead.isConverted;
-    }).map(intr => {
-      const parentLead = leadsStore.find(l => l.id === intr.leadId);
+    const { data: interactions, error } = await supabaseAdmin
+      .from("lead_interactions")
+      .select(`
+        *,
+        leads!inner (
+          id,
+          student_name,
+          full_name,
+          email,
+          phone,
+          target_grade,
+          status,
+          is_converted
+        )
+      `)
+      .lte("scheduled_follow_up_at", nowIso)
+      .neq("leads.status", "INACTIVE_ARCHIVED")
+      .eq("leads.is_converted", false)
+      .order("scheduled_follow_up_at", { ascending: true });
+
+    if (error) {
+      console.warn("Could not query due follow-ups:", error.message);
+      return { count: 0, data: [] };
+    }
+
+    const now = new Date();
+    const formatted = (interactions || []).map((intr: any) => {
+      const parentLead = intr.leads;
       return {
         interactionId: intr.id,
-        leadId: intr.leadId,
-        studentName: parentLead?.studentName,
+        leadId: intr.lead_id,
+        studentName: parentLead?.student_name || parentLead?.full_name,
         email: parentLead?.email,
         phone: parentLead?.phone,
-        targetGrade: parentLead?.targetGrade,
-        interactionType: intr.interactionType,
+        targetGrade: parentLead?.target_grade,
+        interactionType: intr.interaction_type,
         outcome: intr.outcome,
         notes: intr.notes,
-        scheduledFollowUpAt: intr.scheduledFollowUpAt,
-        isOverdue: new Date(intr.scheduledFollowUpAt!) < now
+        scheduledFollowUpAt: intr.scheduled_follow_up_at,
+        isOverdue: intr.scheduled_follow_up_at ? new Date(intr.scheduled_follow_up_at) < now : false
       };
     });
 
     return {
-      count: dueList.length,
-      data: dueList
+      count: formatted.length,
+      data: formatted
     };
   }
 
   /**
    * 4. 1-Click Conversion Pipeline
-   * Transitions Lead data into an Enrollment record (FORM_SUBMITTED)
+   * Transitions Lead data into an Enrollment record (FORM_SUBMITTED) in Supabase
    */
-  public static convertLeadToEnrollment(leadId: string): { enrollment: any; lead: LeadRecord } {
-    const lead = leadsStore.find(l => l.id === leadId);
-    if (!lead) {
+  public static async convertLeadToEnrollment(leadId: string): Promise<{ enrollment: any; lead: LeadRecord }> {
+    const { data: lead, error: leadErr } = await supabaseAdmin
+      .from("leads")
+      .select("*")
+      .eq("id", leadId)
+      .maybeSingle();
+
+    if (leadErr || !lead) {
       throw new Error(`Lead with ID '${leadId}' not found.`);
     }
 
-    if (lead.isConverted) {
-      throw new Error(`Lead '${lead.fullName}' has already been converted to an enrollment.`);
+    if (lead.is_converted) {
+      throw new Error(`Lead '${lead.full_name || lead.student_name}' has already been converted to an enrollment.`);
     }
 
     const nowIso = new Date().toISOString();
+    const enrollmentId = `enr-${Date.now()}`;
 
-    // Create Enrollment Record (FORM_SUBMITTED)
-    const enrollment = {
-      id: `enr-${Date.now()}`,
-      leadId: lead.id,
-      studentName: lead.fullName,
-      email: lead.email,
-      primaryMobile: lead.phone,
-      academicGrade: lead.targetGrade,
-      status: "FORM_SUBMITTED",
-      submittedAt: nowIso,
-      financialWaiver: true,
-      transportWaiver: true,
-      mediaWaiver: true
-    };
+    // Create Enrollment Record in Supabase
+    const { data: enrollment, error: enrErr } = await supabaseAdmin
+      .from("enrollments")
+      .insert({
+        id: enrollmentId,
+        lead_id: lead.id,
+        student_name: lead.full_name || lead.student_name,
+        email: lead.email,
+        primary_mobile: lead.phone || lead.contact_number,
+        academic_grade: lead.target_grade || lead.academic_grade || "General Enrollment",
+        status: "FORM_SUBMITTED",
+        submitted_at: nowIso,
+        financial_waiver: true,
+        transport_waiver: true,
+        media_waiver: true
+      })
+      .select()
+      .single();
 
-    enrollmentsStore.unshift(enrollment);
+    if (enrErr) throw new Error(`Failed to create enrollment record: ${enrErr.message}`);
 
-    // Update Lead State
-    lead.isConverted = true;
-    lead.convertedAt = nowIso;
-    lead.status = "CONVERTED";
-    lead.updatedAt = nowIso;
+    // Update Lead State in Supabase
+    const { data: updatedLead, error: upErr } = await supabaseAdmin
+      .from("leads")
+      .update({
+        is_converted: true,
+        converted_at: nowIso,
+        status: "CONVERTED",
+        updated_at: nowIso
+      })
+      .eq("id", leadId)
+      .select()
+      .single();
 
-    return { enrollment, lead };
+    if (upErr) throw new Error(`Failed to update lead converted state: ${upErr.message}`);
+
+    return { enrollment, lead: mapLeadRow(updatedLead) };
   }
 
   /**
-   * 5. Lead Sanitization & Auto-Archiving Routine
+   * 5. Lead Sanitization & Auto-Archiving Routine in Supabase
    * Marks leads with no interaction for > 30 days or marked NOT_INTERESTED as INACTIVE_ARCHIVED
    */
-  public static archiveStaleLeads(staleDaysThreshold = 30): { archivedCount: number; archivedLeads: LeadRecord[] } {
-    const now = new Date();
-    const thresholdMs = staleDaysThreshold * 24 * 3600 * 1000;
-    const archived: LeadRecord[] = [];
+  public static async archiveStaleLeads(staleDaysThreshold = 30): Promise<{ archivedCount: number; archivedLeads: LeadRecord[] }> {
+    const thresholdDate = new Date(Date.now() - staleDaysThreshold * 24 * 3600 * 1000).toISOString();
+    const nowIso = new Date().toISOString();
 
-    leadsStore.forEach(lead => {
-      if (lead.status === "INACTIVE_ARCHIVED" || lead.isConverted) return;
+    const { data: staleRows, error: findErr } = await supabaseAdmin
+      .from("leads")
+      .select("*")
+      .neq("status", "INACTIVE_ARCHIVED")
+      .eq("is_converted", false)
+      .or(`last_interaction_at.lt.${thresholdDate},and(last_interaction_at.is.null,created_at.lt.${thresholdDate})`);
 
-      const lastTouchTime = lead.lastInteractionAt ? new Date(lead.lastInteractionAt).getTime() : new Date(lead.createdAt).getTime();
-      const inactivityMs = now.getTime() - lastTouchTime;
+    if (findErr) throw new Error(`Failed to find stale leads: ${findErr.message}`);
 
-      if (inactivityMs > thresholdMs) {
-        lead.status = "INACTIVE_ARCHIVED";
-        lead.updatedAt = now.toISOString();
-        archived.push(lead);
-      }
-    });
+    if (!staleRows || staleRows.length === 0) {
+      return { archivedCount: 0, archivedLeads: [] };
+    }
+
+    const ids = staleRows.map(r => r.id);
+    const { data: updatedRows, error: updateErr } = await supabaseAdmin
+      .from("leads")
+      .update({ status: "INACTIVE_ARCHIVED", updated_at: nowIso })
+      .in("id", ids)
+      .select();
+
+    if (updateErr) throw new Error(`Failed to archive stale leads: ${updateErr.message}`);
 
     return {
-      archivedCount: archived.length,
-      archivedLeads: archived
+      archivedCount: (updatedRows || []).length,
+      archivedLeads: (updatedRows || []).map(r => mapLeadRow(r))
     };
+  }
+
+  /**
+   * 6. List leads with optional filtering and attached interactions
+   */
+  public static async listLeads(filters?: { status?: string; source?: string }): Promise<LeadRecord[]> {
+    let query = supabaseAdmin.from("leads").select("*").order("created_at", { ascending: false });
+
+    if (filters?.status) {
+      query = query.eq("status", filters.status.toUpperCase());
+    }
+    if (filters?.source) {
+      query = query.eq("source", filters.source.toUpperCase());
+    }
+
+    const { data: leads, error } = await query;
+    if (error) {
+      console.warn("Could not list leads:", error.message);
+      return [];
+    }
+
+    return (leads || []).map(l => mapLeadRow(l));
   }
 }
