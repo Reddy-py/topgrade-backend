@@ -309,6 +309,8 @@ router.get("/dashboard-metrics", async (req: Request, res: Response): Promise<an
     try {
       const attn = await getNeedsAttentionData();
       needsAttentionCount = attn.totalCount;
+    } catch {}
+
     let isAddressIncomplete = false;
     try {
       const s = await getCachedInstituteSettings();
