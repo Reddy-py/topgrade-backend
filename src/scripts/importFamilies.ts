@@ -736,21 +736,15 @@ export async function runImportFamilies(customFilePath?: string, apply: boolean 
 
   if (apply) {
     const dbUrl = parseEnv("SUPABASE_URL") || "";
-    if (dbUrl.includes(PRODUCTION_PROJECT_REF)) {
-
-      if (process.env.ALLOW_PRODUCTION_RESET !== "yes") {
-        throw new Error(
-          "SAFETY ERROR: Target database is PRODUCTION! ALLOW_PRODUCTION_RESET=yes is required."
-        );
-      }
-      const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-      const answer = await new Promise<string>(resolve => {
-        rl.question(`Type the project ref (${PRODUCTION_PROJECT_REF}) to proceed: `, resolve);
-      });
-      rl.close();
-      if (answer.trim() !== PRODUCTION_PROJECT_REF) {
-        throw new Error("SAFETY ABORT: Typed project ref did not match. Aborting write.");
-      }
+    const psqlUrl = parseEnv("DATABASE_URL") || "";
+    if (dbUrl.includes(PRODUCTION_PROJECT_REF) || psqlUrl.includes(PRODUCTION_PROJECT_REF)) {
+      console.error("\n================================================================================");
+      console.error("🛑 CRITICAL SAFETY ABORT: OLD SUPABASE PROJECT DETECTED!");
+      console.error(`Target contains '${PRODUCTION_PROJECT_REF}'.`);
+      console.error("Task 13 strictly forbids writing to the old Supabase project.");
+      console.error("Please update SUPABASE_URL and DATABASE_URL in your local .env to point to the NEW project.");
+      console.error("================================================================================\n");
+      throw new Error(`REFUSING TO RUN: Target contains the old project ref '${PRODUCTION_PROJECT_REF}'.`);
     }
   }
 
@@ -771,6 +765,7 @@ export async function runImportFamilies(customFilePath?: string, apply: boolean 
   console.log(`Parents on placeholder emails: ${c.parentsOnPlaceholderEmail} (Expected: 7)`);
   console.log(`Students with own real email: ${c.studentsWithOwnRealEmail} (Expected: 2)`);
   console.log(`Invalid emails: ${c.invalidEmails} (Expected: 1)`);
+  console.log(`Unmatched course text count: ${parsed.unmatchedCoursesList.length}`);
 
   const reconciled =
     c.studentOwnContactRows === 4 &&

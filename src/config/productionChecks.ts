@@ -11,13 +11,19 @@ export function validateProductionEnvironment(): void {
   const isProd = process.env.NODE_ENV === "production";
   if (!isProd) return;
 
+  const isSimulatedEmail = process.env.SIMULATE_EMAILS === "true";
+
   const required = [
     { key: "SUPABASE_URL", label: "Supabase Project URL" },
     { key: "SUPABASE_SERVICE_ROLE_KEY", label: "Supabase Service Role Key" },
     { key: "FRONTEND_URL", label: "Frontend Production URL" },
     { key: "CORS_ORIGIN", label: "CORS Allowed Origins" },
-    { key: "GMAIL_USER", label: "Gmail Dispatch Account" },
-    { key: "GMAIL_APP_PASSWORD", label: "Gmail App Password" }
+    ...(isSimulatedEmail
+      ? []
+      : [
+          { key: "GMAIL_USER", label: "Gmail Dispatch Account" },
+          { key: "GMAIL_APP_PASSWORD", label: "Gmail App Password" }
+        ])
   ];
 
   const missing: string[] = [];
@@ -110,10 +116,17 @@ export function piiSafeStructuredLogger(req: Request, res: Response, next: NextF
  */
 export function getCorsOptions() {
   const isProd = process.env.NODE_ENV === "production";
-  const rawOrigins = (process.env.CORS_ORIGIN || process.env.FRONTEND_URL || "")
-    .split(",")
-    .map(o => o.trim())
-    .filter(Boolean);
+  const rawOrigins = [
+    "https://topgrade-vert.vercel.app",
+    ...(process.env.CORS_ORIGIN || process.env.FRONTEND_URL || "")
+      .split(",")
+      .map(o => o.trim())
+      .filter(Boolean)
+  ];
+
+  // Regex strictly matching topgrade-vert and preview URLs of this project only
+  // E.g. https://topgrade-vert.vercel.app, https://topgrade-vert-git-main-reddy-pys-projects.vercel.app
+  const vercelProjectPreviewRegex = /^https:\/\/topgrade-vert(-[a-zA-Z0-9_\-]+)?\.vercel\.app$/;
 
   return {
     origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
@@ -122,12 +135,17 @@ export function getCorsOptions() {
 
       if (!isProd) {
         // In local/development, permit localhost and configured origins
-        if (origin.includes("localhost") || origin.includes("127.0.0.1") || rawOrigins.includes(origin)) {
+        if (
+          origin.includes("localhost") ||
+          origin.includes("127.0.0.1") ||
+          rawOrigins.includes(origin) ||
+          vercelProjectPreviewRegex.test(origin)
+        ) {
           return callback(null, true);
         }
       }
 
-      if (rawOrigins.includes(origin)) {
+      if (rawOrigins.includes(origin) || vercelProjectPreviewRegex.test(origin)) {
         return callback(null, true);
       }
 

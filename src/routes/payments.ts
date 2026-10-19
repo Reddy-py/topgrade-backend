@@ -13,6 +13,28 @@ import {
 
 const router = Router();
 
+// Demo safety guard: Disable payment creation routes and Stripe webhook when DISABLE_PAYMENTS is set
+router.use((req, res, next) => {
+  const isPaymentsDisabled = process.env.DISABLE_PAYMENTS === "true" || process.env.ENABLE_PAYMENTS === "false";
+  if (isPaymentsDisabled) {
+    const p = req.path;
+    if (
+      p.includes("/stripe/create-checkout-session") ||
+      p.includes("/stripe/webhook") ||
+      p.includes("/zelle-request") ||
+      p.includes("/manual-credit") ||
+      p.includes("/adjust") ||
+      p.includes("/orders")
+    ) {
+      return res.status(503).json({
+        success: false,
+        message: "Payment processing and webhooks are disabled for this demo environment."
+      });
+    }
+  }
+  next();
+});
+
 const fail = (res: Response, err: any, fallback = 500) =>
   res.status(err?.status || fallback).json({ success: false, message: err?.message || "Something went wrong." });
 
