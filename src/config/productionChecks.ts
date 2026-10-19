@@ -243,6 +243,93 @@ export async function adminSystemHealthHandler(_req: Request, res: Response): Pr
 }
 
 /**
+ * GET /api/admin/environment-check (Admin only)
+ * Returns environment health without leaking any secrets or personal data.
+ */
+export async function adminEnvironmentCheckHandler(_req: Request, res: Response): Promise<void> {
+  try {
+    let supabaseHost = "unknown";
+    try {
+      const u = new URL(process.env.SUPABASE_URL || "");
+      supabaseHost = u.host;
+    } catch {}
+
+    const isOldProject = supabaseHost.includes("zznzmzwiewsnmykcbcni");
+    const simulateEmails = process.env.SIMULATE_EMAILS === "true";
+    const disablePayments = process.env.DISABLE_PAYMENTS === "true";
+
+    const requiredTables = [
+      "profiles",
+      "courses",
+      "teachers",
+      "students",
+      "schedules",
+      "locations",
+      "institute_settings",
+      "student_enrollments",
+      "email_templates",
+      "referral_codes",
+      "attendance",
+      "email_log",
+      "token_wallets",
+      "token_orders",
+      "token_ledger"
+    ];
+
+    const tableChecks: Record<string, boolean> = {};
+    await Promise.all(
+      requiredTables.map(async table => {
+        try {
+          const { error } = await supabaseAdmin.from(table).select("*", { count: "exact", head: true });
+          tableChecks[table] = !error;
+        } catch {
+          tableChecks[table] = false;
+        }
+      })
+    );
+
+    const allTablesPass = requiredTables.every(t => tableChecks[t]);
+
+    const [
+      { count: studentsCount },
+      { count: parentsCount },
+      { count: studentsMustChangeCount },
+      { count: parentsMustChangeCount }
+    ] = await Promise.all([
+      supabaseAdmin.from("students").select("id", { count: "exact", head: true }),
+      supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }).eq("role", "PARENT"),
+      supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }).eq("role", "STUDENT").eq("must_change_password", true),
+      supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }).eq("role", "PARENT").eq("must_change_password", true)
+    ]);
+
+    res.json({
+      success: true,
+      timestamp: new Date().toISOString(),
+      supabaseHost,
+      isOldProject,
+      simulateEmails,
+      disablePayments,
+      allTablesPass,
+      tableChecks,
+      counts: {
+        students: studentsCount || 0,
+        parents: parentsCount || 0,
+        studentsMustChangePassword: studentsMustChangeCount || 0,
+        parentsMustChangePassword: parentsMustChangeCount || 0,
+        totalMustChangePassword: (studentsMustChangeCount || 0) + (parentsMustChangeCount || 0)
+      }
+    });
+  } catch (err: any) {
+    console.error("Environment check error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to perform environment check.",
+      error: err.message
+    });
+  }
+}
+
+/**
  * Centralized error reporting middleware that redacts stack traces in production.
  */
 export function centralizedErrorHandler(err: any, _req: Request, res: Response, _next: NextFunction): void {

@@ -5,6 +5,7 @@ import { getCachedInstituteSettings } from "../services/instituteSettingsService
 import { ScheduleDataService, getSlotDurationMinutes } from "../services/scheduleDataService.js";
 import { classSessionQrStore } from "../services/sessionAttendanceService.js";
 import { HistoryService } from "../services/historyService.js";
+import { inMemoryStudentStore } from "../services/studentService.js";
 import { getNeedsAttentionData } from "./needsAttention.js";
 
 const router = express.Router();
@@ -31,15 +32,24 @@ router.get("/dashboard-metrics", async (req: Request, res: Response): Promise<an
     // Calculate start of current month in UTC/ISO
     const startOfMonth = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1)).toISOString();
 
-    // 1. Fetch Students
-    const { data: students, error: stuErr } = await supabaseAdmin
-      .from("students")
-      .select("*")
-      .order("created_at", { ascending: false });
+    // 1. Fetch Students (resilient with in-memory fallback)
+    let studentList: any[] = [];
+    try {
+      const { data: students, error: stuErr } = await supabaseAdmin
+        .from("students")
+        .select("*")
+        .order("created_at", { ascending: false });
 
-    if (stuErr) throw stuErr;
-
-    const studentList = students || [];
+      if (stuErr) {
+        console.warn("Notice: Supabase students fetch in dashboard-metrics:", stuErr.message);
+        studentList = inMemoryStudentStore || [];
+      } else {
+        studentList = students || [];
+      }
+    } catch (e: any) {
+      console.warn("Notice: Students query in dashboard-metrics:", e?.message);
+      studentList = inMemoryStudentStore || [];
+    }
     const totalStudents = studentList.length;
     const activeStudents = studentList.filter(
       (s: any) => (s.status || "").trim().toUpperCase() === "ACTIVE"

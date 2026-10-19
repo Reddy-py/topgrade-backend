@@ -17,7 +17,9 @@
     "import:students": "tsx src/importStudentsToSupabase.ts",
     "reset:passwords": "tsx src/resetDefaultPasswords.ts",
     "migrate:schedules": "tsx src/migrateSchedules.ts",
-    "seed:catalog": "tsx src/seedCatalog.ts"
+    "seed:catalog": "tsx src/seedCatalog.ts",
+    "demo:seed": "tsx src/scripts/seedDemoFamily.ts",
+    "demo:remove": "tsx src/scripts/removeDemoFamily.ts"
   },
   "engines": {
     "node": ">=20.0.0"

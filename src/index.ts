@@ -70,6 +70,7 @@ import {
   getCorsOptions,
   databaseHealthHandler,
   adminSystemHealthHandler,
+  adminEnvironmentCheckHandler,
   centralizedErrorHandler,
   registerGracefulShutdown
 } from "./config/productionChecks.js";
@@ -409,6 +410,9 @@ app.get("/api/health", databaseHealthHandler);
 
 // Admin-only detailed diagnostics endpoint: latency, uptime, memory, database connection
 app.get("/api/admin/system-health", authenticateJwt, authorizePermission("dashboard.view"), adminSystemHealthHandler);
+
+// Admin-only environment & migration check endpoint
+app.get("/api/admin/environment-check", authenticateJwt, authorizePermission("settings.view"), adminEnvironmentCheckHandler);
 
 // Centralized error reporting hook
 app.use(centralizedErrorHandler);
