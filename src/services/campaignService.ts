@@ -6,6 +6,7 @@ import { getAllParentEmails } from "./eventEmailService.js";
 import { getAllStudentsRaw, inMemoryStudentStore } from "./studentService.js";
 import { logEmail } from "./emailLog.js";
 import { appendCanSpamFooter } from "./parentEngagementService.js";
+import { isRealEmail } from "../constants/domains.js";
 
 export interface CampaignRecord {
   id: string;
@@ -97,7 +98,7 @@ export async function resolveAudienceRecipients(
     // Add Students
     if (targetAudience === "ALL_STUDENTS" || targetAudience === "ALL_FAMILIES") {
       const stuEmail = (stu.email || (stu.studentEmails ? stu.studentEmails[0] : "") || "").toLowerCase().trim();
-      if (stuEmail && !stuEmail.endsWith("@topgrade.edu") && !recipientsMap.has(stuEmail)) {
+      if (stuEmail && isRealEmail(stuEmail) && !recipientsMap.has(stuEmail)) {
         recipientsMap.set(stuEmail, { role: "STUDENT", email: stuEmail, name: stu.fullName || "Student" });
       }
     }

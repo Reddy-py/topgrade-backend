@@ -38,7 +38,17 @@ import { authenticateJwt } from "./middleware/auth.js";
 import { authorizePermission } from "./middleware/authorize.js";
 import { routeGuard, requireOwnStudent, requireOwnOrder } from "./middleware/guard.js";
 import { rateLimit } from "./middleware/rateLimit.js";
-import { ensureLogin, emailSetPasswordLink, normEmail, isValidEmail, type LoginRole } from "./services/studentAccounts.js";
+import {
+  ensureLogin,
+  emailSetPasswordLink,
+  normEmail,
+  isValidEmail,
+  bulkSendSecureLoginLinks,
+  listNeverSignedInAccounts,
+  renameUserLogin,
+  changeUserPassword,
+  type LoginRole
+} from "./services/studentAccounts.js";
 import { USER_ROLES } from "./constants/rolePermissions.js";
 import { reloadStudentsService } from "./services/studentService.js";
 import { dispatchMultiChannelNotification } from "./services/notificationService.js";
@@ -52,22 +62,38 @@ dotenv.config({ path: path.resolve(__dirname, "../.env") });
 dotenv.config();
 
 import compression from "compression";
+import helmet from "helmet";
+import authLoginRouter from "./routes/authLogin.js";
+import {
+  validateProductionEnvironment,
+  piiSafeStructuredLogger,
+  getCorsOptions,
+  databaseHealthHandler,
+  adminSystemHealthHandler,
+  centralizedErrorHandler,
+  registerGracefulShutdown
+} from "./config/productionChecks.js";
+
+// Enforce required production configuration and lock out demo switches
+validateProductionEnvironment();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware configuration
+// Security, compression, and structured PII-scrubbed logging
+app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 app.use(compression());
-app.use(cors(process.env.CORS_ORIGIN ? { origin: process.env.CORS_ORIGIN.split(",").map(o => o.trim()) } : undefined));
+app.use(cors(getCorsOptions()));
+app.use(piiSafeStructuredLogger);
 app.use(
   express.json({
-    limit: "50mb",
+    limit: "10mb",
     verify: (req: any, _res, buf) => {
       req.rawBody = buf;
     }
   })
 );
-app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // Establish connection to Supabase instance
 import { supabaseAdmin } from "./supabase.js";
@@ -87,6 +113,12 @@ import { inMemoryStudentStore } from "./services/studentService.js";
 import { getCoursesHandler, createCourseHandler, editCourseHandler, deleteCourseHandler } from "./routes/courses.js";
 import { getTeachersHandler, createTeacherHandler, updateTeacherHandler, deleteTeacherHandler } from "./routes/teachers.js";
 import { classSessionQrStore } from "./services/sessionAttendanceService.js";
+import {
+  getNeedsAttentionHandler,
+  getNeedsAttentionSummaryHandler,
+  exportNeedsAttentionCsvHandler
+} from "./routes/needsAttention.js";
+
 
 // ============================================================================
 // LOGIN-BASED ACCESS: every API route needs a signed-in user with the right role.
@@ -94,13 +126,17 @@ import { classSessionQrStore } from "./services/sessionAttendanceService.js";
 // Admin holds every permission. Teacher / parent / student limits are in constants/rolePermissions.ts,
 // and the records each one may see are limited again inside the handlers (services/accessScope.ts).
 // ============================================================================
-const PUBLIC_LIMIT = rateLimit(30, 60_000);
-app.post("/api/students/request-password-reset", PUBLIC_LIMIT);
-app.post("/api/leads/webhook", PUBLIC_LIMIT);
-app.post("/api/leads/public", PUBLIC_LIMIT);
-app.post("/api/admissions/inquiry", PUBLIC_LIMIT);
-app.post("/api/admissions/register", PUBLIC_LIMIT);
-app.use("/api/unsubscribe", PUBLIC_LIMIT, unsubscribeRouter);
+const PUBLIC_FORM_LIMIT = rateLimit(20, 60_000);
+const WEBHOOK_LIMIT = rateLimit(120, 60_000);
+const AUTH_RATE_LIMIT = rateLimit(15, 60_000);
+
+app.post("/api/students/request-password-reset", AUTH_RATE_LIMIT);
+app.post("/api/leads/webhook", WEBHOOK_LIMIT);
+app.post("/api/leads/public", PUBLIC_FORM_LIMIT);
+app.post("/api/admissions/inquiry", PUBLIC_FORM_LIMIT);
+app.post("/api/admissions/register", PUBLIC_FORM_LIMIT);
+app.post("/api/payments/stripe/webhook", WEBHOOK_LIMIT);
+app.use("/api/unsubscribe", PUBLIC_FORM_LIMIT, unsubscribeRouter);
 
 app.use("/api/students", routeGuard("students", [
   { method: "POST", path: /^\/request-password-reset\/?$/, permission: "PUBLIC" },
@@ -179,25 +215,59 @@ app.post("/api/session-qr/student-scan", requireOwnStudent("studentId"));
 app.get("/api/payments/balance/:studentId", requireOwnStudent("param:studentId"));
 app.get("/api/payments/receipt/:orderId/html", requireOwnOrder("orderId"));
 
-// Login helper for students/teachers who sign in with their ID code instead of an email.
-// Public, rate limited, and answers only with the email needed to sign in (the browser can no longer read these tables directly).
-app.get("/api/auth/resolve-login", rateLimit(20, 60_000), async (req, res) => {
+// Unified server-side login endpoint: POST /api/auth/login
+// Resolves email/student ID/teacher ID/phone internally, authenticates with Supabase,
+// never logs/returns resolved email, applies lockout after 5 failures, returns session.
+app.use("/api/auth", authLoginRouter);
+
+// Standalone change-password endpoint accessible during forced password change
+app.post("/api/auth/change-password", changePasswordHandler);
+
+// Step 5: Bulk admin action 'Send secure login link' for selected parents and students with a real email
+app.post("/api/auth/bulk-send-secure-login-links", authenticateJwt, authorizePermission("users.create"), async (req, res) => {
   try {
-    const code = String(req.query.code || "").trim();
-    if (!code || code.includes("@") || code.length > 40) {
-      return res.status(400).json({ success: false, message: "Enter your registered student or teacher ID." });
+    const targets = Array.isArray(req.body?.targets) ? req.body.targets : (req.body?.target ? [req.body.target] : []);
+    if (targets.length === 0) {
+      return res.status(400).json({ success: false, message: "At least one target email or account ID is required." });
     }
-    const { data: stu } = await supabaseAdmin.from("students").select("email").eq("student_id_code", code.toUpperCase()).maybeSingle();
-    if (stu?.email) return res.json({ success: true, email: String(stu.email).toLowerCase() });
-    const { data: tch } = await supabaseAdmin.from("teachers").select("email").eq("teacher_id_code", code.toUpperCase()).maybeSingle();
-    if (tch?.email) return res.json({ success: true, email: String(tch.email).toLowerCase() });
-    return res.status(404).json({ success: false, message: "No account found for that ID." });
+    const result = await bulkSendSecureLoginLinks(targets);
+    return res.status(200).json({ success: true, ...result });
   } catch (err: any) {
-    return res.status(500).json({ success: false, message: "Could not look up that ID." });
+    return res.status(500).json({ success: false, message: err?.message || "Failed to dispatch secure login links." });
   }
 });
 
+// Step 5: Admin list 'Never signed in' (accounts that have not changed their initial password)
+app.get("/api/auth/never-signed-in", authenticateJwt, authorizePermission("users.view"), async (_req, res) => {
+  try {
+    const result = await listNeverSignedInAccounts();
+    return res.status(200).json({ success: true, ...result });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err?.message || "Failed to fetch accounts requiring password change." });
+  }
+});
+
+// Step 6: Rename login (auth email and profile) when admin enters a real email
+app.post("/api/auth/rename-login", authenticateJwt, authorizePermission("users.edit"), async (req, res) => {
+  try {
+    const { oldIdentifier, newEmail } = req.body || {};
+    if (!oldIdentifier || !newEmail) {
+      return res.status(400).json({ success: false, message: "Both oldIdentifier and newEmail are required." });
+    }
+    const result = await renameUserLogin(oldIdentifier, newEmail);
+    return res.status(200).json(result);
+  } catch (err: any) {
+    return res.status(400).json({ success: false, message: err?.message || "Failed to rename account login." });
+  }
+});
+
+// Step 8: 'Needs attention' admin report routes (Admin only)
+app.get("/api/reports/needs-attention", authenticateJwt, authorizePermission("users.view"), getNeedsAttentionHandler);
+app.get("/api/reports/needs-attention/summary", authenticateJwt, authorizePermission("users.view"), getNeedsAttentionSummaryHandler);
+app.get("/api/reports/needs-attention/csv", authenticateJwt, authorizePermission("users.view"), exportNeedsAttentionCsvHandler);
+
 // Top-Level Direct Resource Endpoints
+
 app.get("/api/students/list", getStudentsHandler);
 app.get("/api/students", getStudentsHandler);
 app.get("/api/students/reload", async (_req, res) => {
@@ -332,13 +402,16 @@ app.get("/api/crm-info", routeGuard("dashboard.view"), async (_req, res) => {
   });
 });
 
-// Base Health Check endpoint
-app.get("/", (req, res) => {
-  res.json({ status: "online", system: "Topgrade CRM API Engine v1.0.0" });
-});
-app.get("/api/health", (req, res) => {
-  res.json({ status: "online", system: "Topgrade CRM API Engine v1.0.0" });
-});
+// Active Database Health Check endpoints (cached 30s, returns strictly { status })
+app.get("/", databaseHealthHandler);
+app.get("/health", databaseHealthHandler);
+app.get("/api/health", databaseHealthHandler);
+
+// Admin-only detailed diagnostics endpoint: latency, uptime, memory, database connection
+app.get("/api/admin/system-health", authenticateJwt, authorizePermission("dashboard.view"), adminSystemHealthHandler);
+
+// Centralized error reporting hook
+app.use(centralizedErrorHandler);
 
 import { runDailyPackageExpiryJob } from "./services/enrollmentExpiryService.js";
 import { startInstituteSettingsBackgroundRefresh } from "./services/instituteSettingsService.js";
@@ -347,6 +420,7 @@ import { startInstituteSettingsBackgroundRefresh } from "./services/instituteSet
 if (process.env.NODE_ENV !== "test") {
   const server = app.listen(PORT, () => {
     console.log(`🚀 TopGrade Backend Engine active on port ${PORT}`);
+    registerGracefulShutdown(server);
     startInstituteSettingsBackgroundRefresh();
     initializeAutomatedEmailScheduler();
     TimedEmailScheduler.startScheduler();
@@ -360,8 +434,9 @@ if (process.env.NODE_ENV !== "test") {
   server.on("error", (err: any) => {
     if (err.code === "EADDRINUSE") {
       console.warn(`⚠️ Port ${PORT} is in use. Falling back to port 5001...`);
-      app.listen(5001, () => {
+      const fallbackServer = app.listen(5001, () => {
         console.log(`🚀 TopGrade Backend Engine active on port 5001`);
+        registerGracefulShutdown(fallbackServer);
       });
     } else {
       console.error("Server startup error:", err);

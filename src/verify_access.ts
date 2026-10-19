@@ -6,7 +6,15 @@
  *   TEST_PARENT_EMAIL=... TEST_PARENT_PASSWORD=... TEST_STUDENT_EMAIL=... TEST_STUDENT_PASSWORD=... \
  *   npm run verify:access
  */
+import dotenv from "dotenv";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { createClient } from "@supabase/supabase-js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
+dotenv.config();
 
 const API = process.env.API_BASE || "http://localhost:5000";
 const url = process.env.SUPABASE_URL || "";

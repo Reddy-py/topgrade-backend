@@ -5,6 +5,7 @@ import { supabaseAdmin } from "../supabase.js";
 import { claimEmail, finishEmail, logEmail, listEmailLog, statusFromDispatch } from "./emailLog.js";
 import { instituteNow, instituteTimezone, isBirthdayToday } from "./instituteTime.js";
 import { studentContactEmails, studentOwnEmails } from "./studentNotices.js";
+import { parseEnvNumber } from "../utils/parseEnv.js";
 
 // The log of what was sent lives in the Supabase table email_log (see migration 20261012_email_log.sql).
 // Nothing is kept on disk, so a restart, a redeploy or a second server can never repeat a birthday wish.
@@ -360,7 +361,7 @@ export async function runAutomatedEmailScan(
   opts: { ignoreSendHour?: boolean } = {}
 ): Promise<{ birthdaysSent: number; examWishesSent: number; details: string[] }> {
   const now = instituteNow();
-  const sendHour = Number(process.env.BIRTHDAY_SEND_HOUR ?? 7);
+  const sendHour = parseEnvNumber("BIRTHDAY_SEND_HOUR", 7);
   const details: string[] = [];
   let birthdaysSent = 0;
   let examWishesSent = 0;
@@ -437,7 +438,7 @@ let scanInterval: NodeJS.Timeout | null = null;
 export function initializeAutomatedEmailScheduler() {
   if (scanInterval) clearInterval(scanInterval);
 
-  console.log(`⏰ Automated birthday & exam email scan started (every 30 minutes, institute time zone ${instituteTimezone()}, from ${Number(process.env.BIRTHDAY_SEND_HOUR ?? 7)}:00)...`);
+  console.log(`⏰ Automated birthday & exam email scan started (every 30 minutes, institute time zone ${instituteTimezone()}, from ${parseEnvNumber("BIRTHDAY_SEND_HOUR", 7)}:00)...`);
   setTimeout(() => {
     runAutomatedEmailScan().catch(err => console.warn("Initial automated email scan notice:", err?.message));
   }, 15_000);

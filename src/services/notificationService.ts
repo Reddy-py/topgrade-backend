@@ -6,6 +6,8 @@ import { getCachedInstituteSettings, emailFooter } from "./instituteSettingsServ
 import { renderTemplate } from "./emailTemplateService.js";
 import { logEmail, statusFromDispatch } from "./emailLog.js";
 import { instituteToday } from "./instituteTime.js";
+import { isPlaceholderEmail } from "../constants/domains.js";
+import { parseEnv } from "../utils/parseEnv.js";
 export { emailFooter } from "./instituteSettingsService.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -34,10 +36,7 @@ export interface NotificationPayload {
   }> | undefined;
 }
 
-/**
- * Dynamic Gmail Transporter Setup (Reads latest GMAIL_USER and GMAIL_APP_PASSWORD from .env)
- */
-function getTransporter(): { transporter: nodemailer.Transporter | null; gmailUser: string } {
+function getTransporter(): { transporter: any; gmailUser: string } {
   if (process.env.SIMULATE_EMAILS === "true" || process.env.NODE_ENV === "test" || process.env.SIMULATE_MAILER === "true") {
     return { transporter: null, gmailUser: "simulated-mailer@topgrade.edu" };
   }
@@ -146,10 +145,15 @@ export async function dispatchMultiChannelNotification(payload: NotificationPayl
   const { transporter, gmailUser } = getTransporter();
 
   for (const recipient of payload.recipients) {
-    // If recipient email is missing or dummy topgrade.edu address, route to configured admin
     let emailTarget = recipient.email;
-    if (!emailTarget || emailTarget.endsWith("@topgrade.edu")) {
-      emailTarget = process.env.ADMIN_EMAIL || "tglbiz101@gmail.com";
+    if (emailTarget && (emailTarget.toLowerCase() === "admin@topgrade.edu" || emailTarget.endsWith("@topgrade.edu"))) {
+      emailTarget = parseEnv("ADMIN_EMAIL", "tglbiz101@gmail.com")!;
+    } else if (isPlaceholderEmail(emailTarget)) {
+      simulated++;
+      dispatchedLogs.push(`[SIMULATED-PLACEHOLDER] Skipped dispatch to placeholder address ${recipient.email}`);
+      continue;
+    } else if (!emailTarget) {
+      emailTarget = parseEnv("ADMIN_EMAIL", "tglbiz101@gmail.com")!;
     }
 
     const phoneTarget = recipient.phone || "+1 555 019 9999";

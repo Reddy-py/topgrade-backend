@@ -15,12 +15,22 @@ export interface AuthenticatedRequest extends Request {
 
 // Short cache so a page that fires many API calls does not hit the profiles table every time.
 const PROFILE_CACHE_MS = 15_000;
-const profileCache = new Map<string, { at: number; role: UserRole; fullName: string | null }>();
+const profileCache = new Map<string, { at: number; role: UserRole; fullName: string | null; mustChangePassword: boolean }>();
+
+export function invalidateProfileCache(userId?: string): void {
+  if (userId) {
+    profileCache.delete(userId);
+  } else {
+    profileCache.clear();
+  }
+}
 
 /**
  * Verifies the Supabase access token and loads the role from the `profiles` table.
  * - No token, bad token, expired token  -> 401.
  * - No profile, disabled profile, or a role that is not one of the four roles -> 403.
+ * - If must_change_password is true, only change-password and current-user endpoints are allowed;
+ *   all others return 403 with code PASSWORD_CHANGE_REQUIRED.
  * The role is NEVER read from user_metadata (users can edit it), localStorage, headers or query strings.
  */
 export const authenticateJwt = async (
@@ -49,11 +59,20 @@ export const authenticateJwt = async (
 
     let cached = profileCache.get(user.id);
     if (!cached || Date.now() - cached.at > PROFILE_CACHE_MS) {
-      const { data: profile } = await supabaseAdmin
+      let { data: profile, error: pErr } = await supabaseAdmin
         .from("profiles")
-        .select("role, status, full_name")
+        .select("role, status, full_name, must_change_password")
         .eq("id", user.id)
         .maybeSingle();
+
+      if (pErr && (pErr as any).code === "42703") {
+        const fallback = await supabaseAdmin
+          .from("profiles")
+          .select("role, status, full_name")
+          .eq("id", user.id)
+          .maybeSingle();
+        profile = fallback.data ? ({ ...fallback.data, must_change_password: false } as any) : null;
+      }
 
       const role = String(profile?.role || "").toUpperCase();
       const active = String(profile?.status || "").toLowerCase() === "active";
@@ -62,7 +81,12 @@ export const authenticateJwt = async (
         res.status(403).json({ success: false, message: "Forbidden: this account is not active or has no valid role." });
         return;
       }
-      cached = { at: Date.now(), role, fullName: profile.full_name ?? null };
+      cached = {
+        at: Date.now(),
+        role,
+        fullName: profile.full_name ?? null,
+        mustChangePassword: Boolean(profile.must_change_password)
+      };
       profileCache.set(user.id, cached);
     }
 
@@ -70,8 +94,22 @@ export const authenticateJwt = async (
       id: user.id,
       email: user.email ?? undefined,
       role: cached.role,
-      metadata: { full_name: cached.fullName },
+      metadata: { full_name: cached.fullName, must_change_password: cached.mustChangePassword },
     };
+
+    // Step 5: Forced password change enforcement
+    const path = (req.originalUrl || req.path || "").split("?")[0] || "";
+    const isChangePasswordRoute = /^\/api\/students\/change-password\/?$/.test(path) || /^\/api\/auth\/change-password\/?$/.test(path);
+    const isCurrentUserRoute = /^\/api\/auth\/(verify-login|me|lookup-role|profile)\/?$/.test(path);
+
+    if (cached.mustChangePassword && !isChangePasswordRoute && !isCurrentUserRoute) {
+      res.status(403).json({
+        success: false,
+        code: "PASSWORD_CHANGE_REQUIRED",
+        message: "Password change is required before accessing the system."
+      });
+      return;
+    }
 
     next();
   } catch (err: any) {

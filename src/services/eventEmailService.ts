@@ -6,25 +6,27 @@ import { isUnsubscribed, verifyCanSpamAddress, buildUnsubscribeLink } from "./em
 import { getCachedInstituteSettings, instituteAddress } from "./instituteSettingsService.js";
 import { instituteToday, instituteNow } from "./instituteTime.js";
 import { normEmail } from "./studentAccounts.js";
+import { isRealEmail } from "../constants/domains.js";
 
 /**
  * Resolves 'Student-else-parent' target:
- * Sends to student's own email if valid; otherwise falls back to parent emails.
+ * Sends to student's own email if valid & real; otherwise falls back to parent real emails.
+ * Placeholder emails count as 'no email'.
  */
 export function resolveStudentElseParent(student: { email?: string | null | undefined; studentEmails?: string[] | undefined; parentEmails?: string[] | undefined; parent_emails?: string[] | undefined }): string[] {
   const sEmail = normEmail(student.email);
-  if (sEmail && !sEmail.endsWith("@topgrade.edu")) {
+  if (sEmail && isRealEmail(sEmail)) {
     return [sEmail];
   }
-  const ownList = (student.studentEmails || []).map(normEmail).filter((e): e is string => !!e && !e.endsWith("@topgrade.edu"));
+  const ownList = (student.studentEmails || []).map(normEmail).filter((e): e is string => !!e && isRealEmail(e));
   if (ownList.length > 0) return [ownList[0]!];
 
-  const parentList = (student.parentEmails || student.parent_emails || []).map(normEmail).filter(Boolean);
+  const parentList = (student.parentEmails || student.parent_emails || []).map(normEmail).filter(isRealEmail);
   return Array.from(new Set(parentList));
 }
 
 export function getAllParentEmails(student: { parentEmails?: string[] | undefined; parent_emails?: string[] | undefined }): string[] {
-  const pList = (student.parentEmails || student.parent_emails || []).map(normEmail).filter(Boolean);
+  const pList = (student.parentEmails || student.parent_emails || []).map(normEmail).filter(isRealEmail);
   return Array.from(new Set(pList));
 }
 
@@ -479,7 +481,7 @@ export async function broadcastAnnouncement(input: BroadcastAnnouncementInput): 
     }
   }
 
-  const allCandidateEmails = Array.from(recipientSet).filter(Boolean);
+  const allCandidateEmails = Array.from(recipientSet).filter(isRealEmail);
   let sentCount = 0;
   let skippedUnsubscribed = 0;
 

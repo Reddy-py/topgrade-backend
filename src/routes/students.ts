@@ -15,6 +15,7 @@ import {
   sendParentCredentialsService
 } from "../services/studentService.js";
 import { dispatchMultiChannelNotification } from "../services/notificationService.js";
+import { changeUserPassword } from "../services/studentAccounts.js";
 
 const router = express.Router();
 
@@ -44,16 +45,23 @@ router.post("/:id/send-parent-credentials", sendParentCredentialsHandler);
  */
 export const changePasswordHandler = async (req: express.Request, res: express.Response) => {
   try {
-    const { studentId, email, newPassword } = req.body;
+    const { studentId, email, newPassword, currentPassword } = req.body;
     const loggedIn = (req as AuthenticatedRequest).user;
     if (!loggedIn) {
       res.status(401).json({ success: false, message: "Unauthorized: sign in to continue." });
       return;
     }
-    // Only the admin may change another person's password. Everyone else changes their own, found by their login email.
-    const result = loggedIn.role === "ADMIN"
-      ? await changeStudentPasswordService({ studentId, email, newPassword })
-      : await changeStudentPasswordService({ email: loggedIn.email, newPassword } as any);
+    const targetUserId = loggedIn.role === "ADMIN" && (studentId || req.body?.userId)
+      ? (studentId || req.body?.userId)
+      : loggedIn.id;
+    const targetEmail = loggedIn.role === "ADMIN" && email ? email : loggedIn.email;
+
+    const result = await changeUserPassword({
+      userId: targetUserId,
+      email: targetEmail,
+      newPassword,
+      currentPassword
+    });
     res.status(200).json(result);
   } catch (error: any) {
     res.status(400).json({ success: false, message: error.message || "Failed to update password." });

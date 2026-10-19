@@ -5,8 +5,10 @@ import { getCachedInstituteSettings } from "../services/instituteSettingsService
 import { ScheduleDataService, getSlotDurationMinutes } from "../services/scheduleDataService.js";
 import { classSessionQrStore } from "../services/sessionAttendanceService.js";
 import { HistoryService } from "../services/historyService.js";
+import { getNeedsAttentionData } from "./needsAttention.js";
 
 const router = express.Router();
+
 
 interface AuthenticatedRequest extends Request {
   user?: {
@@ -303,6 +305,18 @@ router.get("/dashboard-metrics", async (req: Request, res: Response): Promise<an
       { id: "send_announcement", label: "Send Announcement", icon: "FaBullhorn", actionType: "MODAL", route: "/app/settings?tab=announcements" }
     ];
 
+    let needsAttentionCount = 0;
+    try {
+      const attn = await getNeedsAttentionData();
+      needsAttentionCount = attn.totalCount;
+    let isAddressIncomplete = false;
+    try {
+      const s = await getCachedInstituteSettings();
+      if (s) {
+        isAddressIncomplete = !s.address_line1?.trim() || !s.city?.trim() || !s.state?.trim() || !s.zip?.trim();
+      }
+    } catch {}
+
     // Response structure with loading/error handling support
     return res.json({
       success: true,
@@ -325,6 +339,8 @@ router.get("/dashboard-metrics", async (req: Request, res: Response): Promise<an
       },
       recentActivities,
       quickActions,
+      needsAttentionCount,
+      isAddressIncomplete,
       // Financial and fee-alert widgets: NO numbers, NO '$0', explicit message
       financial: {
         enabled: false,
@@ -333,6 +349,7 @@ router.get("/dashboard-metrics", async (req: Request, res: Response): Promise<an
         feeAlert: "Payments not enabled yet"
       }
     });
+
   } catch (err: any) {
     console.error("Dashboard metrics error:", err);
     return res.status(500).json({

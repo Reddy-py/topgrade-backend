@@ -3,14 +3,15 @@ import { logEmail, statusFromDispatch } from "./emailLog.js";
 import { normEmail, isValidEmail } from "./studentAccounts.js";
 import { instituteNow } from "./instituteTime.js";
 import type { StudentDossier } from "./studentService.js";
+import { isRealEmail } from "../constants/domains.js";
 
 /**
  * Who gets a student's automatic emails: the student's own email; if the student has none, the parent emails.
- * (An address ending in @topgrade.edu is a placeholder from the old system and counts as "no email".)
+ * (Placeholder emails, including @placeholder.invalid and legacy @topgrade.edu, count as "no email".)
  */
 const realEmail = (e: unknown): string | null => {
   const v = normEmail(e);
-  return v && isValidEmail(v) && !v.endsWith("@topgrade.edu") ? v : null;
+  return v && isRealEmail(v) ? v : null;
 };
 
 export function studentOwnEmails(student: Pick<StudentDossier, "email" | "studentEmails">): string[] {
