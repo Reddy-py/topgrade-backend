@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from "express";
+import { createClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "../supabase.js";
 import { loginAttemptTracker, rateLimit } from "../middleware/rateLimit.js";
 
@@ -136,8 +137,20 @@ router.post("/login", loginIpRateLimit, async (req: Request, res: Response) => {
       });
     }
 
-    // 5. Authenticate via Supabase Auth
-    const { data: authData, error: authError } = await supabaseAdmin.auth.signInWithPassword({
+    // 5. Authenticate via Supabase Auth using isolated client (preserves supabaseAdmin service_role)
+    const authClient = createClient(
+      process.env.SUPABASE_URL || "",
+      process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "",
+      {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+          detectSessionInUrl: false
+        }
+      }
+    );
+
+    const { data: authData, error: authError } = await authClient.auth.signInWithPassword({
       email: targetEmail,
       password: cleanPassword
     });

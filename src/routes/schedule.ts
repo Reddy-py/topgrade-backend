@@ -165,7 +165,9 @@ router.post("/check-conflicts", async (req: Request, res: Response): Promise<any
       success: true,
       hasConflict: conflict.hasConflict,
       error: conflict.error,
-      suggested_free_slots
+      conflicts: conflict.error ? [conflict.error] : [],
+      suggested_free_slots,
+      suggestedFreeTimes: suggested_free_slots
     });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message });
@@ -331,17 +333,21 @@ const createScheduleSlotHandler = async (req: Request, res: Response): Promise<a
       data: createdSlot
     });
   } catch (err: any) {
-    const isBadRequest = err.message?.toLowerCase().includes("collision") ||
+    const isCollision = err.message?.toLowerCase().includes("collision") || err.message?.toLowerCase().includes("conflict");
+    const isBadRequest = isCollision ||
                          err.message?.toLowerCase().includes("duration") ||
                          err.message?.toLowerCase().includes("60 minutes");
-    return res.status(isBadRequest ? 400 : 500).json({
+    return res.status(isCollision ? 409 : (isBadRequest ? 400 : 500)).json({
       success: false,
-      error: err.message
+      conflict: isCollision,
+      error: err.message,
+      message: err.message
     });
   }
 };
 
 router.post("/create", createScheduleSlotHandler);
+router.post("/add", createScheduleSlotHandler);
 router.post("/create-multi", createScheduleSlotHandler);
 router.post("/", createScheduleSlotHandler);
 
@@ -518,13 +524,19 @@ router.post("/assign-student", async (req: Request, res: Response): Promise<any>
 });
 
 // 8a-2. Enroll multiple students in a class slot with capacity & collision checks
-router.post("/:id/enroll-students", async (req: Request, res: Response): Promise<any> => {
+router.post(["/:id/enroll-students", "/enroll-students"], async (req: Request, res: Response): Promise<any> => {
   try {
-    const id = String(req.params.id);
+    const rawId = req.params.id && req.params.id !== "enroll-students"
+      ? req.params.id
+      : (req.body.schedule_id || req.body.scheduleId || req.body.slot_id || req.body.slotId || req.body.id);
+    const id = String(rawId || "");
     const student_ids = Array.isArray(req.body.student_ids)
       ? req.body.student_ids
-      : (req.body.students ? req.body.students.map((s: any) => s.student_id || s.id) : []);
+      : (req.body.students ? req.body.students.map((s: any) => s.student_id || s.id || s.studentCode || s.student_code) : []);
 
+    if (!id) {
+      return res.status(400).json({ success: false, error: "schedule_id is required." });
+    }
     if (!student_ids || student_ids.length === 0) {
       return res.status(400).json({ success: false, error: "Please select at least one student to enroll." });
     }
@@ -533,13 +545,19 @@ router.post("/:id/enroll-students", async (req: Request, res: Response): Promise
     return res.status(200).json({
       success: true,
       message: `Enrolled student(s) successfully. Class cohort count is now ${result.enrolledCount}.`,
-      data: result.slot
+      data: result.slot,
+      enrolledCount: result.enrolledCount
     });
   } catch (err: any) {
     const isBad = err.message?.includes("capacity limit") ||
                   err.message?.includes("Collision") ||
                   err.message?.includes("not found");
-    return res.status(isBad ? 400 : 500).json({ success: false, error: err.message });
+    return res.status(isBad ? 400 : 500).json({
+      success: false,
+      capacityFull: err.message?.includes("capacity limit"),
+      error: err.message,
+      message: err.message
+    });
   }
 });
 

@@ -63,7 +63,6 @@ export const authenticateJwt = async (
         .from("profiles")
         .select("*")
         .eq("id", user.id);
-      console.log("PROFILES QUERY FOR USER ID:", user.id, "RESULT:", JSON.stringify(fullRes));
       let profile = fullRes.data?.[0] || null;
 
       const role = String(profile?.role || "").toUpperCase();

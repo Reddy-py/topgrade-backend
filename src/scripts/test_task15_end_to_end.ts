@@ -178,7 +178,7 @@ async function runTests() {
     room: testRoom,
     day_of_week: testDay,
     start_time: "02:00 PM",
-    end_time: "03:30 PM",
+    end_time: "03:00 PM",
     max_capacity: 2,
     students: []
   };
@@ -191,7 +191,7 @@ async function runTests() {
   const createSlot1 = (await createSlot1Res.json()) as any;
   assert(
     (createSlot1Res.status === 200 || createSlot1Res.status === 201) && createSlot1.success,
-    "Created baseline schedule slot (Thursday 02:00 PM - 03:30 PM)",
+    "Created baseline schedule slot (Thursday 02:00 PM - 03:00 PM)",
     { slotId: createSlot1.data?.id }
   );
   const slot1Id = createSlot1.data?.id;
@@ -203,7 +203,7 @@ async function runTests() {
     body: JSON.stringify({
       day_of_week: testDay,
       start_time: "02:30 PM",
-      end_time: "04:00 PM",
+      end_time: "03:30 PM",
       teacher_id: testTeacherId,
       room: testRoom
     })
@@ -215,7 +215,7 @@ async function runTests() {
     { conflictsCount: conflictCheck.conflicts?.length, suggestions: conflictCheck.suggestedFreeTimes?.slice(0, 2) }
   );
 
-  // Attempt Overlapping Slot (Teacher Overlap): Thursday 02:30 PM - 03:45 PM
+  // Attempt Overlapping Slot (Teacher Overlap): Thursday 02:30 PM - 03:30 PM
   const slotTeacherOverlap = {
     course_name: "Python Coding Foundations",
     teacher_id: testTeacherId,
@@ -223,7 +223,7 @@ async function runTests() {
     room: "Different Room 202",
     day_of_week: testDay,
     start_time: "02:30 PM",
-    end_time: "03:45 PM",
+    end_time: "03:30 PM",
     max_capacity: 5
   };
 
