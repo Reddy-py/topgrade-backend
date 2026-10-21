@@ -124,6 +124,75 @@ router.get("/existing-courses", async (_req, res): Promise<any> => {
   }
 });
 
+// 2b. Check Conflicts and suggest free slots
+router.post("/check-conflicts", async (req: Request, res: Response): Promise<any> => {
+  try {
+    const {
+      scheduleIdToExclude,
+      day_of_week,
+      start_time,
+      end_time,
+      teacher_id,
+      room,
+      student_ids
+    } = req.body;
+
+    if (!day_of_week || !start_time || !end_time) {
+      return res.status(400).json({ success: false, error: "day_of_week, start_time, and end_time are required." });
+    }
+
+    const conflict = await ScheduleDataService.checkCollisions({
+      scheduleIdToExclude,
+      day_of_week,
+      start_time,
+      end_time,
+      teacher_id: teacher_id || "",
+      room: room || "",
+      student_ids: Array.isArray(student_ids) ? student_ids : []
+    });
+
+    let suggested_free_slots: string[] = [];
+    if (conflict.hasConflict || req.body.suggest_free === true) {
+      suggested_free_slots = await ScheduleDataService.suggestFreeSlots({
+        teacher_id,
+        room,
+        day_of_week,
+        scheduleIdToExclude
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      hasConflict: conflict.hasConflict,
+      error: conflict.error,
+      suggested_free_slots
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 2c. Suggest free time slots for teacher and room
+router.get("/suggest-free-slots", async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { teacher_id, room, day_of_week, scheduleIdToExclude } = req.query as Record<string, string>;
+    if (!day_of_week) {
+      return res.status(400).json({ success: false, error: "day_of_week is required." });
+    }
+
+    const freeSlots = await ScheduleDataService.suggestFreeSlots({
+      teacher_id,
+      room,
+      day_of_week,
+      scheduleIdToExclude
+    });
+
+    return res.status(200).json({ success: true, suggested_free_slots: freeSlots });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // 3. Create schedule slot with collision detection & student email notification
 const createScheduleSlotHandler = async (req: Request, res: Response): Promise<any> => {
   try {
@@ -445,6 +514,32 @@ router.post("/assign-student", async (req: Request, res: Response): Promise<any>
     });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 8a-2. Enroll multiple students in a class slot with capacity & collision checks
+router.post("/:id/enroll-students", async (req: Request, res: Response): Promise<any> => {
+  try {
+    const id = String(req.params.id);
+    const student_ids = Array.isArray(req.body.student_ids)
+      ? req.body.student_ids
+      : (req.body.students ? req.body.students.map((s: any) => s.student_id || s.id) : []);
+
+    if (!student_ids || student_ids.length === 0) {
+      return res.status(400).json({ success: false, error: "Please select at least one student to enroll." });
+    }
+
+    const result = await ScheduleDataService.enrollStudentsInSlot(id, student_ids);
+    return res.status(200).json({
+      success: true,
+      message: `Enrolled student(s) successfully. Class cohort count is now ${result.enrolledCount}.`,
+      data: result.slot
+    });
+  } catch (err: any) {
+    const isBad = err.message?.includes("capacity limit") ||
+                  err.message?.includes("Collision") ||
+                  err.message?.includes("not found");
+    return res.status(isBad ? 400 : 500).json({ success: false, error: err.message });
   }
 });
 

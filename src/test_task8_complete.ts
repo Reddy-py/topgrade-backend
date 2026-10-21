@@ -1,9 +1,8 @@
 /**
  * Task 8 Complete End-to-End Automated Verification Test Suite
- * Growth & Engagement: Parent Engagement, Referrals, Upsell Engine, Performance Tracking, Campaigns
+ * Growth & Engagement: Parent Engagement, Upsell Engine, Performance Tracking, Campaigns
  */
 process.env.SIMULATE_EMAILS = "true";
-import { referralService } from "./services/referralService.js";
 import {
   isEngagementFeatureEnabled,
   appendCanSpamFooter,
@@ -52,81 +51,8 @@ function assert(condition: boolean, message: string) {
 async function runTask8Tests() {
   console.log("\n================================================================================");
   console.log("   TASK 8 COMPREHENSIVE AUTOMATED VERIFICATION SUITE");
-  console.log("   Growth & Engagement Engine: Email Only, Unsubscribe, Referrals, Upsell, Perf");
+  console.log("   Growth & Engagement Engine: Email Only, Unsubscribe, Upsell, Perf");
   console.log("================================================================================\n");
-
-  // -------------------------------------------------------------------------
-  // TEST SECTION 1: REFERRAL CODES & PRIVACY
-  // -------------------------------------------------------------------------
-  console.log("--- 1. Testing Referral Code Generation, Security & Privacy ---");
-  const testParentEmail = `parent_${Date.now()}@example.com`;
-  const testParentName = "Arthur Pendelton";
-
-  // Generate code for parent
-  const parentRef = await referralService.getOrCreateReferralCode(
-    "parent-user-uuid-123",
-    testParentEmail,
-    testParentName
-  );
-
-  assert(!!parentRef.code, `Referral code successfully generated: ${parentRef.code}`);
-  assert(parentRef.code.startsWith("REF-"), `Referral code matches required prefix: ${parentRef.code}`);
-  assert(parentRef.code.length >= 12, `Referral code has high entropy and cannot be guessed (length: ${parentRef.code.length})`);
-
-  // Verify uniqueness and idempotency
-  const sameParentRef = await referralService.getOrCreateReferralCode(
-    "parent-user-uuid-123",
-    testParentEmail,
-    testParentName
-  );
-  assert(sameParentRef.code === parentRef.code, "Idempotent: same parent receives identical referral code");
-
-  // Validate referral code lookup
-  const validCheck = await referralService.validateReferralCode(parentRef.code);
-  assert(validCheck.valid === true, "Valid referral code validates as true");
-  assert(validCheck.referrerName === testParentName, `Valid code correctly identifies referrer: ${validCheck.referrerName}`);
-
-  const invalidCheck = await referralService.validateReferralCode("REF-FAKE123456");
-  assert(invalidCheck.valid === false, "Invalid code returns valid: false");
-
-  // Test linking a new student registration to referral code
-  const studentEmail = `student_${Date.now()}@example.com`;
-  const studentId = `stu-ref-${Date.now()}`;
-  inMemoryStudentStore.push({
-    id: studentId,
-    fullName: "Tommy Pendelton Junior",
-    email: studentEmail,
-    status: "ACTIVE",
-    program: "High School Physics",
-    weeklyClasses: "2 classes/week",
-    purchasedHours: 20
-  });
-
-  const recordRef = await referralService.recordStudentReferral(
-    parentRef.code,
-    studentId,
-    "Tommy Pendelton Junior",
-    studentEmail,
-    "enrolled"
-  );
-  assert(recordRef !== null, "Student referral recorded successfully");
-  assert(recordRef?.status === "enrolled", "Referral recorded with correct 'enrolled' status");
-
-  // Test Admin Manual Reward Notes (No money logic)
-  const updatedReward = await referralService.updateReferralReward(
-    recordRef!.id,
-    "1 free workshop token awarded manually by Admin",
-    "admin-uuid-001"
-  );
-  assert(updatedReward?.reward_notes === "1 free workshop token awarded manually by Admin", "Admin manual reward note stored accurately without money calculation");
-
-  // Test Privacy: Referrer can only see their own referrals
-  const parentOwnReferrals = await referralService.getParentReferrals(testParentEmail);
-  assert(parentOwnReferrals.length >= 1, "Parent can see their own referred students");
-  assert(parentOwnReferrals.some(r => r.referred_student_name === "Tommy Pendelton Junior"), "Referred student appears in parent's dossier");
-
-  const otherParentReferrals = await referralService.getParentReferrals("other_unrelated_parent@example.com");
-  assert(otherParentReferrals.length === 0, "Privacy verified: unrelated parent cannot see referrals of others");
 
   // -------------------------------------------------------------------------
   // TEST SECTION 2: PARENT ENGAGEMENT & AUTOMATIONS

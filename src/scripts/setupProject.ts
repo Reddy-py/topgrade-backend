@@ -27,26 +27,20 @@ dotenv.config({ path: path.join(BACKEND_ROOT, ".env"), override: true });
 
 export const OLD_PROJECT_REF = "zznzmzwiewsnmykcbcni";
 
-// List of exact migrations in RUN_ORDER.md order
-export const RUN_ORDER_MIGRATIONS = [
-  "20260812_rbac_setup.sql",
-  "20260812_seed_test_accounts.sql",
-  "20260817_core_architecture.sql",
-  "20260910_schedules_and_history.sql",
-  "20260914_exam_date_and_addresses.sql",
-  "20261010_role_access_lockdown.sql",
-  "20261011_student_dossiers.sql",
-  "20261012_email_log.sql",
-  "20261013_tokens_and_slot_claims.sql",
-  "20261014_attendance_records.sql",
-  "20261015_schedules_and_single_store.sql",
-  "20261016_institute_settings.sql",
-  "20261017_hour_based_classes_and_enrollments.sql",
-  "20261018_task4_students_teachers_courses_schedule.sql",
-  "20261019_email_templates_and_automation.sql",
-  "20261020_growth_engagement_and_referrals.sql",
-  "20261021_task8b_hardening_and_password_change.sql"
-];
+// List of exact migrations dynamically loaded from RUN_ORDER.md
+export const RUN_ORDER_MIGRATIONS: string[] = (() => {
+  try {
+    const runOrderPath = path.resolve(REPO_ROOT, "RUN_ORDER.md");
+    if (fs.existsSync(runOrderPath)) {
+      const content = fs.readFileSync(runOrderPath, "utf-8");
+      const matches = content.match(/supabase\/migrations\/([a-zA-Z0-9_\.]+\.sql)/g);
+      if (matches && matches.length > 0) {
+        return matches.map(m => path.basename(m));
+      }
+    }
+  } catch {}
+  return [];
+})();
 
 export function checkSafetyAgainstOldProject(dbUrl: string, sbUrl: string): void {
   const isOldDb = dbUrl.includes(OLD_PROJECT_REF);
@@ -74,7 +68,7 @@ SELECT
     to_regclass('public.institute_settings') IS NOT NULL AS settings_exists,
     to_regclass('public.student_enrollments') IS NOT NULL AS enrollments_exists,
     to_regclass('public.email_templates') IS NOT NULL AS templates_exists,
-    to_regclass('public.referral_codes') IS NOT NULL AS referrals_exists,
+    to_regclass('public.student_attendance_records') IS NOT NULL AS attendance_records_exists,
     EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_schema = 'public'

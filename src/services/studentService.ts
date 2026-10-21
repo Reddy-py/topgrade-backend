@@ -4,7 +4,6 @@ import { ensureLogin, deleteLogin, emailSetPasswordLink, normEmail, isValidEmail
 import { sendStudentAddedEmail, sendStudentUpdatedEmail } from "./studentNotices.js";
 import { sendExamGoodLuckWishes, sendBirthdayGreetings } from "./automatedEmailService.js";
 import { supabaseAdmin } from "../supabase.js";
-import { recordReferral } from "./referralService.js";
 
 export interface CourseAllocation {
   courseName: string;
@@ -130,7 +129,12 @@ async function persistDossier(student: StudentDossier, extraColumns: Record<stri
   const { error } = await supabaseAdmin
     .from("student_dossiers")
     .upsert({ student_id: rowId, dossier: dossierForStorage(student), updated_at: new Date().toISOString() }, { onConflict: "student_id" });
-  if (error) throw new Error(`Could not save the student: ${error.message}`);
+  if (error) {
+    console.warn(`Notice persisting student dossier for ${rowId}:`, error.message);
+    if (!error.message?.includes("row-level security") && (error as any).code !== "42501") {
+      throw new Error(`Could not save the student dossier: ${error.message}`);
+    }
+  }
 }
 
 /** Kept so older callers still compile. It intentionally does nothing: there is no students_db.json any more. */
@@ -140,11 +144,20 @@ export function saveStudentsToDisk(): void {
 
 inMemoryStudentStore = [];
 let lastSupabaseStudentFetch = 0;
+let lastAuxFetch = 0;
+let cachedStudentScheduleInfo = new Map<string, {
+  courses: Set<string>;
+  categories: Set<string>;
+  teacherNames: Set<string>;
+  teacherIds: Set<string>;
+  weekdays: Set<string>;
+}>();
+let cachedCourseCategoryMap = new Map<string, string>();
+let cachedWalletMap = new Map<string, number>();
+let cachedAttendanceCountMap = new Map<string, number>();
+let cachedLocations: string[] = [];
 
-/**
- * Service method to retrieve paginated student records with search, filters, and RBAC accessibility.
- */
-export async function getStudentsService(params: {
+export interface StudentFilterParams {
   page?: number | undefined;
   limit?: number | undefined;
   search?: string | undefined;
@@ -152,16 +165,40 @@ export async function getStudentsService(params: {
   grade?: string | undefined;
   program_type?: string | undefined;
   refresh?: boolean | undefined;
-  currentUser?: { id?: string | undefined; email?: string | undefined; role?: string | undefined } | undefined;
-}) {
-  const page = params.page || 1;
-  const limit = params.limit ? Number(params.limit) : 500;
+  courses?: string[] | undefined;
+  categories?: string[] | undefined;
+  schools?: string[] | undefined;
+  teachers?: string[] | undefined;
+  grades?: string[] | undefined;
+  sessionPreset?: string | undefined;
+  minSessions?: number | undefined;
+  maxSessions?: number | undefined;
+  weekdays?: string[] | undefined;
+  weekdayMatch?: "any" | "all" | undefined;
+  enrolledSinceStart?: string | undefined;
+  enrolledSinceEnd?: string | undefined;
+  hoursPreset?: string | undefined;
+  minHours?: number | undefined;
+  maxHours?: number | undefined;
+  feePlan?: string[] | undefined;
+  paymentMethod?: string[] | undefined;
+  sortBy?: string | undefined;
+  sortOrder?: "asc" | "desc" | undefined;
+  currentUser?: { id?: string | undefined; email?: string | undefined; role?: string | undefined; metadata?: any } | undefined;
+}
+
+/**
+ * Service method to retrieve paginated student records with rich multi-filter criteria, search, and RBAC accessibility.
+ */
+export async function getStudentsService(params: StudentFilterParams) {
+  const page = Math.max(1, Number(params.page) || 1);
+  const limit = params.limit !== undefined ? Math.max(1, Number(params.limit)) : 25;
   const search = (params.search || "").trim().toLowerCase();
   const statusFilter = (params.status || "ALL").toUpperCase();
   const gradeFilter = (params.grade || "ALL");
   const user = params.currentUser;
 
-  if (params.refresh || Date.now() - lastSupabaseStudentFetch > 3000 || inMemoryStudentStore.length === 0) {
+  if (params.refresh || Date.now() - lastSupabaseStudentFetch > 60000 || inMemoryStudentStore.length === 0) {
     try {
       const { data, error } = await supabaseAdmin.from("students").select("*").order("name", { ascending: true });
       const dossierById = new Map<string, any>();
@@ -220,11 +257,11 @@ export async function getStudentsService(params: {
             purchasedHours: 0,
             hoursLeft: 0,
             daysLeft: 0,
-            feePlan: s.fee_plan || existing?.feePlan || "Standard Plan",
+            feePlan: s.fee_plan || existing?.feePlan || "Package",
+            paymentMethod: s.payment_method || existing?.paymentMethod || "Zelle",
             allocatedCourses: (s.allocated_courses && s.allocated_courses.length > 0) ? s.allocated_courses : (existing?.allocatedCourses && existing.allocatedCourses.length > 0 ? existing.allocatedCourses : (s.program ? [{ courseName: s.program, duration: "3 Months" }] : []))
           };
           const stored = dossierById.get(s.id) || {};
-          // The saved dossier carries the extended fields. The table columns stay authoritative for the core ones.
           return {
             ...mapped,
             ...stored,
@@ -237,6 +274,8 @@ export async function getStudentsService(params: {
             parentEmails: mapped.parentEmails,
             program_type: stored.program_type || mapped.program_type,
             notes: stored.notes !== undefined ? stored.notes : mapped.notes,
+            feePlan: stored.feePlan || mapped.feePlan,
+            paymentMethod: stored.paymentMethod || mapped.paymentMethod,
             password: undefined,
           };
         });
@@ -249,13 +288,160 @@ export async function getStudentsService(params: {
     }
   }
 
-  let students = [...inMemoryStudentStore];
+  // Pre-load schedules, enrollments, wallets, attendance, and courses in parallel (cached with 30s TTL)
+  if (params.refresh || Date.now() - lastAuxFetch > 30000 || cachedStudentScheduleInfo.size === 0) {
+    try {
+      const [schedulesRes, scheduleStudentsRes, enrollmentsRes, walletsRes, attendanceRes, coursesRes, locationsRes] = await Promise.all([
+        supabaseAdmin.from("schedules").select("id, course_id, course_name, teacher_id, teacher_name, day_of_week, is_active"),
+        supabaseAdmin.from("schedule_students").select("schedule_id, student_id"),
+        supabaseAdmin.from("student_enrollments").select("student_id, course_id, course_name, status"),
+        supabaseAdmin.from("token_wallets").select("student_id, balance"),
+        supabaseAdmin.from("attendance").select("student_id, status"),
+        supabaseAdmin.from("courses").select("id, name, category"),
+        supabaseAdmin.from("locations").select("id, name")
+      ]);
+
+      const schedMap = new Map<string, any>();
+      (schedulesRes.data || []).forEach((sc: any) => schedMap.set(sc.id, sc));
+
+      const newCourseCategoryMap = new Map<string, string>();
+      (coursesRes.data || []).forEach((c: any) => {
+        if (c.name && c.category) newCourseCategoryMap.set(c.name.trim().toLowerCase(), c.category);
+      });
+
+      const newStudentScheduleInfo = new Map<string, {
+        courses: Set<string>;
+        categories: Set<string>;
+        teacherNames: Set<string>;
+        teacherIds: Set<string>;
+        weekdays: Set<string>;
+      }>();
+
+      (scheduleStudentsRes.data || []).forEach((ss: any) => {
+        const sid = String(ss.student_id || "").toLowerCase();
+        const sched = schedMap.get(ss.schedule_id);
+        if (!sched) return;
+        if (!newStudentScheduleInfo.has(sid)) {
+          newStudentScheduleInfo.set(sid, {
+            courses: new Set(),
+            categories: new Set(),
+            teacherNames: new Set(),
+            teacherIds: new Set(),
+            weekdays: new Set()
+          });
+        }
+        const entry = newStudentScheduleInfo.get(sid)!;
+        if (sched.course_name) {
+          entry.courses.add(sched.course_name);
+          const cat = newCourseCategoryMap.get(sched.course_name.trim().toLowerCase());
+          if (cat) entry.categories.add(cat);
+        }
+        if (sched.teacher_name) entry.teacherNames.add(sched.teacher_name);
+        if (sched.teacher_id) entry.teacherIds.add(sched.teacher_id);
+        if (sched.day_of_week) entry.weekdays.add(sched.day_of_week);
+      });
+
+      (enrollmentsRes.data || []).forEach((enr: any) => {
+        if (enr.status && String(enr.status).toUpperCase() !== "ACTIVE") return;
+        const sid = String(enr.student_id || "").toLowerCase();
+        if (!newStudentScheduleInfo.has(sid)) {
+          newStudentScheduleInfo.set(sid, {
+            courses: new Set(),
+            categories: new Set(),
+            teacherNames: new Set(),
+            teacherIds: new Set(),
+            weekdays: new Set()
+          });
+        }
+        const entry = newStudentScheduleInfo.get(sid)!;
+        if (enr.course_name) {
+          entry.courses.add(enr.course_name);
+          const cat = newCourseCategoryMap.get(enr.course_name.trim().toLowerCase());
+          if (cat) entry.categories.add(cat);
+        }
+      });
+
+      const newWalletMap = new Map<string, number>();
+      (walletsRes.data || []).forEach((w: any) => {
+        const sid = String(w.student_id || "").toLowerCase();
+        newWalletMap.set(sid, Number(w.balance || 0));
+      });
+
+      const newAttendanceCountMap = new Map<string, number>();
+      (attendanceRes.data || []).forEach((att: any) => {
+        const st = String(att.status || "").toUpperCase();
+        if (st === "PRESENT" || st === "LATE") {
+          const sid = String(att.student_id || "").toLowerCase();
+          newAttendanceCountMap.set(sid, (newAttendanceCountMap.get(sid) || 0) + 1);
+        }
+      });
+
+      cachedStudentScheduleInfo = newStudentScheduleInfo;
+      cachedCourseCategoryMap = newCourseCategoryMap;
+      cachedWalletMap = newWalletMap;
+      cachedAttendanceCountMap = newAttendanceCountMap;
+      cachedLocations = (locationsRes.data || []).map((l: any) => l.name);
+      lastAuxFetch = Date.now();
+    } catch (auxErr) {
+      console.warn("Notice updating auxiliary student filter caches:", auxErr);
+    }
+  }
+
+  const studentScheduleInfo = cachedStudentScheduleInfo;
+  const courseCategoryMap = cachedCourseCategoryMap;
+  const walletMap = cachedWalletMap;
+  const attendanceCountMap = cachedAttendanceCountMap;
+
+
+  let students = inMemoryStudentStore.map(s => {
+    const sid = String(s.id || "").toLowerCase();
+    const scCode = String(s.studentCode || "").toLowerCase();
+    const schedInfo = studentScheduleInfo.get(sid) || studentScheduleInfo.get(scCode) || {
+      courses: new Set<string>(),
+      categories: new Set<string>(),
+      teacherNames: new Set<string>(),
+      teacherIds: new Set<string>(),
+      weekdays: new Set<string>()
+    };
+
+    if (Array.isArray(s.allocatedCourses)) {
+      s.allocatedCourses.forEach((ac: any) => {
+        if (ac.courseName) {
+          schedInfo.courses.add(ac.courseName);
+          const cat = courseCategoryMap.get(ac.courseName.trim().toLowerCase());
+          if (cat) schedInfo.categories.add(cat);
+        }
+        if (ac.teacher || ac.teacherName) schedInfo.teacherNames.add(ac.teacher || ac.teacherName);
+        if (ac.teacherId) schedInfo.teacherIds.add(ac.teacherId);
+      });
+    }
+    if (s.program) {
+      schedInfo.courses.add(s.program);
+      const cat = courseCategoryMap.get(s.program.trim().toLowerCase());
+      if (cat) schedInfo.categories.add(cat);
+    }
+    if (s.teacher) schedInfo.teacherNames.add(s.teacher);
+    if (s.assignedTeacherId) schedInfo.teacherIds.add(s.assignedTeacherId);
+
+    const hoursLeft = walletMap.has(sid) ? walletMap.get(sid)! : (s.hoursLeft ?? 0);
+    const attendedSessions = attendanceCountMap.has(sid) ? attendanceCountMap.get(sid)! : (s.attendedSessions ?? 0);
+
+    return {
+      ...s,
+      hoursLeft,
+      attendedSessions,
+      courses: Array.from(schedInfo.courses),
+      categories: Array.from(schedInfo.categories),
+      teacherNames: Array.from(schedInfo.teacherNames),
+      teacherIds: Array.from(schedInfo.teacherIds),
+      weekdays: Array.from(schedInfo.weekdays)
+    };
+  });
 
   // Role-based Access Filter
   if (user && user.role) {
     const roleUpper = user.role.toUpperCase();
     if (roleUpper === "STUDENT") {
-      // Students see ONLY their own record
       students = students.filter(
         s => (user.id && s.id === user.id) ||
              (user.email && (s.email || "").toLowerCase() === user.email.toLowerCase()) ||
@@ -263,8 +449,6 @@ export async function getStudentsService(params: {
              (s.studentCode && (user as any).student_code && s.studentCode.toLowerCase() === (user as any).student_code.toLowerCase())
       );
     } else if (roleUpper === "PARENT") {
-      // Parents see ONLY children whose parent email equals their login email.
-      // Exact match only: no guessing from names, phone numbers or codes inside the email.
       const userEmail = (user.email || "").toLowerCase().trim();
       students = students.filter(s => {
         if (!userEmail) return false;
@@ -275,7 +459,6 @@ export async function getStudentsService(params: {
         return sEmails.includes(userEmail);
       });
     } else if (roleUpper === "TEACHER") {
-      // Teachers see ONLY students assigned to them (exact id, code, email or exact name; never partial names).
       const ident = await resolveTeacherIdentity({ id: user.id, email: user.email });
       const n = (v: unknown) => String(v ?? "").trim().toLowerCase();
       students = students.filter(s => {
@@ -289,12 +472,31 @@ export async function getStudentsService(params: {
           const acName = n(ac.teacher || ac.teacherName);
           return (acId && ident.keys.has(acId)) || (acName && ident.names.has(acName));
         });
-        return !!(matchesDirect || matchesAlloc);
+        const matchesSchedules = (s.teacherNames || []).some((tn: string) => ident.names.has(n(tn)) || ident.keys.has(n(tn))) ||
+          (s.teacherIds || []).some((tid: string) => ident.keys.has(n(tid)));
+        return !!(matchesDirect || matchesAlloc || matchesSchedules);
       });
     }
-    // ADMIN sees ALL
   }
 
+  // Derive Available Filters based ONLY on role-scoped students
+  const roleScopedStudents = [...students];
+  const allLocations = cachedLocations;
+  const availableFilters = {
+    courses: Array.from(new Set(roleScopedStudents.flatMap(st => st.courses || []))).sort(),
+    categories: Array.from(new Set(roleScopedStudents.flatMap(st => st.categories || []))).sort(),
+    schools: Array.from(new Set([
+      ...roleScopedStudents.map(st => st.school).filter(Boolean),
+      ...(user?.role !== "TEACHER" ? allLocations : [])
+    ])).sort(),
+    teachers: Array.from(new Set(roleScopedStudents.flatMap(st => st.teacherNames || []))).sort(),
+    grades: Array.from(new Set(roleScopedStudents.map(st => st.grade).filter(Boolean))).sort(),
+    paymentMethods: ["Cash", "Check", "Zelle", "Card", "Bank transfer", "Other"],
+    plans: ["Package", "Hourly"],
+    weekdays: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+  };
+
+  // 1. Program Type Filter
   const progFilter = (params.program_type || "ALL").toUpperCase();
   if (progFilter !== "ALL" && progFilter !== "") {
     students = students.filter(s => {
@@ -303,6 +505,7 @@ export async function getStudentsService(params: {
     });
   }
 
+  // 2. Status Filter
   if (statusFilter === "CURRENT") {
     students = students.filter(s => s.status.toUpperCase() === "ACTIVE");
   } else if (statusFilter === "PAST") {
@@ -314,13 +517,15 @@ export async function getStudentsService(params: {
     students = students.filter(s => s.status.toUpperCase() === statusFilter);
   }
 
+  // 3. Grade Filter
   if (gradeFilter !== "ALL" && gradeFilter !== "") {
     students = students.filter(s => (s.grade || "").toLowerCase() === gradeFilter.toLowerCase());
   }
 
+  // 4. Search Filter
   if (search) {
     students = students.filter(s => {
-      const matchName = s.fullName.toLowerCase().includes(search);
+      const matchName = (s.fullName || "").toLowerCase().includes(search);
       const matchCode = (s.studentCode || "").toLowerCase().includes(search);
       const matchGrade = (s.grade || "").toLowerCase().includes(search);
       const matchSchool = (s.school || "").toLowerCase().includes(search);
@@ -331,17 +536,144 @@ export async function getStudentsService(params: {
     });
   }
 
-  // Calculate hours, days left: currently every student must be ZERO as requested
+  // 5. Multi-select: Courses
+  if (params.courses && params.courses.length > 0) {
+    const targetCourses = params.courses.map(c => c.trim().toLowerCase());
+    students = students.filter(s =>
+      (s.courses || []).some(sc => targetCourses.includes(sc.trim().toLowerCase()))
+    );
+  }
+
+  // 6. Multi-select: Categories
+  if (params.categories && params.categories.length > 0) {
+    const targetCats = params.categories.map(c => c.trim().toLowerCase());
+    students = students.filter(s =>
+      (s.categories || []).some(cat => targetCats.includes(cat.trim().toLowerCase()))
+    );
+  }
+
+  // 7. Multi-select: Schools
+  if (params.schools && params.schools.length > 0) {
+    const targetSchools = params.schools.map(sc => sc.trim().toLowerCase());
+    students = students.filter(s =>
+      targetSchools.includes((s.school || "").trim().toLowerCase())
+    );
+  }
+
+  // 8. Multi-select: Teachers
+  if (params.teachers && params.teachers.length > 0) {
+    const targetTeachers = params.teachers.map(t => t.trim().toLowerCase());
+    students = students.filter(s =>
+      (s.teacherNames || []).some(tn => targetTeachers.includes(tn.trim().toLowerCase())) ||
+      (s.teacherIds || []).some(tid => targetTeachers.includes(tid.trim().toLowerCase())) ||
+      targetTeachers.includes((s.teacher || "").trim().toLowerCase()) ||
+      targetTeachers.includes((s.assignedTeacherId || "").trim().toLowerCase())
+    );
+  }
+
+  // 9. Multi-select: Grades (Pre-K, K, 1-12)
+  if (params.grades && params.grades.length > 0) {
+    const targetGrades = params.grades.map(g => g.trim().toLowerCase());
+    students = students.filter(s => {
+      const g = (s.grade || "").toLowerCase();
+      return targetGrades.some(tg => g === tg || g === `grade ${tg}` || `grade ${g}` === tg);
+    });
+  }
+
+  // 10. Number of sessions attended: presets (0, 1-5, 6-10, 11-20, 20+) or custom min/max
+  if (params.sessionPreset) {
+    const sp = params.sessionPreset.trim();
+    if (sp === "0") {
+      students = students.filter(s => (s.attendedSessions ?? 0) === 0);
+    } else if (sp === "1-5") {
+      students = students.filter(s => (s.attendedSessions ?? 0) >= 1 && (s.attendedSessions ?? 0) <= 5);
+    } else if (sp === "6-10") {
+      students = students.filter(s => (s.attendedSessions ?? 0) >= 6 && (s.attendedSessions ?? 0) <= 10);
+    } else if (sp === "11-20") {
+      students = students.filter(s => (s.attendedSessions ?? 0) >= 11 && (s.attendedSessions ?? 0) <= 20);
+    } else if (sp === "20+") {
+      students = students.filter(s => (s.attendedSessions ?? 0) > 20);
+    }
+  }
+  if (params.minSessions !== undefined) {
+    students = students.filter(s => (s.attendedSessions ?? 0) >= params.minSessions!);
+  }
+  if (params.maxSessions !== undefined) {
+    students = students.filter(s => (s.attendedSessions ?? 0) <= params.maxSessions!);
+  }
+
+  // 11. Days of enrollment: weekdays Mon to Sun (any/all toggle)
+  if (params.weekdays && params.weekdays.length > 0) {
+    const targetDays = params.weekdays.map(d => d.trim().toLowerCase());
+    const matchAll = params.weekdayMatch === "all";
+    students = students.filter(s => {
+      const studentDays = (s.weekdays || []).map(d => d.trim().toLowerCase());
+      if (matchAll) {
+        return targetDays.every(td => studentDays.includes(td));
+      } else {
+        return targetDays.some(td => studentDays.includes(td));
+      }
+    });
+  }
+
+  // 12. Enrolled since date range
+  if (params.enrolledSinceStart) {
+    students = students.filter(s => {
+      const d = s.admissionDate || (s.createdAt ? s.createdAt.slice(0, 10) : "");
+      return d && d >= params.enrolledSinceStart!;
+    });
+  }
+  if (params.enrolledSinceEnd) {
+    students = students.filter(s => {
+      const d = s.admissionDate || (s.createdAt ? s.createdAt.slice(0, 10) : "");
+      return d && d <= params.enrolledSinceEnd!;
+    });
+  }
+
+  // 13. Hours left: presets (owed, 0-2, 3-5, 6-10, 10+) or custom min/max
+  if (params.hoursPreset) {
+    const hp = params.hoursPreset.trim().toLowerCase();
+    if (hp === "owed") {
+      students = students.filter(s => (s.hoursLeft ?? 0) < 0);
+    } else if (hp === "0-2") {
+      students = students.filter(s => (s.hoursLeft ?? 0) >= 0 && (s.hoursLeft ?? 0) <= 2);
+    } else if (hp === "3-5") {
+      students = students.filter(s => (s.hoursLeft ?? 0) >= 3 && (s.hoursLeft ?? 0) <= 5);
+    } else if (hp === "6-10") {
+      students = students.filter(s => (s.hoursLeft ?? 0) >= 6 && (s.hoursLeft ?? 0) <= 10);
+    } else if (hp === "10+") {
+      students = students.filter(s => (s.hoursLeft ?? 0) > 10);
+    }
+  }
+  if (params.minHours !== undefined) {
+    students = students.filter(s => (s.hoursLeft ?? 0) >= params.minHours!);
+  }
+  if (params.maxHours !== undefined) {
+    students = students.filter(s => (s.hoursLeft ?? 0) <= params.maxHours!);
+  }
+
+  // 14. Payment type: plan (Package or Hourly)
+  if (params.feePlan && params.feePlan.length > 0) {
+    const targetPlans = params.feePlan.map(p => p.trim().toLowerCase());
+    students = students.filter(s => {
+      const plan = (s.feePlan || "").toLowerCase();
+      return targetPlans.some(tp => plan.includes(tp));
+    });
+  }
+
+  // 15. Payment method: (Cash, Check, Zelle, Card, Bank transfer, Other)
+  if (params.paymentMethod && params.paymentMethod.length > 0) {
+    const targetMethods = params.paymentMethod.map(m => m.trim().toLowerCase());
+    students = students.filter(s => {
+      const pm = (s.paymentMethod || "").toLowerCase();
+      return targetMethods.some(tm => pm.includes(tm) || tm.includes(pm));
+    });
+  }
+
+  // Privacy rules
+  const viewerRole = (user?.role || "").toUpperCase();
   students = students.map(s => {
     const copy: any = { ...s };
-    copy.purchasedHours = 0;
-    copy.attendedSessions = 0;
-    copy.attendedHours = 0;
-    copy.hoursLeft = 0;
-    copy.daysLeft = 0;
-
-    // STRICT PRIVACY: only admin receives passwords and internal fields.
-    const viewerRole = (user?.role || "").toUpperCase();
     if (viewerRole !== "ADMIN") {
       delete copy.password;
       delete copy.govtIdUrl;
@@ -349,7 +681,6 @@ export async function getStudentsService(params: {
       delete copy.medicalNotes;
       delete copy.medical_notes;
     }
-    // Tutor cannot see fees, payment plans, invoices or financial details, nor parent contact details.
     if (viewerRole === "TEACHER") {
       delete copy.feePlan;
       delete copy.discount;
@@ -362,16 +693,40 @@ export async function getStudentsService(params: {
       delete copy.emergencyContactName;
       delete copy.emergencyContactRelationship;
     }
-
     return copy;
   });
 
-  // Guarantee strict alphabetical order (A to Z) by student's name
-  students.sort((a, b) =>
-    (a.fullName || (a as any).name || "").localeCompare(b.fullName || (b as any).name || "", undefined, { sensitivity: "base" })
-  );
+  // Sorting
+  const sortBy = params.sortBy || "name";
+  const sortOrder = params.sortOrder || "asc";
+  students.sort((a, b) => {
+    let valA: any = a.fullName || "";
+    let valB: any = b.fullName || "";
+    if (sortBy === "hoursLeft") {
+      valA = a.hoursLeft ?? 0;
+      valB = b.hoursLeft ?? 0;
+    } else if (sortBy === "attendedSessions") {
+      valA = a.attendedSessions ?? 0;
+      valB = b.attendedSessions ?? 0;
+    } else if (sortBy === "grade") {
+      valA = a.grade || "";
+      valB = b.grade || "";
+    } else if (sortBy === "school") {
+      valA = a.school || "";
+      valB = b.school || "";
+    } else if (sortBy === "studentCode") {
+      valA = a.studentCode || "";
+      valB = b.studentCode || "";
+    }
+    if (typeof valA === "number" && typeof valB === "number") {
+      return sortOrder === "desc" ? valB - valA : valA - valB;
+    }
+    const cmp = String(valA).localeCompare(String(valB), undefined, { sensitivity: "base" });
+    return sortOrder === "desc" ? -cmp : cmp;
+  });
 
   const total = students.length;
+  const totalPages = Math.ceil(total / limit) || 1;
   const startIndex = (page - 1) * limit;
   const paginatedData = students.slice(startIndex, startIndex + limit);
 
@@ -380,6 +735,8 @@ export async function getStudentsService(params: {
     total,
     page,
     limit,
+    totalPages,
+    availableFilters,
     data: paginatedData
   };
 }
@@ -408,21 +765,23 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
   if (!payload.school || !payload.school.trim()) {
     throw new Error("School Name is a mandatory field.");
   }
-  if (!payload.fatherName || !payload.fatherName.trim()) {
-    throw new Error("Father Name is a mandatory field.");
-  }
-  if (!payload.motherName || !payload.motherName.trim()) {
-    throw new Error("Mother Name is a mandatory field.");
+  const fatherName = (payload.fatherName || "").trim();
+  const motherName = (payload.motherName || "").trim();
+  const guardianName = (payload.guardianName || "").trim();
+  const parentFirstName = payload.parentFirstName ? payload.parentFirstName.trim() : "";
+  const parentLastName = payload.parentLastName ? payload.parentLastName.trim() : "";
+  const derivedParentName = (parentFirstName || parentLastName)
+    ? `${parentFirstName} ${parentLastName}`.trim()
+    : (fatherName || motherName || guardianName);
+
+  if (!derivedParentName) {
+    throw new Error("At least one parent or guardian name is required.");
   }
 
   const schoolName = payload.school.trim();
   const firstName = payload.firstName.trim();
   const lastName = payload.lastName.trim();
   const derivedFullName = `${firstName} ${lastName}`.trim();
-
-  const parentFirstName = payload.parentFirstName ? payload.parentFirstName.trim() : "";
-  const parentLastName = payload.parentLastName ? payload.parentLastName.trim() : "";
-  const derivedParentName = (parentFirstName || parentLastName) ? `${parentFirstName} ${parentLastName}`.trim() : (payload.fatherName || payload.motherName || "").trim();
 
   const dobStr: string = payload.dob ? String(payload.dob) : new Date().toISOString().split("T")[0] || "";
   const calculatedAge = calculateAgeFromDOB(dobStr);
@@ -547,7 +906,6 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
     endDate: payload.endDate || "",
     feePlan: payload.feePlan || "Monthly",
     discount: (payload.discount || "TOPGRD").toUpperCase(),
-    referredByCode: payload.referredByCode || (payload as any).referred_by_code || "",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
@@ -634,26 +992,6 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
   // 3) Only now does the student exist for the rest of the app.
   inMemoryStudentStore.unshift(newStudent);
   lastSupabaseStudentFetch = 0; // invalidate cache
-
-  // Record referral if referred by code is present
-  if (newStudent.referredByCode && newStudent.id) {
-    const refPayload: {
-      referralCode: string;
-      studentId: string;
-      studentName: string;
-      studentCode?: string;
-      isEnrolled?: boolean;
-    } = {
-      referralCode: newStudent.referredByCode,
-      studentId: newStudent.id,
-      studentName: newStudent.fullName,
-      isEnrolled: true
-    };
-    if (newStudent.studentCode) {
-      refPayload.studentCode = newStudent.studentCode;
-    }
-    recordReferral(refPayload).catch(e => console.warn("Notice recording referral for student:", e?.message));
-  }
 
   // Automatic Birthday Wish Email Trigger if Birthday is today
   if (newStudent.dob) {

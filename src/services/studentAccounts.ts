@@ -86,7 +86,7 @@ export async function ensureLogin(params: {
     if (!userId) throw new Error(`Could not create a login for ${email}: ${createErr?.message || "unknown error"}`);
   }
 
-  const { error: profErr } = await supabaseAdmin.from("profiles").upsert(
+  let { error: profErr } = await supabaseAdmin.from("profiles").upsert(
     {
       id: userId,
       email,
@@ -99,6 +99,22 @@ export async function ensureLogin(params: {
     },
     { onConflict: "id" }
   );
+
+  if (profErr && profErr.message?.includes("must_change_password")) {
+    const fallback = await supabaseAdmin.from("profiles").upsert(
+      {
+        id: userId,
+        email,
+        full_name: params.fullName,
+        role: params.role,
+        status: "Active",
+        phone: params.phone || null,
+        updated_at: new Date().toISOString()
+      },
+      { onConflict: "id" }
+    );
+    profErr = fallback.error;
+  }
 
   if (profErr) {
     if (created) await supabaseAdmin.auth.admin.deleteUser(userId).catch(() => undefined);

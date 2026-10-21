@@ -211,7 +211,9 @@ router.post("/session/:sessionId/submit", async (req, res) => {
     const result = await SessionAttendanceService.submitTeacherSessionAttendance({
       classSessionId: sessionId,
       teacherId,
-      entries
+      entries,
+      date: req.body.date,
+      auditNote: req.body.auditNote
     }, { id: authUser.id, role: authUser.role, ...(authUser.email ? { email: authUser.email } : {}), name: (authUser.metadata as any)?.full_name || authUser.email || "Faculty" });
 
     res.status(200).json({
@@ -370,6 +372,21 @@ router.get("/list", async (req, res) => {
     res.status(200).json({ success: true, count: rows.length, data: rows });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// 7b. GET ORPHAN ATTENDANCE RECORDS REPORT (GET /api/attendance/orphans)
+router.get("/orphans", async (_req, res) => {
+  try {
+    const report = await SessionAttendanceService.getOrphanAttendanceCount();
+    res.status(200).json({
+      success: true,
+      orphanCount: report.orphanCount,
+      totalCount: report.totalCount,
+      message: `Database scan found ${report.orphanCount} attendance rows that do not belong to an active schedule class.`
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 

@@ -28,7 +28,6 @@ import emailLogsRouter from "./routes/emailLogs.js";
 import announcementsRouter from "./routes/announcements.js";
 import unsubscribeRouter from "./routes/unsubscribe.js";
 import monthlyNotesRouter from "./routes/monthlyNotes.js";
-import referralsRouter from "./routes/referrals.js";
 import engagementRouter from "./routes/engagement.js";
 import upsellRouter from "./routes/upsell.js";
 import performanceRouter from "./routes/performance.js";
@@ -370,7 +369,6 @@ app.use("/api/email-templates", routeGuard("settings.view"), emailTemplatesRoute
 app.use("/api/email-logs", routeGuard("dashboard.view"), emailLogsRouter);
 app.use("/api/emails/announcements", routeGuard("settings.view"), announcementsRouter);
 app.use("/api/monthly-notes", routeGuard("attendance.create"), monthlyNotesRouter);
-app.use("/api/referrals", referralsRouter);
 app.use("/api/engagement", engagementRouter);
 app.use("/api/upsell", upsellRouter);
 app.use("/api/performance", performanceRouter);
@@ -437,11 +435,8 @@ if (process.env.NODE_ENV !== "test") {
 
   server.on("error", (err: any) => {
     if (err.code === "EADDRINUSE") {
-      console.warn(`⚠️ Port ${PORT} is in use. Falling back to port 5001...`);
-      const fallbackServer = app.listen(5001, () => {
-        console.log(`🚀 TopGrade Backend Engine active on port 5001`);
-        registerGracefulShutdown(fallbackServer);
-      });
+      console.error(`⚠️ Port ${PORT} is in use. Exiting process so supervisor can re-bind cleanly...`);
+      process.exit(1);
     } else {
       console.error("Server startup error:", err);
     }

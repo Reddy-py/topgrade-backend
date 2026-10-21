@@ -268,7 +268,6 @@ export async function adminEnvironmentCheckHandler(_req: Request, res: Response)
       "institute_settings",
       "student_enrollments",
       "email_templates",
-      "referral_codes",
       "attendance",
       "email_log",
       "token_wallets",

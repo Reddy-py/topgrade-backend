@@ -1,11 +1,11 @@
 import express from "express";
 import { supabaseAdmin } from "../supabase.js";
-import { inMemoryStudentStore } from "../services/studentService.js";
-import { autoGenerateAttendanceSessionsForCourse, removeAttendanceSessionsForCourse } from "../services/sessionAttendanceService.js";
+import { removeAttendanceSessionsForCourse } from "../services/sessionAttendanceService.js";
 import { ScheduleDataService } from "../services/scheduleDataService.js";
 import type { AuthenticatedRequest } from "../middleware/auth.js";
 import { getAccessScope, allowsCourse } from "../services/accessScope.js";
 import { getInstituteSettings, updateInstituteSettings } from "../services/instituteSettingsService.js";
+import { inMemoryStudentStore } from "../services/studentService.js";
 
 const router = express.Router();
 
@@ -446,11 +446,10 @@ export const createCourseHandler = async (req: express.Request, res: express.Res
   }
 
   const savedData = mapSupabaseCourseToCourseData(data);
-  autoGenerateAttendanceSessionsForCourse(savedData);
 
   res.status(201).json({
     success: true,
-    message: `Course '${savedData.name}' created with code ${uniqueCode}. Attendance sessions automatically generated.`,
+    message: `Course '${savedData.name}' created with code ${uniqueCode}.`,
     data: savedData
   });
 };
@@ -581,7 +580,6 @@ export const editCourseHandler = async (req: express.Request, res: express.Respo
   }
 
   const updatedCourse = mapSupabaseCourseToCourseData(updatedData);
-  autoGenerateAttendanceSessionsForCourse(updatedCourse);
 
   res.status(200).json({
     success: true,
@@ -632,11 +630,10 @@ export const updateCourseScheduleHandler = async (req: express.Request, res: exp
     .single();
 
   const courseData = mapSupabaseCourseToCourseData(updatedRow || courseRow);
-  autoGenerateAttendanceSessionsForCourse(courseData);
 
   res.status(200).json({
     success: true,
-    message: `Weekly schedule for '${courseData.name}' updated successfully. Attendance sessions regenerated.`,
+    message: `Weekly schedule for '${courseData.name}' updated successfully.`,
     data: courseData
   });
 };
@@ -731,7 +728,7 @@ export const mapStudentHandler = async (req: express.Request, res: express.Respo
   } else {
     const existing = studentsList.find((s: any) => s.studentId === studentId || s.fullName === studentName);
     if (!existing) {
-      const studentObj = inMemoryStudentStore.find(s => s.id === studentId || s.fullName === studentName) || {
+      const studentObj = inMemoryStudentStore.find((s: any) => s.id === studentId || s.fullName === studentName) || {
         id: studentId || `std-${Date.now()}`,
         studentCode: `TG-STU-${Math.floor(100 + Math.random() * 899)}`,
         fullName: studentName || "Student",

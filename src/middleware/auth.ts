@@ -59,24 +59,17 @@ export const authenticateJwt = async (
 
     let cached = profileCache.get(user.id);
     if (!cached || Date.now() - cached.at > PROFILE_CACHE_MS) {
-      let { data: profile, error: pErr } = await supabaseAdmin
+      const fullRes = await supabaseAdmin
         .from("profiles")
-        .select("role, status, full_name, must_change_password")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      if (pErr && (pErr as any).code === "42703") {
-        const fallback = await supabaseAdmin
-          .from("profiles")
-          .select("role, status, full_name")
-          .eq("id", user.id)
-          .maybeSingle();
-        profile = fallback.data ? ({ ...fallback.data, must_change_password: false } as any) : null;
-      }
+        .select("*")
+        .eq("id", user.id);
+      console.log("PROFILES QUERY FOR USER ID:", user.id, "RESULT:", JSON.stringify(fullRes));
+      let profile = fullRes.data?.[0] || null;
 
       const role = String(profile?.role || "").toUpperCase();
       const active = String(profile?.status || "").toLowerCase() === "active";
       if (!profile || !active || !isUserRole(role)) {
+        console.log("AUTH FAILURE DETAILS:", { userId: user.id, profile, role, active, isRole: isUserRole(role) });
         profileCache.delete(user.id);
         res.status(403).json({ success: false, message: "Forbidden: this account is not active or has no valid role." });
         return;
@@ -85,7 +78,7 @@ export const authenticateJwt = async (
         at: Date.now(),
         role,
         fullName: profile.full_name ?? null,
-        mustChangePassword: Boolean(profile.must_change_password)
+        mustChangePassword: Boolean((profile as any)?.must_change_password)
       };
       profileCache.set(user.id, cached);
     }

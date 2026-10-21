@@ -153,6 +153,56 @@ export class ScheduleDataService {
       s.day_of_week.toLowerCase() === params.day_of_week.toLowerCase()
     );
 
+    // 0. Teacher Availability Check (respect marked availability when set)
+    if (params.teacher_id) {
+      try {
+        const { data: avRows } = await supabaseAdmin
+          .from("teacher_availability")
+          .select("*")
+          .eq("teacher_id", params.teacher_id)
+          .eq("is_active", true);
+
+        const { data: teacherRow } = await supabaseAdmin
+          .from("teachers")
+          .select("id, name, availability_days, availability_slots")
+          .eq("id", params.teacher_id)
+          .maybeSingle();
+
+        const tName = teacherRow?.name || "Teacher";
+
+        if (avRows && avRows.length > 0) {
+          const dayRule = avRows.find((r: any) => r.day_of_week.toLowerCase() === params.day_of_week.toLowerCase());
+          if (!dayRule) {
+            return {
+              hasConflict: true,
+              error: `Teacher Availability Conflict: ${tName} is not available on ${params.day_of_week}s.`
+            };
+          }
+          const slotStartMin = parseTimeToMinutes(params.start_time);
+          const slotEndMin = parseTimeToMinutes(params.end_time);
+          const avStartMin = parseTimeToMinutes(dayRule.available_from);
+          const avEndMin = parseTimeToMinutes(dayRule.available_to);
+
+          if (slotStartMin < avStartMin || slotEndMin > avEndMin) {
+            return {
+              hasConflict: true,
+              error: `Teacher Availability Conflict: ${tName}'s marked availability on ${params.day_of_week} is ${dayRule.available_from} - ${dayRule.available_to}. Slot (${params.start_time} - ${params.end_time}) falls outside available hours.`
+            };
+          }
+        } else if (teacherRow?.availability_days && Array.isArray(teacherRow.availability_days) && teacherRow.availability_days.length > 0) {
+          const isDayAvailable = teacherRow.availability_days.some((d: string) => d.toLowerCase() === params.day_of_week.toLowerCase());
+          if (!isDayAvailable) {
+            return {
+              hasConflict: true,
+              error: `Teacher Availability Conflict: ${tName} does not teach on ${params.day_of_week}s (Marked working days: ${teacherRow.availability_days.join(", ")}).`
+            };
+          }
+        }
+      } catch (avErr) {
+        console.warn("Teacher availability collision check notice:", avErr);
+      }
+    }
+
     for (const slot of activeSchedules) {
       if (doTimesOverlap(slot.start_time, slot.end_time, params.start_time, params.end_time)) {
         // 1. Teacher Conflict
@@ -185,6 +235,52 @@ export class ScheduleDataService {
     }
 
     return { hasConflict: false };
+  }
+
+  /**
+   * Suggest free 60-minute time slots for a teacher and room on a given weekday
+   */
+  static async suggestFreeSlots(params: {
+    teacher_id?: string | undefined;
+    room?: string | undefined;
+    day_of_week: string;
+    duration_minutes?: number | undefined;
+    scheduleIdToExclude?: string | undefined;
+  }): Promise<string[]> {
+    const standardStartTimes = [
+      "09:00 AM", "10:00 AM", "11:00 AM", "12:00 PM",
+      "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM",
+      "05:00 PM", "06:00 PM"
+    ];
+    const duration = params.duration_minutes || 60;
+    const freeSlots: string[] = [];
+
+    for (const startTime of standardStartTimes) {
+      const sMin = parseTimeToMinutes(startTime);
+      const eMin = sMin + duration;
+      let h = Math.floor(eMin / 60);
+      const m = eMin % 60;
+      const period = h >= 12 && h < 24 ? "PM" : "AM";
+      if (h > 12) h -= 12;
+      if (h === 0) h = 12;
+      const endTime = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")} ${period}`;
+
+      const conflict = await this.checkCollisions({
+        scheduleIdToExclude: params.scheduleIdToExclude,
+        day_of_week: params.day_of_week,
+        start_time: startTime,
+        end_time: endTime,
+        teacher_id: params.teacher_id || "",
+        room: params.room || "",
+        student_ids: []
+      });
+
+      if (!conflict.hasConflict) {
+        freeSlots.push(`${startTime} - ${endTime}`);
+      }
+    }
+
+    return freeSlots;
   }
 
   /**
@@ -511,7 +607,7 @@ export class ScheduleDataService {
   }
 
   /**
-   * Create multiple schedule slots for multiple days
+   * Create multiple schedule slots for multiple days (atomic all-or-nothing in one transaction)
    */
   static async createMultiDaySchedules(payload: {
     course_id: string;
@@ -535,26 +631,39 @@ export class ScheduleDataService {
       ? payload.days_of_week
       : ["Monday"];
 
-    const createdSlots: ScheduleSlot[] = [];
-    const errors: string[] = [];
-
+    // 1. Pre-validate collisions across ALL days first (atomic all-or-nothing)
     for (const day of days) {
-      try {
+      const conflict = await this.checkCollisions({
+        day_of_week: day,
+        start_time: payload.start_time,
+        end_time: payload.end_time,
+        teacher_id: payload.teacher_id,
+        room: payload.room || "Room 101",
+        student_ids: (payload.students || []).map(s => s.student_id)
+      });
+      if (conflict.hasConflict) {
+        throw new Error(`Batch Creation Aborted: Collision detected on ${day}: ${conflict.error}`);
+      }
+    }
+
+    // 2. Create slots; if any fails, rollback all created slots in this batch
+    const createdSlots: ScheduleSlot[] = [];
+    try {
+      for (const day of days) {
         const slot = await this.createSchedule({
           ...payload,
           day_of_week: day
         });
         createdSlots.push(slot);
-      } catch (err: any) {
-        errors.push(`${day}: ${err.message}`);
       }
+      return createdSlots;
+    } catch (err: any) {
+      // Rollback any slots created so far in this batch
+      for (const s of createdSlots) {
+        await this.deleteSchedule(s.id).catch(() => {});
+      }
+      throw new Error(`Batch multi-day schedule creation failed and was rolled back: ${err.message}`);
     }
-
-    if (createdSlots.length === 0 && errors.length > 0) {
-      throw new Error(errors.join(" | "));
-    }
-
-    return createdSlots;
   }
 
   /**
@@ -725,6 +834,21 @@ export class ScheduleDataService {
       throw new Error(`Schedule slot '${slotId}' not found.`);
     }
 
+    // Enforce teacher collision and availability checks when taking an open slot
+    const conflict = await this.checkCollisions({
+      scheduleIdToExclude: slotId,
+      day_of_week: slot.day_of_week,
+      start_time: slot.start_time,
+      end_time: slot.end_time,
+      teacher_id: teacherId,
+      room: slot.room,
+      student_ids: []
+    });
+
+    if (conflict.hasConflict) {
+      throw new Error(`Cannot claim class: ${conflict.error}`);
+    }
+
     const updatedSlot: ScheduleSlot = {
       ...slot,
       teacher_id: teacherId,
@@ -761,6 +885,92 @@ export class ScheduleDataService {
   }
 
   /**
+   * Enroll one or more students into a specific class slot with capacity and student collision checks
+   */
+  static async enrollStudentsInSlot(scheduleId: string, studentIds: string[]): Promise<{ slot: ScheduleSlot; enrolledCount: number }> {
+    const all = await this.listSchedules();
+    const slot = all.find(s => s.id === scheduleId);
+    if (!slot) {
+      throw new Error(`Schedule slot '${scheduleId}' not found.`);
+    }
+
+    const currentEnrolled = slot.students || [];
+    const currentStudentIds = new Set(currentEnrolled.map(s => s.student_id));
+    const newStudentIds = studentIds.filter(id => !currentStudentIds.has(id));
+
+    if (newStudentIds.length === 0) {
+      return { slot, enrolledCount: currentEnrolled.length };
+    }
+
+    const maxCapacity = slot.max_capacity || 15;
+    if (currentEnrolled.length + newStudentIds.length > maxCapacity) {
+      throw new Error(`Class capacity limit reached (${maxCapacity}). Cannot enroll more students. (Currently enrolled: ${currentEnrolled.length}, Attempting to add: ${newStudentIds.length})`);
+    }
+
+    // Check student collisions across each student's existing schedule slots
+    for (const studentId of newStudentIds) {
+      const studentSchedules = await this.getStudentSchedules(studentId);
+      for (const existingSlot of studentSchedules) {
+        if (
+          existingSlot.id !== slot.id &&
+          existingSlot.day_of_week.toLowerCase() === slot.day_of_week.toLowerCase() &&
+          doTimesOverlap(existingSlot.start_time, existingSlot.end_time, slot.start_time, slot.end_time)
+        ) {
+          const { data: stu } = await supabaseAdmin.from("students").select("name").eq("id", studentId).maybeSingle();
+          const studentName = stu?.name || "Student";
+          throw new Error(`Student Collision: Student ${studentName} is already enrolled in '${existingSlot.course_name}' on ${slot.day_of_week} at ${existingSlot.time_slot}.`);
+        }
+      }
+    }
+
+    // Fetch details for student names
+    const { data: dbStudents } = await supabaseAdmin.from("students").select("id, name, student_id_code").in("id", newStudentIds);
+    const stuMap = new Map((dbStudents || []).map(s => [s.id, s]));
+
+    const nowIso = new Date().toISOString();
+    for (const studentId of newStudentIds) {
+      const studentObj = stuMap.get(studentId);
+      const studentName = studentObj?.name || "Student";
+      const studentCode = studentObj?.student_id_code || null;
+
+      const { error } = await supabaseAdmin.from("schedule_students").upsert(
+        {
+          schedule_id: slot.id,
+          student_id: studentId,
+          student_name: studentName,
+          student_code: studentCode,
+          created_at: nowIso
+        },
+        { onConflict: "schedule_id,student_id" }
+      );
+
+      if (error) {
+        console.warn("Supabase schedule_student upsert note:", error.message);
+      }
+
+      void this.appendHistoryItem({
+        student_id: studentId,
+        student_name: studentName,
+        event_type: "SCHEDULE_ASSIGNMENT",
+        title: `Enrolled in Class: ${slot.course_name}`,
+        description: `Class on ${slot.day_of_week}s (${slot.time_slot}) at ${slot.room} with faculty ${slot.teacher_name || "Staff"}.`,
+        metadata: {
+          schedule_id: slot.id,
+          course_name: slot.course_name,
+          day_of_week: slot.day_of_week,
+          time_slot: slot.time_slot,
+          room: slot.room,
+          teacher_name: slot.teacher_name
+        },
+        actor: "Academic Registrar"
+      });
+    }
+
+    const refreshed = (await this.listSchedules()).find(s => s.id === scheduleId);
+    return { slot: refreshed || slot, enrolledCount: refreshed?.students?.length || 0 };
+  }
+
+  /**
    * Assign / enroll a student directly into a specific schedule slot
    */
   static async assignStudentToSlot(payload: {
@@ -769,47 +979,8 @@ export class ScheduleDataService {
     student_name: string;
     student_code?: string;
   }): Promise<ScheduleSlot> {
-    const all = await this.listSchedules();
-    const slot = all.find(s => s.id === payload.schedule_id);
-    if (!slot) {
-      throw new Error(`Schedule slot '${payload.schedule_id}' not found.`);
-    }
-
-    const { error } = await supabaseAdmin.from("schedule_students").upsert(
-      {
-        schedule_id: slot.id,
-        student_id: payload.student_id,
-        student_name: payload.student_name,
-        student_code: payload.student_code || null,
-        created_at: new Date().toISOString()
-      },
-      { onConflict: "schedule_id,student_id" }
-    );
-
-    if (error) {
-      console.warn("Supabase schedule_student upsert notice:", error.message);
-    }
-
-    // Append to Student History
-    void this.appendHistoryItem({
-      student_id: payload.student_id,
-      student_name: payload.student_name,
-      event_type: "SCHEDULE_ASSIGNMENT",
-      title: `Enrolled in Class: ${slot.course_name}`,
-      description: `Class on ${slot.day_of_week}s (${slot.time_slot}) at ${slot.room} with faculty ${slot.teacher_name || "Staff"}.`,
-      metadata: {
-        schedule_id: slot.id,
-        course_name: slot.course_name,
-        day_of_week: slot.day_of_week,
-        time_slot: slot.time_slot,
-        room: slot.room,
-        teacher_name: slot.teacher_name
-      },
-      actor: "Academic Registrar"
-    });
-
-    const refreshed = (await this.listSchedules()).find(s => s.id === payload.schedule_id);
-    return refreshed || slot;
+    const res = await this.enrollStudentsInSlot(payload.schedule_id, [payload.student_id]);
+    return res.slot;
   }
 
   /**

@@ -238,18 +238,35 @@ export const updateTeacherHandler = async (req: express.Request, res: express.Re
   if (t.age !== undefined) updateRow.age = parseInt(t.age) || 0;
   if (t.qualification !== undefined) updateRow.qualification = t.qualification;
   if (t.qualificationCertificateUrl !== undefined) updateRow.qualification_certificate_url = t.qualificationCertificateUrl;
+  if (t.qualification_certificate_url !== undefined) updateRow.qualification_certificate_url = t.qualification_certificate_url;
   if (t.resumeUrl !== undefined) updateRow.resume_url = t.resumeUrl;
+  if (t.resume_url !== undefined) updateRow.resume_url = t.resume_url;
   if (t.photoUrl !== undefined) updateRow.photo_url = t.photoUrl;
+  if (t.photo_url !== undefined) updateRow.photo_url = t.photo_url;
   if (t.phone !== undefined) updateRow.phone = t.phone;
   if (t.email !== undefined) updateRow.email = t.email;
   if (t.specialization !== undefined) updateRow.specialization = t.specialization;
   if (t.experience !== undefined) updateRow.experience = t.experience;
   if (t.joiningDate !== undefined) updateRow.joining_date = t.joiningDate;
+  if (t.joining_date !== undefined) updateRow.joining_date = t.joining_date;
   if (t.salary !== undefined) updateRow.salary = t.salary;
   if (t.status !== undefined) updateRow.status = t.status;
   if (t.workingDaysCount !== undefined) updateRow.working_days_count = t.workingDaysCount;
+  if (t.working_days_count !== undefined) updateRow.working_days_count = t.working_days_count;
   if (t.availabilityDays !== undefined) updateRow.availability_days = t.availabilityDays;
+  if (t.availability_days !== undefined) updateRow.availability_days = t.availability_days;
   if (t.availabilitySlots !== undefined) updateRow.availability_slots = t.availabilitySlots;
+  if (t.availability_slots !== undefined) updateRow.availability_slots = t.availability_slots;
+
+  // Teacher role cannot alter ID, email, salary, or status
+  const authReq = req as AuthenticatedRequest;
+  if (authReq.user?.role === "TEACHER") {
+    delete updateRow.email;
+    delete updateRow.teacher_id_code;
+    delete updateRow.id;
+    delete updateRow.salary;
+    delete updateRow.status;
+  }
 
   let updatedTeacher: any = { ...currentTeacher, ...updateRow };
 

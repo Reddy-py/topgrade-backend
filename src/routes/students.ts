@@ -106,11 +106,37 @@ router.post("/request-password-reset", requestPasswordResetHandler);
 export const getStudentsHandler = async (req: AuthenticatedRequest, res: express.Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 500;
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 25;
     const search = (req.query.search as string) || (req.query.q as string) || "";
     const status = (req.query.status as string) || "ALL";
     const grade = (req.query.grade as string) || "ALL";
     const program_type = (req.query.program_type as string) || (req.query.program as string) || "ALL";
+
+    const toArray = (val: any): string[] => {
+      if (!val) return [];
+      if (Array.isArray(val)) return val.flatMap(v => String(v).split(",")).map(s => s.trim()).filter(Boolean);
+      return String(val).split(",").map(s => s.trim()).filter(Boolean);
+    };
+
+    const courses = toArray(req.query.courses || req.query.course);
+    const categories = toArray(req.query.categories || req.query.category);
+    const schools = toArray(req.query.schools || req.query.school);
+    const teachers = toArray(req.query.teachers || req.query.teacher);
+    const grades = toArray(req.query.grades || req.query.gradeFilter);
+    const sessionPreset = (req.query.sessionPreset as string) || "";
+    const minSessions = req.query.minSessions !== undefined && req.query.minSessions !== "" ? Number(req.query.minSessions) : undefined;
+    const maxSessions = req.query.maxSessions !== undefined && req.query.maxSessions !== "" ? Number(req.query.maxSessions) : undefined;
+    const weekdays = toArray(req.query.weekdays || req.query.days || req.query.weekday);
+    const weekdayMatch = (req.query.weekdayMatch as "any" | "all") || "any";
+    const enrolledSinceStart = (req.query.enrolledSinceStart as string) || "";
+    const enrolledSinceEnd = (req.query.enrolledSinceEnd as string) || "";
+    const hoursPreset = (req.query.hoursPreset as string) || "";
+    const minHours = req.query.minHours !== undefined && req.query.minHours !== "" ? Number(req.query.minHours) : undefined;
+    const maxHours = req.query.maxHours !== undefined && req.query.maxHours !== "" ? Number(req.query.maxHours) : undefined;
+    const feePlan = toArray(req.query.plan || req.query.feePlan || req.query.plans);
+    const paymentMethod = toArray(req.query.paymentMethod || req.query.paymentMethods);
+    const sortBy = (req.query.sortBy as string) || "name";
+    const sortOrder = (req.query.sortOrder as "asc" | "desc") || "asc";
 
     // The role ALWAYS comes from the verified login (never from a query string or header sent by the browser).
     if (!req.user) {
@@ -119,7 +145,34 @@ export const getStudentsHandler = async (req: AuthenticatedRequest, res: express
     }
     const currentUser = { id: req.user.id || "", email: req.user.email || "", role: String(req.user.role), metadata: req.user.metadata };
 
-    const result = await getStudentsService({ page, limit, search, status, grade, program_type, currentUser });
+    const result = await getStudentsService({
+      page,
+      limit,
+      search,
+      status,
+      grade,
+      program_type,
+      courses,
+      categories,
+      schools,
+      teachers,
+      grades,
+      sessionPreset,
+      minSessions,
+      maxSessions,
+      weekdays,
+      weekdayMatch,
+      enrolledSinceStart,
+      enrolledSinceEnd,
+      hoursPreset,
+      minHours,
+      maxHours,
+      feePlan,
+      paymentMethod,
+      sortBy,
+      sortOrder,
+      currentUser
+    });
     res.status(200).json(result);
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message || "Failed to fetch student list." });
