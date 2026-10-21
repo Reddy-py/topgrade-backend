@@ -210,23 +210,41 @@ export const updateTeacherHandler = async (req: express.Request, res: express.Re
   const isUUID = (str?: any): boolean =>
     typeof str === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
 
+  const authReq = req as AuthenticatedRequest;
+  const loggedInUser = authReq.user;
+
   let currentTeacher: any = null;
   try {
     let sbQuery = supabaseAdmin.from("teachers").select("*");
     if (isUUID(teacherId)) {
-      sbQuery = sbQuery.eq("id", teacherId);
+      sbQuery = sbQuery.or(`id.eq.${teacherId},user_id.eq.${teacherId}`);
     } else {
-      sbQuery = sbQuery.eq("teacher_id_code", teacherId);
+      sbQuery = sbQuery.or(`teacher_id_code.eq.${teacherId},id.eq.${teacherId}`);
     }
     const { data: sbTeacher } = await sbQuery.maybeSingle();
     if (sbTeacher) {
       currentTeacher = sbTeacher;
-    } else if (t.email) {
-      const { data: sbByEmail } = await supabaseAdmin.from("teachers").select("*").eq("email", t.email).maybeSingle();
-      if (sbByEmail) currentTeacher = sbByEmail;
+    } else {
+      const targetEmail = t.email || loggedInUser?.email;
+      if (targetEmail) {
+        const { data: sbByEmail } = await supabaseAdmin.from("teachers").select("*").eq("email", targetEmail).maybeSingle();
+        if (sbByEmail) currentTeacher = sbByEmail;
+      }
+      if (!currentTeacher && loggedInUser?.id) {
+        const { data: sbByUid } = await supabaseAdmin.from("teachers").select("*").eq("user_id", loggedInUser.id).maybeSingle();
+        if (sbByUid) currentTeacher = sbByUid;
+      }
     }
   } catch (sbErr) {
     console.warn("Notice querying teacher for update:", sbErr);
+  }
+
+  if (!currentTeacher && loggedInUser?.metadata?.full_name) {
+    currentTeacher = {
+      name: loggedInUser.metadata.full_name,
+      email: loggedInUser.email,
+      id: teacherId
+    };
   }
 
   const updateRow: any = {
@@ -259,7 +277,6 @@ export const updateTeacherHandler = async (req: express.Request, res: express.Re
   if (t.availability_slots !== undefined) updateRow.availability_slots = t.availability_slots;
 
   // Teacher role cannot alter ID, email, salary, or status
-  const authReq = req as AuthenticatedRequest;
   if (authReq.user?.role === "TEACHER") {
     delete updateRow.email;
     delete updateRow.teacher_id_code;

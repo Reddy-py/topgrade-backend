@@ -183,7 +183,9 @@ router.get("/session/:sessionId/roster", async (req, res) => {
     const rosterData = await SessionAttendanceService.getSessionRoster(sessionId);
     res.status(200).json({
       success: true,
-      data: rosterData
+      data: rosterData,
+      students: rosterData.roster,
+      studentsCount: rosterData.studentsCount
     });
   } catch (err: any) {
     res.status(500).json({
@@ -198,14 +200,23 @@ router.get("/session/:sessionId/roster", async (req, res) => {
 router.post("/session/:sessionId/submit", async (req, res) => {
   try {
     const { sessionId } = req.params;
-    const { teacherId, entries } = req.body;
+    const { teacherId } = req.body;
+    const rawEntries = req.body.entries || req.body.records || [];
 
-    if (!Array.isArray(entries) || entries.length === 0) {
+    if (!Array.isArray(rawEntries) || rawEntries.length === 0) {
       return res.status(400).json({
         success: false,
-        message: "Missing 'entries' array in submission payload."
+        message: "Missing 'entries' or 'records' array in submission payload."
       });
     }
+
+    const entries = rawEntries.map((r: any) => ({
+      studentId: r.studentId || r.student_id,
+      studentName: r.studentName || r.student_name,
+      studentEmail: r.studentEmail || r.student_email,
+      status: r.status,
+      notes: r.notes || r.remarks
+    }));
 
     const authUser = (req as AuthenticatedRequest).user!;
     const result = await SessionAttendanceService.submitTeacherSessionAttendance({
@@ -219,7 +230,8 @@ router.post("/session/:sessionId/submit", async (req, res) => {
     res.status(200).json({
       success: true,
       message: result.message,
-      data: result
+      data: result,
+      results: result
     });
   } catch (err: any) {
     res.status(err?.status || 500).json({

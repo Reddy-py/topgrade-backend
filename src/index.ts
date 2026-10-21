@@ -146,6 +146,7 @@ app.use("/api/students", routeGuard("students", [
 app.use("/api/teachers", routeGuard("teachers", [
   { method: "GET", path: /^\/[^/]+\/(roster|history)\/?$/, permission: "attendance.create" },
   { method: "PUT", path: /^\/[^/]+\/availability\/?$/, permission: "attendance.edit" },
+  { method: "PUT", path: /^\/(edit\/)?[^/]+\/?$/, permission: "teachers.view" },
   { method: "POST", path: /^\/(respond-course\/[^/]+|onboarding-waiver)\/?$/, permission: "dashboard.view" },
 ]));
 app.use("/api/courses", routeGuard("courses"));

@@ -58,10 +58,11 @@ async function runTests() {
 
   // 3. NEW STUDENT ADDITION (SINGLE PARENT & TWO PARENTS, OPTIONAL EMAIL)
   console.log("\n--- 3. New Student Addition (Single Parent & Optional Email) ---");
+  const testRunId = Date.now().toString().slice(-4);
   const singleParentPayload = {
     firstName: "Aria",
-    lastName: "Montgomery",
-    fullName: "Aria Montgomery",
+    lastName: `Montgomery${testRunId}`,
+    fullName: `Aria Montgomery ${testRunId}`,
     gender: "Female",
     dob: "2014-05-12",
     age: 12,
@@ -70,7 +71,7 @@ async function runTests() {
     status: "ACTIVE",
     fatherName: "Byron Montgomery",
     parentPhones: ["+1 555-019-8801"],
-    parentEmails: ["byron.montgomery@example.com"],
+    parentEmails: [`byron.montgomery.${testRunId}@example.com`],
     email: "", // Optional student email omitted!
     residentialAddress: "400 Oak Street, Edison, NJ 08817",
     program: "Robotics Fundamentals",
@@ -96,8 +97,8 @@ async function runTests() {
 
   const twoParentPayload = {
     firstName: "Leo",
-    lastName: "Fitz",
-    fullName: "Leo Fitz",
+    lastName: `Fitz${testRunId}`,
+    fullName: `Leo Fitz ${testRunId}`,
     gender: "Male",
     dob: "2013-08-19",
     age: 13,
@@ -107,8 +108,8 @@ async function runTests() {
     fatherName: "Alistair Fitz",
     motherName: "Pamela Fitz",
     parentPhones: ["+1 555-019-8802", "+1 555-019-8803"],
-    parentEmails: ["alistair.fitz@example.com", "pamela.fitz@example.com"],
-    email: "leo.fitz.scholar@example.com",
+    parentEmails: [`alistair.fitz.${testRunId}@example.com`, `pamela.fitz.${testRunId}@example.com`],
+    email: `leo.fitz.scholar.${testRunId}@example.com`,
     residentialAddress: "520 Grove Ave, Metuchen, NJ 08840",
     program: "AP Physics Mechanics",
     program_type: "TUTORING",
@@ -137,8 +138,8 @@ async function runTests() {
   // 4. NEW COURSE ADDITION
   console.log("\n--- 4. New Course Addition ---");
   const coursePayload = {
-    name: "Advanced Artificial Intelligence & Python 2026",
-    code: `CS-AI-${Date.now().toString().slice(-4)}`,
+    name: `Advanced Artificial Intelligence & Python ${testRunId}`,
+    code: `CS-AI-${testRunId}`,
     category: "STEM & Technology",
     program_type: "TUTORING",
     duration_months: 6,
@@ -172,7 +173,7 @@ async function runTests() {
 
   // Create Slot 1: Thursday 14:00 - 15:30 (14:00 to 15:30)
   const slot1Payload = {
-    course_name: "Advanced Artificial Intelligence & Python 2026",
+    course_name: `Advanced Artificial Intelligence & Python ${testRunId}`,
     teacher_id: testTeacherId,
     teacher_name: testTeacherName,
     room: testRoom,
@@ -442,6 +443,38 @@ async function runTests() {
   assert(campListRes.status === 200 && campListData.success, "Admin can list marketing campaigns", {
     campaignsCount: campListData.data?.length
   });
+
+  // 11. CLEANUP (Safety Rule: Tests clean up everything they create)
+  console.log("\n--- 11. Cleanup Test Synthetic Data ---");
+  try {
+    if (slot1Id) {
+      await fetch(`${BASE_URL}/api/schedules/${slot1Id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${adminToken}` }
+      });
+    }
+    if (addStudent1?.data?.id) {
+      await fetch(`${BASE_URL}/api/students/${addStudent1.data.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${adminToken}` }
+      });
+    }
+    if (addStudent2?.data?.id) {
+      await fetch(`${BASE_URL}/api/students/${addStudent2.data.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${adminToken}` }
+      });
+    }
+    if (addCourse?.data?.id) {
+      await fetch(`${BASE_URL}/api/courses/${addCourse.data.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${adminToken}` }
+      });
+    }
+    console.log("  🧹 Test synthetic artifacts cleanly purged.");
+  } catch (cleanErr) {
+    console.warn("  Cleanup notice:", cleanErr);
+  }
 
   // SUMMARY
   console.log("\n========================================================");

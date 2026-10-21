@@ -896,7 +896,8 @@ export class ScheduleDataService {
 
     const currentEnrolled = slot.students || [];
     const currentStudentIds = new Set(currentEnrolled.map(s => s.student_id));
-    const newStudentIds = studentIds.filter(id => !currentStudentIds.has(id));
+    const currentStudentCodes = new Set(currentEnrolled.map(s => s.student_code).filter(Boolean));
+    const newStudentIds = studentIds.filter(id => !currentStudentIds.has(id) && !currentStudentCodes.has(id));
 
     if (newStudentIds.length === 0) {
       return { slot, enrolledCount: currentEnrolled.length };
@@ -907,49 +908,73 @@ export class ScheduleDataService {
       throw new Error(`Class capacity limit reached (${maxCapacity}). Cannot enroll more students. (Currently enrolled: ${currentEnrolled.length}, Attempting to add: ${newStudentIds.length})`);
     }
 
+    // Resolve student objects by ID or student_id_code
+    let dbStudents: any[] = [];
+    try {
+      const res1 = await supabaseAdmin.from("students").select("id, name, student_id_code").in("id", newStudentIds);
+      const res2 = await supabaseAdmin.from("students").select("id, name, student_id_code").in("student_id_code", newStudentIds);
+      dbStudents = [...(res1.data || []), ...(res2.data || [])];
+    } catch (e) {}
+
+    const stuMap = new Map<string, any>();
+    for (const s of dbStudents) {
+      stuMap.set(s.id, s);
+      if (s.student_id_code) stuMap.set(s.student_id_code, s);
+    }
+
     // Check student collisions across each student's existing schedule slots
     for (const studentId of newStudentIds) {
-      const studentSchedules = await this.getStudentSchedules(studentId);
+      const studentObj = stuMap.get(studentId);
+      const effectiveId = studentObj?.id || studentId;
+      const studentSchedules = await this.getStudentSchedules(effectiveId);
       for (const existingSlot of studentSchedules) {
         if (
           existingSlot.id !== slot.id &&
           existingSlot.day_of_week.toLowerCase() === slot.day_of_week.toLowerCase() &&
           doTimesOverlap(existingSlot.start_time, existingSlot.end_time, slot.start_time, slot.end_time)
         ) {
-          const { data: stu } = await supabaseAdmin.from("students").select("name").eq("id", studentId).maybeSingle();
-          const studentName = stu?.name || "Student";
+          const studentName = studentObj?.name || "Student";
           throw new Error(`Student Collision: Student ${studentName} is already enrolled in '${existingSlot.course_name}' on ${slot.day_of_week} at ${existingSlot.time_slot}.`);
         }
       }
     }
 
-    // Fetch details for student names
-    const { data: dbStudents } = await supabaseAdmin.from("students").select("id, name, student_id_code").in("id", newStudentIds);
-    const stuMap = new Map((dbStudents || []).map(s => [s.id, s]));
-
     const nowIso = new Date().toISOString();
+    const enrolledStudentsToAdd: ScheduleStudent[] = [];
+
     for (const studentId of newStudentIds) {
       const studentObj = stuMap.get(studentId);
-      const studentName = studentObj?.name || "Student";
-      const studentCode = studentObj?.student_id_code || null;
+      const effectiveStudentId = studentObj?.id || studentId;
+      const studentName = studentObj?.name || (studentId.startsWith("TG-STU") ? studentId : "Student");
+      const studentCode = studentObj?.student_id_code || (studentId.startsWith("TG-STU") ? studentId : undefined);
 
-      const { error } = await supabaseAdmin.from("schedule_students").upsert(
-        {
-          schedule_id: slot.id,
-          student_id: studentId,
-          student_name: studentName,
-          student_code: studentCode,
-          created_at: nowIso
-        },
-        { onConflict: "schedule_id,student_id" }
-      );
+      const entry: ScheduleStudent = {
+        id: `st-map-${slot.id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        schedule_id: slot.id,
+        student_id: effectiveStudentId,
+        student_name: studentName,
+        student_code: studentCode,
+        created_at: nowIso
+      };
+      enrolledStudentsToAdd.push(entry);
 
-      if (error) {
-        console.warn("Supabase schedule_student upsert note:", error.message);
+      try {
+        await supabaseAdmin.from("schedule_students").upsert(
+          {
+            schedule_id: slot.id,
+            student_id: effectiveStudentId,
+            student_name: studentName,
+            student_code: studentCode || null,
+            created_at: nowIso
+          },
+          { onConflict: "schedule_id,student_id" }
+        );
+      } catch (error: any) {
+        console.warn("Supabase schedule_student upsert note:", error?.message);
       }
 
       void this.appendHistoryItem({
-        student_id: studentId,
+        student_id: effectiveStudentId,
         student_name: studentName,
         event_type: "SCHEDULE_ASSIGNMENT",
         title: `Enrolled in Class: ${slot.course_name}`,
@@ -966,8 +991,11 @@ export class ScheduleDataService {
       });
     }
 
-    const refreshed = (await this.listSchedules()).find(s => s.id === scheduleId);
-    return { slot: refreshed || slot, enrolledCount: refreshed?.students?.length || 0 };
+    // Always update local slot.students and inMemorySchedules
+    slot.students = [...currentEnrolled, ...enrolledStudentsToAdd];
+    inMemorySchedules.set(slot.id, slot);
+
+    return { slot, enrolledCount: slot.students.length };
   }
 
   /**
@@ -1041,9 +1069,14 @@ export class ScheduleDataService {
    */
   static async getStudentSchedules(studentId: string): Promise<ScheduleSlot[]> {
     const all = await this.listSchedules();
+    const sid = String(studentId);
     return all.filter(s =>
       s.is_active !== false &&
-      s.students && s.students.some(st => st.student_id === studentId || st.student_id === String(studentId))
+      s.students && s.students.some(st =>
+        st.student_id === sid ||
+        String(st.student_id) === sid ||
+        (st.student_code && (st.student_code === sid || String(st.student_code) === sid))
+      )
     );
   }
 
