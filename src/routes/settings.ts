@@ -280,6 +280,37 @@ router.put("/institute", async (req: Request, res: Response): Promise<any> => {
       updates.course_categories = cleanCats;
     }
 
+    // 13. Zelle Payment Settings (Admin Configurable)
+    if (body.zelle_display_name !== undefined) {
+      updates.zelle_display_name = String(body.zelle_display_name).trim();
+    }
+    if (body.zelle_tag !== undefined) {
+      updates.zelle_tag = String(body.zelle_tag).trim();
+    }
+    if (body.zelle_email !== undefined) {
+      updates.zelle_email = String(body.zelle_email).trim().toLowerCase();
+    }
+    if (body.zelle_phone !== undefined) {
+      updates.zelle_phone = String(body.zelle_phone).trim();
+    }
+    if (body.payment_instructions_note !== undefined) {
+      updates.payment_instructions_note = String(body.payment_instructions_note).trim();
+    }
+    if (body.pending_order_expiry_days !== undefined) {
+      const days = parseInt(String(body.pending_order_expiry_days), 10);
+      updates.pending_order_expiry_days = !isNaN(days) && days > 0 ? days : 7;
+    }
+    if (body.auto_confirm_strong_matches !== undefined) {
+      updates.auto_confirm_strong_matches = Boolean(body.auto_confirm_strong_matches);
+    }
+    // 14. Payment Method Availability Switches (Task 16b)
+    if (body.card_enabled !== undefined) {
+      updates.card_enabled = Boolean(body.card_enabled);
+    }
+    if (body.zelle_enabled !== undefined) {
+      updates.zelle_enabled = Boolean(body.zelle_enabled);
+    }
+
     const updated = await updateInstituteSettings(updates);
     return res.json({
       success: true,

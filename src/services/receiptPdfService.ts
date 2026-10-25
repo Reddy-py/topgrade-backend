@@ -1,4 +1,5 @@
 import { dispatchMultiChannelNotification } from "./notificationService.js";
+import { getCachedInstituteSettings, instituteAddress } from "./instituteSettingsService.js";
 
 export interface ReceiptDataInput {
   receiptNumber: string;
@@ -29,6 +30,9 @@ export class ReceiptPdfService {
    */
   public static generateReceiptHtml(data: ReceiptDataInput): string {
     const total = data.totalPayable ? data.totalPayable.toFixed(2) : data.grossAmount.toFixed(2);
+    const settings = getCachedInstituteSettings();
+    const instName = settings.institute_name || "Top Grade Learning";
+    const instAddress = instituteAddress() || "100 Plainfield Ave, Suite 2B, Edison, NJ 08817";
 
     return `
 <!DOCTYPE html>
@@ -39,10 +43,11 @@ export class ReceiptPdfService {
   <style>
     body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #0d1c2f; margin: 0; padding: 30px; background: #fff; }
     .receipt-box { max-width: 800px; margin: auto; border: 2px solid #004ac6; border-radius: 16px; padding: 30px; background: #fff; shadow: 0 4px 20px rgba(0,74,198,0.1); }
-    .header { border-bottom: 3px solid #004ac6; padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
-    .title { font-size: 24px; font-weight: 900; color: #004ac6; text-transform: uppercase; letter-spacing: 1px; }
-    .sub-title { font-size: 11px; font-weight: 700; color: #434655; text-transform: uppercase; }
-    .badge { background: #004ac6; color: white; padding: 4px 12px; border-radius: 20px; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+    .header { border-bottom: 3px solid #004ac6; padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-start; }
+    .title { font-size: 22px; font-weight: 900; color: #004ac6; text-transform: uppercase; letter-spacing: 0.5px; }
+    .address { font-size: 11px; font-weight: 600; color: #434655; margin-top: 3px; }
+    .sub-title { font-size: 11px; font-weight: 800; color: #004ac6; text-transform: uppercase; margin-top: 5px; }
+    .badge { background: #004ac6; color: white; padding: 4px 12px; border-radius: 20px; font-size: 10px; font-weight: 800; text-transform: uppercase; display: inline-block; }
     .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; font-size: 12px; }
     .meta-card { background: #f8f9ff; padding: 15px; border-radius: 12px; border: 1px solid #c3c6d7; }
     .meta-title { font-size: 10px; font-weight: 800; color: #004ac6; text-transform: uppercase; margin-bottom: 6px; }
@@ -57,12 +62,14 @@ export class ReceiptPdfService {
   <div class="receipt-box">
     <div class="header">
       <div>
-        <div class="title">TopGrade Learning Institute</div>
-        <div class="sub-title">Official Fee Payment Receipt &amp; Tax Invoice</div>
+        <div class="title">${instName}</div>
+        <div class="address">${instAddress}</div>
+        <div class="sub-title">Official Fee Payment Receipt &amp; Statement (USD)</div>
       </div>
-      <div>
-        <span class="badge">STAMPED &amp; VERIFIED</span>
+      <div style="text-align: right;">
+        <span class="badge">BANK VERIFIED &amp; CLEARED</span>
         <div style="font-size: 11px; font-weight: 800; margin-top: 5px; color: #004ac6;">No: ${data.receiptNumber}</div>
+        <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Currency: USD ($)</div>
       </div>
     </div>
 

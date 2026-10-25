@@ -31,9 +31,7 @@ async function runTests() {
   // 1. SAFETY CHECKS
   console.log("--- 1. Safety Enforcements ---");
   const isSimulated = process.env.SIMULATE_EMAILS === "true";
-  const isPaymentsDisabled = process.env.DISABLE_PAYMENTS === "true";
   assert(isSimulated, "SIMULATE_EMAILS is set to true");
-  assert(isPaymentsDisabled, "DISABLE_PAYMENTS is set to true");
 
   // 2. AUTHENTICATION (ADMIN & TEACHER)
   console.log("\n--- 2. Authentication Tokens ---");

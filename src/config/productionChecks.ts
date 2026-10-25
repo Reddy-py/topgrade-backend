@@ -256,7 +256,6 @@ export async function adminEnvironmentCheckHandler(_req: Request, res: Response)
 
     const isOldProject = supabaseHost.includes("zznzmzwiewsnmykcbcni");
     const simulateEmails = process.env.SIMULATE_EMAILS === "true";
-    const disablePayments = process.env.DISABLE_PAYMENTS === "true";
 
     const requiredTables = [
       "profiles",
@@ -272,7 +271,9 @@ export async function adminEnvironmentCheckHandler(_req: Request, res: Response)
       "email_log",
       "token_wallets",
       "token_orders",
-      "token_ledger"
+      "token_ledger",
+      "bank_transactions",
+      "stripe_processed_events"
     ];
 
     const tableChecks: Record<string, boolean> = {};
@@ -307,7 +308,6 @@ export async function adminEnvironmentCheckHandler(_req: Request, res: Response)
       supabaseHost,
       isOldProject,
       simulateEmails,
-      disablePayments,
       allTablesPass,
       tableChecks,
       counts: {

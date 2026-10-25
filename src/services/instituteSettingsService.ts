@@ -18,6 +18,16 @@ export interface InstituteSettings {
   engagement_welcome_series_enabled?: boolean;
   engagement_monthly_update_enabled?: boolean;
   engagement_we_miss_you_enabled?: boolean;
+  zelle_display_name?: string;
+  zelle_tag?: string;
+  zelle_email?: string;
+  zelle_phone?: string;
+  payment_instructions_note?: string;
+  pending_order_expiry_days?: number;
+  auto_confirm_strong_matches?: boolean;
+  saved_bank_csv_mapping?: Record<string, string>;
+  card_enabled?: boolean;
+  zelle_enabled?: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -52,6 +62,15 @@ export const DEFAULT_INSTITUTE_SETTINGS: InstituteSettings = {
   engagement_welcome_series_enabled: true,
   engagement_monthly_update_enabled: true,
   engagement_we_miss_you_enabled: true,
+  zelle_display_name: "Top Grade Learning LLC",
+  zelle_tag: "",
+  zelle_email: "billing@topgradelearning.com",
+  zelle_phone: "+1 (555) 019-2834",
+  payment_instructions_note: "Pay in your bank app using Zelle and write this code in the memo.",
+  pending_order_expiry_days: 7,
+  auto_confirm_strong_matches: false,
+  card_enabled: true,
+  zelle_enabled: true,
 };
 
 let cachedSettings: InstituteSettings = { ...DEFAULT_INSTITUTE_SETTINGS };

@@ -13,13 +13,13 @@
 export type EnrollmentPlan = "PACKAGE" | "HOURS";
 
 export interface CoursePricingInput {
-  id?: string;
-  name?: string;
-  package_price?: number | null;
-  package_hours?: number | null;
-  hourly_rate?: number | null;
-  duration_months?: number | null;
-  duration?: string | null;
+  id?: string | undefined;
+  name?: string | undefined;
+  package_price?: number | null | undefined;
+  package_hours?: number | null | undefined;
+  hourly_rate?: number | null | undefined;
+  duration_months?: number | null | undefined;
+  duration?: string | null | undefined;
 }
 
 export interface EnrollmentQuote {

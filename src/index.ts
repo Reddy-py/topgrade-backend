@@ -135,7 +135,8 @@ app.post("/api/leads/webhook", WEBHOOK_LIMIT);
 app.post("/api/leads/public", PUBLIC_FORM_LIMIT);
 app.post("/api/admissions/inquiry", PUBLIC_FORM_LIMIT);
 app.post("/api/admissions/register", PUBLIC_FORM_LIMIT);
-app.post("/api/payments/stripe/webhook", WEBHOOK_LIMIT);
+app.post("/api/payments/bank-webhook", WEBHOOK_LIMIT);
+app.post("/api/payments/stripe-webhook", WEBHOOK_LIMIT);
 app.use("/api/unsubscribe", PUBLIC_FORM_LIMIT, unsubscribeRouter);
 
 app.use("/api/students", routeGuard("students", [
@@ -165,15 +166,15 @@ app.use("/api/fees", routeGuard("fees", [
   { method: "POST", path: /^\/pay\/?$/, permission: "fees.pay" },
 ]));
 app.use("/api/payments", routeGuard("payments", [
-  { method: "POST", path: /^\/stripe\/webhook\/?$/, permission: "PUBLIC" },
-  { method: "GET", path: /^\/stripe\/status\/?$/, permission: "settings.view" },
-  { method: "POST", path: /^\/(stripe\/create-checkout-session|zelle-request)\/?$/, permission: "fees.pay" },
-  { method: "GET", path: /^\/stripe\/verify-session\/?$/, permission: "fees.pay" },
+  { method: "POST", path: /^\/(bank-webhook|stripe-webhook)\/?$/, permission: "PUBLIC" },
+  { method: "GET", path: /^\/(methods|system-status)\/?$/, permission: "PUBLIC" },
+  { method: "POST", path: /^\/(zelle-order|checkout-session|verify-session)\/?$/, permission: "fees.pay" },
   { method: "GET", path: /^\/teacher-roster\/?$/, permission: "attendance.create" },
   { method: "GET", path: /^\/receipt\//, permission: "receipts.view" },
   { method: "GET", path: /^\/(balance|ledger)\//, permission: "fees.view" },
-  { method: "GET", path: /^\/orders\/?$/, permission: "fees.view" },
-  // manual-credit, adjust, orders/:id/confirm and /reject use the default: payments.create (admin only)
+  { method: "GET", path: /^\/orders(\/[^/]+)?\/?$/, permission: "fees.view" },
+  { method: "POST", path: /^\/orders\/[^/]+\/(cancel|resend-instructions)\/?$/, permission: "fees.view" },
+  // Admin-only endpoints: /reconciliation/*, /orders/:id/confirm, /orders/:id/reject, /stripe-refund, /resolve-dispute, /daily-summary, /manual-credit, /adjust use default: payments.create (admin only)
 ]));
 app.use("/api/session-qr", routeGuard("attendance", [
   { method: "POST", path: /^\/student-scan\/?$/, permission: "attendance.view" },
@@ -209,7 +210,7 @@ app.use("/api/locations", routeGuard("classes", [
 app.use("/api/locations", locationsRouter);
 
 // A parent may pay only for their own child; a student only scans for themselves.
-app.post(["/api/payments/stripe/create-checkout-session", "/api/payments/zelle-request"], requireOwnStudent("student_id"));
+app.post("/api/payments/zelle-order", requireOwnStudent("student_id"));
 app.get("/api/payments/ledger/:studentId", requireOwnStudent("param:studentId"));
 app.post("/api/fees/pay", requireOwnStudent("studentId"));
 app.post("/api/session-qr/student-scan", requireOwnStudent("studentId"));

@@ -289,6 +289,105 @@ export const DEFAULT_EMAIL_TEMPLATES: EmailTemplateRow[] = [
     updated_by: "system",
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
+  },
+  {
+    key: "CARD_ORDER_CREATED",
+    name: "18a. Card Order Initiated (Stripe Checkout)",
+    audience: "PARENTS",
+    subject: "Order {{order_number}} Created: Complete Your Payment for {{student_name}}",
+    body: "Dear {{parent_name}},<br><br>Your payment order <strong>{{order_number}}</strong> (Reference: <code>{{reference_code}}</code>) for <strong>{{student_name}}</strong> has been initiated.<br><br><strong>Order Summary:</strong><br>&bull; Course: {{course_name}}<br>&bull; Hours: {{quantity}} hours<br>&bull; Total: <strong>${{amount_total}} USD</strong><br><br>If you did not complete checkout, you can complete it securely using the link below:<br><p><a href=\"{{checkout_url}}\" style=\"display:inline-block;padding:12px 24px;background:#004ac6;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:bold;\">Complete Card Payment &rarr;</a></p><br>Warm regards,<br>{{institute_name}} Billing",
+    enabled: true,
+    updated_by: "system",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  },
+  {
+    key: "CARD_PAYMENT_CONFIRMED",
+    name: "18b. Card Payment Confirmed (Receipt)",
+    audience: "PARENTS",
+    subject: "Payment Receipt: {{order_number}} (Ref: {{reference_code}}) — {{institute_name}}",
+    body: "Dear {{parent_name}},<br><br>Thank you for your payment! We have successfully received your card payment for <strong>{{student_name}}</strong>.<br><br><div style=\"background:#f8fafc;border:1px solid #e2e8f0;padding:20px;border-radius:8px;max-width:550px;\"><h3 style=\"margin-top:0;color:#0f172a;\">Official Payment Receipt</h3><table style=\"width:100%;font-size:14px;border-collapse:collapse;\"><tr><td style=\"padding:4px 0;color:#64748b;\">Order Number:</td><td style=\"padding:4px 0;font-weight:bold;text-align:right;\">{{order_number}}</td></tr><tr><td style=\"padding:4px 0;color:#64748b;\">Reference Code:</td><td style=\"padding:4px 0;font-weight:bold;text-align:right;\"><code>{{reference_code}}</code></td></tr><tr><td style=\"padding:4px 0;color:#64748b;\">Student:</td><td style=\"padding:4px 0;text-align:right;\">{{student_name}}</td></tr><tr><td style=\"padding:4px 0;color:#64748b;\">Course:</td><td style=\"padding:4px 0;text-align:right;\">{{course_name}}</td></tr><tr><td style=\"padding:4px 0;color:#64748b;\">Payment Method:</td><td style=\"padding:4px 0;text-align:right;\">Card {{card_details}}</td></tr><tr><td style=\"padding:4px 0;color:#64748b;\">Amount Paid:</td><td style=\"padding:4px 0;font-weight:bold;color:#16a34a;text-align:right;\">${{amount_paid}} USD</td></tr><tr><td style=\"padding:4px 0;color:#64748b;\">Hours Credited:</td><td style=\"padding:4px 0;font-weight:bold;text-align:right;\">+{{hours_credited}} hrs</td></tr><tr><td style=\"padding:4px 0;color:#64748b;\">New Hours Balance:</td><td style=\"padding:4px 0;font-weight:bold;color:#004ac6;text-align:right;\">{{balance_after}} hrs</td></tr></table><hr style=\"border:none;border-top:1px solid #e2e8f0;margin:16px 0;\"><div style=\"font-size:12px;color:#64748b;\"><strong>{{institute_name}}</strong><br>{{institute_address}}</div></div><br>Best regards,<br>{{institute_name}} Administration",
+    enabled: true,
+    updated_by: "system",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  },
+  {
+    key: "CARD_PAYMENT_FAILED",
+    name: "18c. Card Payment Failed / Cancelled",
+    audience: "PARENTS",
+    subject: "Notice: Payment {{order_number}} Incomplete",
+    body: "Dear {{parent_name}},<br><br>Your payment attempt for order <strong>{{order_number}}</strong> (Reference: <code>{{reference_code}}</code>) could not be completed.<br><br>No class hours were credited and your card was not charged. If you need assistance or wish to retry, please visit the Parent Portal or contact our office.<br><br>Warm regards,<br>{{institute_name}} Team",
+    enabled: true,
+    updated_by: "system",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  },
+  {
+    key: "CARD_REFUND_PROCESSED",
+    name: "18d. Payment Refund Processed",
+    audience: "PARENTS",
+    subject: "Refund Processed: ${{refund_amount}} USD for Order {{order_number}}",
+    body: "Dear {{parent_name}},<br><br>A refund of <strong>${{refund_amount}} USD</strong> has been processed for order <strong>{{order_number}}</strong> (Reference: <code>{{reference_code}}</code>).<br><br><strong>Refund Details:</strong><br>&bull; Reason: {{refund_reason}}<br>&bull; Hours Adjusted: -{{hours_deducted}} hrs<br>&bull; Remaining Student Balance: {{balance_after}} hrs<br><br>The funds will appear on your original payment card within 5 to 10 business days depending on your card issuer.<br><br>Warm regards,<br>{{institute_name}} Administration",
+    enabled: true,
+    updated_by: "system",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  },
+  {
+    key: "CARD_DISPUTE_OPENED",
+    name: "18e. Admin Alert: Payment Dispute / Chargeback Received",
+    audience: "ADMIN",
+    subject: "URGENT: Stripe Dispute Opened for Order {{order_number}} (${{dispute_amount}} USD)",
+    body: "Hello Admin,<br><br>A payment dispute (chargeback) has been filed by a cardholder:<br><br>&bull; Order: <strong>{{order_number}}</strong> (Ref: <code>{{reference_code}}</code>)<br>&bull; Student: {{student_name}} ({{student_code}})<br>&bull; Parent: {{parent_name}} ({{parent_email}})<br>&bull; Disputed Amount: <strong>${{dispute_amount}} USD</strong><br>&bull; Reason: {{dispute_reason}}<br><br><strong>Security Guard Enacted:</strong><br>The student's hours have been frozen and new purchase privileges for this family account have been temporarily suspended pending dispute resolution.<br><br>Please review this dispute in your Stripe Dashboard immediately to submit evidence before the bank deadline.<br><br>{{institute_name}} Automated System",
+    enabled: true,
+    updated_by: "system",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  },
+  {
+    key: "ZELLE_ORDER_CREATED",
+    name: "19a. Zelle Order Created with Instructions",
+    audience: "PARENTS",
+    subject: "Zelle Payment Instructions: Order {{order_number}} (Ref: {{reference_code}})",
+    body: "Dear {{parent_name}},<br><br>Your order <strong>{{order_number}}</strong> for <strong>{{student_name}}</strong> has been created.<br><br><strong>Payment Instructions:</strong><br>&bull; Amount: <strong>${{amount_total}} USD</strong><br>&bull; Recipient: <strong>{{zelle_recipient}}</strong><br>&bull; Reference Memo (MANDATORY): <code>{{reference_code}}</code><br><br>Open your bank app, select Zelle, send the exact amount, and write <code>{{reference_code}}</code> in the memo line.<br><br>Your hours will be credited as soon as our administrator matches your bank deposit.<br><br>Warm regards,<br>{{institute_name}}",
+    enabled: true,
+    updated_by: "system",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  },
+  {
+    key: "ZELLE_ORDER_REMINDER",
+    name: "19b. Zelle Order Reminder (Day 3)",
+    audience: "PARENTS",
+    subject: "Reminder: Pending Zelle Payment for {{student_name}} (Ref: {{reference_code}})",
+    body: "Dear {{parent_name}},<br><br>This is a friendly reminder that order <strong>{{order_number}}</strong> for ${{amount_total}} USD is pending payment.<br><br>To finalize your enrollment, please send Zelle payment with memo <code>{{reference_code}}</code> to {{zelle_recipient}}.<br><br>Thank you,<br>{{institute_name}}",
+    enabled: true,
+    updated_by: "system",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  },
+  {
+    key: "ZELLE_PAYMENT_CONFIRMED",
+    name: "19c. Zelle Payment Confirmed (Receipt)",
+    audience: "PARENTS",
+    subject: "Payment Confirmed: {{order_number}} (Ref: {{reference_code}}) — {{institute_name}}",
+    body: "Dear {{parent_name}},<br><br>We have verified your Zelle bank deposit for order <strong>{{order_number}}</strong>.<br><br>&bull; Amount Received: ${{amount_received}} USD<br>&bull; Hours Credited: +{{hours_credited}} hrs<br>&bull; New Balance: {{balance_after}} hrs<br><br>Official Receipt: {{institute_name}}, {{institute_address}}<br><br>Warm regards,<br>{{institute_name}}",
+    enabled: true,
+    updated_by: "system",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  },
+  {
+    key: "ZELLE_ORDER_EXPIRED",
+    name: "19d. Zelle Order Expired",
+    audience: "PARENTS",
+    subject: "Order {{order_number}} Expired",
+    body: "Dear {{parent_name}},<br><br>Order {{order_number}} (Ref: <code>{{reference_code}}</code>) has expired after 7 days without a matching bank deposit.<br><br>If you still wish to enroll, please place a new order on the Parent Portal.<br><br>Warm regards,<br>{{institute_name}}",
+    enabled: true,
+    updated_by: "system",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
   }
 ];
 
