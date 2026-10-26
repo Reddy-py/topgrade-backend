@@ -44,15 +44,33 @@ export async function findCourse(idOrName: string): Promise<CourseInfo | null> {
   } catch {}
   const hit = rows.find(c => String(c.id) === key) || rows.find(c => String(c.name || "").trim().toLowerCase() === key.toLowerCase());
   if (!hit) return null;
-  const hRate = hit.hourly_rate !== null && hit.hourly_rate !== undefined ? Number(hit.hourly_rate) : 0;
+  let materialObj: any = {};
+  if (hit.course_material) {
+    try {
+      materialObj = typeof hit.course_material === "string" ? JSON.parse(hit.course_material) : hit.course_material;
+    } catch {}
+  }
+  const hRate = hit.hourly_rate !== null && hit.hourly_rate !== undefined 
+    ? Number(hit.hourly_rate) 
+    : (materialObj.hourly_rate !== null && materialObj.hourly_rate !== undefined ? Number(materialObj.hourly_rate) : 50);
+  const pkgPrice = hit.package_price !== null && hit.package_price !== undefined 
+    ? Number(hit.package_price) 
+    : (materialObj.package_price !== null && materialObj.package_price !== undefined ? Number(materialObj.package_price) : 900);
+  const pkgHours = hit.package_hours !== null && hit.package_hours !== undefined 
+    ? Number(hit.package_hours) 
+    : (materialObj.package_hours !== null && materialObj.package_hours !== undefined ? Number(materialObj.package_hours) : 20);
+  const durMonths = hit.duration_months !== null && hit.duration_months !== undefined 
+    ? Number(hit.duration_months) 
+    : (materialObj.duration_months !== null && materialObj.duration_months !== undefined ? Number(materialObj.duration_months) : 3);
+
   return {
     id: String(hit.id),
     name: String(hit.name || ""),
     price: hRate,
     hourly_rate: hRate,
-    package_price: hit.package_price !== null && hit.package_price !== undefined ? Number(hit.package_price) : undefined,
-    package_hours: hit.package_hours !== null && hit.package_hours !== undefined ? Number(hit.package_hours) : undefined,
-    duration_months: hit.duration_months !== null && hit.duration_months !== undefined ? Number(hit.duration_months) : undefined,
+    package_price: pkgPrice,
+    package_hours: pkgHours,
+    duration_months: durMonths,
   };
 }
 
@@ -258,7 +276,7 @@ export async function createOrder(p: {
 
   for (let attempt = 0; attempt < 5; attempt++) {
     const referenceCode = generateReferenceCode();
-    const { data, error } = await supabaseAdmin.from("token_orders").insert({
+    const insertRow: any = {
       order_number: newOrderNumber(),
       reference_code: referenceCode,
       student_id: student.id,
@@ -276,7 +294,27 @@ export async function createOrder(p: {
       expires_at: expiresAt,
       plan,
       created_by: p.by ?? null,
-    }).select("*").single();
+    };
+
+    let { data, error } = await supabaseAdmin.from("token_orders").insert(insertRow).select("*").single();
+    while (error && error.message.includes("column of 'token_orders' in the schema cache")) {
+      const match = error.message.match(/Could not find the '([^']+)' column/);
+      if (match && match[1] && match[1] in insertRow) {
+        delete insertRow[match[1]];
+        const fallbackRes = await supabaseAdmin.from("token_orders").insert(insertRow).select("*").single();
+        data = fallbackRes.data;
+        error = fallbackRes.error;
+      } else {
+        break;
+      }
+    }
+
+    if (error && error.message.includes("token_orders_status_check") && insertRow.status === "PENDING_PAYMENT") {
+      insertRow.status = "PENDING";
+      const fallbackRes = await supabaseAdmin.from("token_orders").insert(insertRow).select("*").single();
+      data = fallbackRes.data;
+      error = fallbackRes.error;
+    }
 
     if (!error && data) return { order: data as OrderRow, student, course };
     if (error?.code !== "23505") throw new Error(`Could not create order: ${error?.message}`);

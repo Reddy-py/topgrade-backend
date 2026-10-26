@@ -102,19 +102,27 @@ router.post("/checkout-session", orderCreationRateLimit, async (req, res): Promi
     const user = userOf(req);
     const { student_id, course_id, plan, quantity } = req.body || {};
 
-    if (!student_id || !course_id) {
+    let targetStudentId = student_id;
+    if (!targetStudentId && user.role === "STUDENT") {
+      const scope = await getAccessScope(user);
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const myId = Array.from(scope.studentKeys).find(k => uuidRegex.test(k));
+      if (myId) targetStudentId = myId;
+    }
+
+    if (!targetStudentId || !course_id) {
       return res.status(400).json({ success: false, message: "student_id and course_id are required." });
     }
 
     if (user.role !== "ADMIN") {
       const scope = await getAccessScope(user);
-      if (!allowsStudent(scope, String(student_id))) {
-        return res.status(403).json({ success: false, message: "Forbidden: You may only purchase hours for your own child." });
+      if (!allowsStudent(scope, String(targetStudentId))) {
+        return res.status(403).json({ success: false, message: "Forbidden: You may only purchase hours for yourself or your child." });
       }
     }
 
     const session = await StripeService.createCheckout({
-      studentIdOrCode: String(student_id),
+      studentIdOrCode: String(targetStudentId),
       courseIdOrName: String(course_id),
       quantity: quantity !== undefined ? Number(quantity) : undefined,
       plan: plan === "PACKAGE" ? "PACKAGE" : "HOURS",
@@ -188,20 +196,28 @@ router.post("/zelle-order", orderCreationRateLimit, async (req, res): Promise<an
     const user = userOf(req);
     const { student_id, course_id, plan, quantity } = req.body || {};
 
-    if (!student_id || !course_id) {
+    let targetStudentId = student_id;
+    if (!targetStudentId && user.role === "STUDENT") {
+      const scope = await getAccessScope(user);
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const myId = Array.from(scope.studentKeys).find(k => uuidRegex.test(k));
+      if (myId) targetStudentId = myId;
+    }
+
+    if (!targetStudentId || !course_id) {
       return res.status(400).json({ success: false, message: "student_id and course_id are required." });
     }
 
-    // Verify parent has access to this student
+    // Verify parent or student has access to this student
     if (user.role !== "ADMIN") {
       const scope = await getAccessScope(user);
-      if (!allowsStudent(scope, String(student_id))) {
-        return res.status(403).json({ success: false, message: "Forbidden: You may only purchase hours for your own child." });
+      if (!allowsStudent(scope, String(targetStudentId))) {
+        return res.status(403).json({ success: false, message: "Forbidden: You may only purchase hours for yourself or your child." });
       }
     }
 
     const { order, student, course } = await createOrder({
-      studentIdOrCode: String(student_id),
+      studentIdOrCode: String(targetStudentId),
       courseIdOrName: String(course_id),
       plan: plan === "PACKAGE" ? "PACKAGE" : "HOURS",
       quantity: quantity !== undefined ? Number(quantity) : undefined,

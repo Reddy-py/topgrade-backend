@@ -2,12 +2,14 @@ import express from "express";
 import { supabaseAdmin } from "../supabase.js";
 import { removeAttendanceSessionsForCourse } from "../services/sessionAttendanceService.js";
 import { ScheduleDataService, computeEndTime } from "../services/scheduleDataService.js";
-import type { AuthenticatedRequest } from "../middleware/auth.js";
+import { authenticateJwt, type AuthenticatedRequest } from "../middleware/auth.js";
 import { getAccessScope, allowsCourse } from "../services/accessScope.js";
 import { getInstituteSettings, updateInstituteSettings } from "../services/instituteSettingsService.js";
 import { inMemoryStudentStore } from "../services/studentService.js";
 
 const router = express.Router();
+
+export let inMemoryFeeStructureAudit: any[] = [];
 
 export interface CourseScheduleSlot {
   id: string;
@@ -231,6 +233,246 @@ router.post("/categories", async (req: express.Request, res: express.Response): 
     return res.status(500).json({ success: false, message: err?.message || "Failed to update categories." });
   }
 });
+
+// ───────────────────────── Fee Structure Management (Admin Only) ─────────────────────────
+
+// GET /api/courses/fee-structure
+export const getFeeStructureHandler = async (req: express.Request, res: express.Response): Promise<any> => {
+  const user = (req as AuthenticatedRequest).user;
+  if (!user || user.role !== "ADMIN") {
+    return res.status(403).json({ success: false, message: "Forbidden: Admin access required." });
+  }
+
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("courses")
+      .select("*")
+      .order("name", { ascending: true });
+
+    if (error) {
+      console.warn("Notice querying fee structure:", error.message);
+    }
+
+    const courses = (data || []).map((c: any) => {
+      let materialObj: any = {};
+      if (c.course_material) {
+        try {
+          materialObj = typeof c.course_material === "string" ? JSON.parse(c.course_material) : c.course_material;
+        } catch {}
+      }
+
+      return {
+        id: c.id,
+        course_code: c.course_code || "",
+        name: c.name || "",
+        category: c.category || materialObj.category || "General",
+        hourly_rate: Number(c.hourly_rate ?? materialObj.hourly_rate ?? 50),
+        package_hours: Number(c.package_hours ?? materialObj.package_hours ?? 20),
+        package_price: Number(c.package_price ?? materialObj.package_price ?? 900),
+        duration_months: Number(c.duration_months ?? materialObj.duration_months ?? 3),
+        duration: c.duration || materialObj.duration || "3 Months",
+        status: c.status || "Active",
+        updated_at: c.updated_at || new Date().toISOString()
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: courses
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err?.message || "Failed to load fee structure." });
+  }
+};
+
+// GET /api/courses/fee-structure/audit
+export const getFeeStructureAuditHandler = async (req: express.Request, res: express.Response): Promise<any> => {
+  const user = (req as AuthenticatedRequest).user;
+  if (!user || user.role !== "ADMIN") {
+    return res.status(403).json({ success: false, message: "Forbidden: Admin access required." });
+  }
+
+  try {
+    let dbAudits: any[] = [];
+    try {
+      const { data, error } = await supabaseAdmin
+        .from("fee_structure_audit")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      if (!error && data) {
+        dbAudits = data;
+      }
+    } catch (auditErr) {
+      console.warn("Notice querying fee_structure_audit:", auditErr);
+    }
+
+    const allAudits = [...dbAudits];
+    for (const mem of inMemoryFeeStructureAudit) {
+      if (!allAudits.some(a => a.id === mem.id)) {
+        allAudits.push(mem);
+      }
+    }
+
+    allAudits.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    return res.status(200).json({
+      success: true,
+      data: allAudits
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err?.message || "Failed to load audit logs." });
+  }
+};
+
+// PUT /api/courses/:id/fee-structure
+export const updateCourseFeeStructureHandler = async (req: express.Request, res: express.Response): Promise<any> => {
+  const user = (req as AuthenticatedRequest).user;
+  if (!user || user.role !== "ADMIN") {
+    return res.status(403).json({ success: false, message: "Forbidden: Admin access required." });
+  }
+
+  const courseId = req.params.id;
+  if (!courseId) {
+    return res.status(400).json({ success: false, message: "Course ID is required." });
+  }
+
+  const { hourly_rate, package_hours, package_price, duration_months, duration } = req.body || {};
+
+  const hourlyRateNum = Number(hourly_rate);
+  const packageHoursNum = Number(package_hours);
+  const packagePriceNum = Number(package_price);
+  const durationMonthsNum = Number(duration_months);
+
+  if (isNaN(hourlyRateNum) || hourlyRateNum <= 0) {
+    return res.status(400).json({ success: false, message: "Hourly price ($/hr) must be a positive number." });
+  }
+  if (isNaN(packageHoursNum) || packageHoursNum <= 0 || !Number.isInteger(packageHoursNum)) {
+    return res.status(400).json({ success: false, message: "Package hours must be a positive whole number." });
+  }
+  if (isNaN(packagePriceNum) || packagePriceNum <= 0) {
+    return res.status(400).json({ success: false, message: "Package price ($) must be a positive number." });
+  }
+  if (isNaN(durationMonthsNum) || durationMonthsNum <= 0 || !Number.isInteger(durationMonthsNum)) {
+    return res.status(400).json({ success: false, message: "Duration (Months) must be a positive whole number." });
+  }
+
+  const { data: existingCourse, error: fetchErr } = await supabaseAdmin
+    .from("courses")
+    .select("*")
+    .or(`id.eq.${courseId},course_code.eq.${courseId}`)
+    .maybeSingle();
+
+  if (fetchErr || !existingCourse) {
+    return res.status(404).json({ success: false, message: `Course '${courseId}' not found.` });
+  }
+
+  let materialObj: any = {};
+  if (existingCourse.course_material) {
+    try {
+      materialObj = typeof existingCourse.course_material === "string" 
+        ? JSON.parse(existingCourse.course_material) 
+        : existingCourse.course_material;
+    } catch {}
+  }
+
+  const oldValues = {
+    hourly_rate: Number(existingCourse.hourly_rate ?? materialObj.hourly_rate ?? 50),
+    package_hours: Number(existingCourse.package_hours ?? materialObj.package_hours ?? 20),
+    package_price: Number(existingCourse.package_price ?? materialObj.package_price ?? 900),
+    duration_months: Number(existingCourse.duration_months ?? materialObj.duration_months ?? 3),
+    duration: existingCourse.duration || materialObj.duration || "3 Months"
+  };
+
+  const newDuration = duration ? String(duration).trim() : `${durationMonthsNum} Month${durationMonthsNum === 1 ? "" : "s"}`;
+  const newValues = {
+    hourly_rate: Math.round(hourlyRateNum * 100) / 100,
+    package_hours: Math.floor(packageHoursNum),
+    package_price: Math.round(packagePriceNum * 100) / 100,
+    duration_months: Math.floor(durationMonthsNum),
+    duration: newDuration
+  };
+
+  materialObj.hourly_rate = newValues.hourly_rate;
+  materialObj.package_hours = newValues.package_hours;
+  materialObj.package_price = newValues.package_price;
+  materialObj.duration_months = newValues.duration_months;
+  materialObj.duration = newValues.duration;
+
+  const updatePayload: any = {
+    hourly_rate: newValues.hourly_rate,
+    package_hours: newValues.package_hours,
+    package_price: newValues.package_price,
+    duration_months: newValues.duration_months,
+    duration: newValues.duration,
+    course_material: JSON.stringify(materialObj),
+    updated_at: new Date().toISOString()
+  };
+
+  let { error: updateErr } = await supabaseAdmin
+    .from("courses")
+    .update(updatePayload)
+    .eq("id", existingCourse.id);
+
+  while (updateErr && updateErr.message.includes("column of 'courses' in the schema cache")) {
+    const match = updateErr.message.match(/Could not find the '([^']+)' column/);
+    if (match && match[1] && match[1] in updatePayload) {
+      delete updatePayload[match[1]];
+      const retry = await supabaseAdmin.from("courses").update(updatePayload).eq("id", existingCourse.id);
+      updateErr = retry.error;
+    } else {
+      break;
+    }
+  }
+
+  if (updateErr) {
+    console.warn("Notice updating course fee structure in DB:", updateErr.message);
+  }
+
+  const auditEntry = {
+    id: crypto.randomUUID(),
+    course_id: existingCourse.id,
+    course_name: existingCourse.name,
+    changed_by: user.id || null,
+    changed_by_name: (user as any).name || user.email || "Admin",
+    old_values: oldValues,
+    new_values: newValues,
+    created_at: new Date().toISOString()
+  };
+
+  try {
+    const { error: auditInsertErr } = await supabaseAdmin
+      .from("fee_structure_audit")
+      .insert([auditEntry]);
+
+    if (auditInsertErr) {
+      console.warn("Notice inserting into fee_structure_audit, saving to inMemoryFeeStructureAudit:", auditInsertErr.message);
+      inMemoryFeeStructureAudit.unshift(auditEntry);
+    }
+  } catch (err) {
+    inMemoryFeeStructureAudit.unshift(auditEntry);
+  }
+
+  return res.status(200).json({
+    success: true,
+    message: `Fee structure for '${existingCourse.name}' updated successfully.`,
+    data: {
+      id: existingCourse.id,
+      name: existingCourse.name,
+      course_code: existingCourse.course_code,
+      ...newValues,
+      updated_at: updatePayload.updated_at
+    },
+    audit: auditEntry
+  });
+};
+
+router.get("/fee-structure/audit", authenticateJwt, getFeeStructureAuditHandler);
+router.get("/fee-structure", authenticateJwt, getFeeStructureHandler);
+router.put("/fee-structure/:id", authenticateJwt, updateCourseFeeStructureHandler);
+router.put("/:id/fee-structure", authenticateJwt, updateCourseFeeStructureHandler);
+router.patch("/:id/fee-structure", authenticateJwt, updateCourseFeeStructureHandler);
 
 // GET: Course detail by ID or course code
 export const getCourseDetailHandler = async (req: express.Request, res: express.Response): Promise<any> => {
