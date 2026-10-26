@@ -1,7 +1,7 @@
 import express from "express";
 import { supabaseAdmin } from "../supabase.js";
 import { removeAttendanceSessionsForCourse } from "../services/sessionAttendanceService.js";
-import { ScheduleDataService } from "../services/scheduleDataService.js";
+import { ScheduleDataService, computeEndTime } from "../services/scheduleDataService.js";
 import type { AuthenticatedRequest } from "../middleware/auth.js";
 import { getAccessScope, allowsCourse } from "../services/accessScope.js";
 import { getInstituteSettings, updateInstituteSettings } from "../services/instituteSettingsService.js";
@@ -11,7 +11,7 @@ const router = express.Router();
 
 export interface CourseScheduleSlot {
   id: string;
-  day: "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday" | "Saturday";
+  day: "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday" | "Saturday" | "Sunday";
   slot: string; // e.g. "09:00 AM - 10:30 AM"
   room: string; // e.g. "Computer Lab 1", "Room 204", "Virtual Classroom A"
   programTrack: string; // e.g. "Core Syntax & Logic", "Hands-on Project Lab"
@@ -30,6 +30,7 @@ export interface CourseData {
   grade_eligibility: string[];
   duration: string;
   duration_months?: number | null;
+  class_length?: number;
   package_hours?: number | null;
   package_price?: number | null;
   fee: number;
@@ -92,6 +93,7 @@ function mapSupabaseCourseToCourseData(c: any): CourseData {
     grade_eligibility: Array.isArray(c.grade_eligibility) ? c.grade_eligibility : (c.age_group ? [c.age_group] : ["All Grades"]),
     duration: c.duration || (durationMonths ? `${durationMonths} Months` : ""),
     duration_months: durationMonths,
+    class_length: c.class_length ? Number(c.class_length) : (materialObj.class_length ? Number(materialObj.class_length) : 1),
     package_hours: packageHours,
     package_price: packagePrice,
     fee: Number(c.fee) || 0,
@@ -345,11 +347,35 @@ router.patch("/:id/status", async (req: express.Request, res: express.Response):
   }
 });
 
+// Async Mutex to ensure race-safe atomic collision validation and creation
+class AsyncMutex {
+  private queue = Promise.resolve();
+  async runExclusive<T>(fn: () => Promise<T>): Promise<T> {
+    let release: () => void;
+    const next = new Promise<void>(resolve => { release = resolve; });
+    const prev = this.queue;
+    this.queue = next;
+    await prev;
+    try {
+      return await fn();
+    } finally {
+      release!();
+    }
+  }
+}
+const courseCreationMutex = new AsyncMutex();
+
 // POST: Add new course (Admin only)
-export const createCourseHandler = async (req: express.Request, res: express.Response) => {
+export const createCourseHandler = async (req: express.Request, res: express.Response): Promise<any> => {
+  return courseCreationMutex.runExclusive(async () => {
   const c = req.body;
   if (!c.name || !c.category) {
     return res.status(400).json({ success: false, message: "Course Name and Category are required." });
+  }
+
+  const classLength = Number(c.class_length || c.classLength || 1);
+  if (classLength !== 1 && classLength !== 2) {
+    return res.status(400).json({ success: false, message: "Class length must be 1 hour or 2 hours." });
   }
 
   const prefix = c.category.includes("STEM") ? "TG-CRS-STEM" :
@@ -397,7 +423,93 @@ export const createCourseHandler = async (req: express.Request, res: express.Res
     hourlyRate = Math.round(v * 100) / 100;
   }
 
+  // 1. Gather planned schedule slots from weekdays
+  interface PlannedSlot {
+    day: string;
+    startTime: string;
+    endTime: string;
+    teacherId: string;
+    teacherName: string;
+    room: string;
+    location: string;
+    capacity: number;
+    programType: string;
+  }
+
+  const plannedSlots: PlannedSlot[] = [];
+  const weekdays: string[] = Array.isArray(c.weekdays) ? c.weekdays : [];
+
+  if (weekdays.length > 0) {
+    for (const day of weekdays) {
+      const dayConfig = c.weekday_times?.[day] || {};
+      const startTime = dayConfig.startTime || c.start_time || "09:00 AM";
+      const endTime = dayConfig.endTime || computeEndTime(startTime, classLength);
+      const teacherId = dayConfig.teacherId !== undefined ? dayConfig.teacherId : (c.teacher_id || "");
+      const teacherName = dayConfig.teacherName !== undefined ? dayConfig.teacherName : (c.teacher_name || "");
+      const room = dayConfig.room || c.room || "Room 101";
+      const location = dayConfig.location || c.location || "Main Academic Center";
+      const capacity = Number(c.max_students || c.maxStudents || 20);
+      const programType = (c.program_type || c.program || "TUTORING").toUpperCase();
+
+      plannedSlots.push({
+        day,
+        startTime,
+        endTime,
+        teacherId,
+        teacherName,
+        room,
+        location,
+        capacity,
+        programType
+      });
+    }
+  } else if (Array.isArray(c.schedule) && c.schedule.length > 0) {
+    for (const s of c.schedule) {
+      const day = s.day || s.day_of_week || "Monday";
+      const startTime = s.startTime || s.start_time || "09:00 AM";
+      const endTime = s.endTime || s.end_time || computeEndTime(startTime, classLength);
+      const teacherId = s.teacherId || s.teacher_id || "";
+      const teacherName = s.teacherName || s.teacher_name || "";
+      const room = s.room || c.room || "Room 101";
+      const location = s.location || c.location || "Main Academic Center";
+      const capacity = Number(c.max_students || c.maxStudents || 20);
+      const programType = (c.program_type || c.program || "TUTORING").toUpperCase();
+
+      plannedSlots.push({
+        day,
+        startTime,
+        endTime,
+        teacherId,
+        teacherName,
+        room,
+        location,
+        capacity,
+        programType
+      });
+    }
+  }
+
+  // 2. Pre-validate collisions across ALL planned slots (atomic check before creation)
+  for (const slot of plannedSlots) {
+    const conflict = await ScheduleDataService.checkCollisions({
+      day_of_week: slot.day,
+      start_time: slot.startTime,
+      end_time: slot.endTime,
+      teacher_id: slot.teacherId,
+      room: slot.room,
+      student_ids: []
+    });
+    if (conflict.hasConflict) {
+      return res.status(409).json({
+        success: false,
+        message: `Schedule Conflict on ${slot.day}: ${conflict.error}`,
+        error: `Schedule Conflict on ${slot.day}: ${conflict.error}`
+      });
+    }
+  }
+
   const materialObj = {
+    class_length: classLength,
     duration_months: durationMonths,
     package_hours: packageHours,
     package_price: packagePrice,
@@ -405,7 +517,15 @@ export const createCourseHandler = async (req: express.Request, res: express.Res
     max_hours: c.max_hours ? parseInt(c.max_hours) : 25,
     assigned_teachers: Array.isArray(c.assignedTeachers) ? c.assignedTeachers : (c.assigned_teachers || []),
     mapped_students: Array.isArray(c.mappedStudents) ? c.mappedStudents : (c.mapped_students || []),
-    schedule: Array.isArray(c.schedule) ? c.schedule : [],
+    schedule: plannedSlots.map((s, idx) => ({
+      id: `slot-${idx + 1}`,
+      day: s.day,
+      slot: `${s.startTime} - ${s.endTime}`,
+      room: s.room,
+      programTrack: s.programType,
+      teacherId: s.teacherId,
+      teacherName: s.teacherName
+    })),
     grade_eligibility: Array.isArray(c.gradeEligibility) ? c.gradeEligibility : (c.grade_eligibility ? [c.grade_eligibility] : [])
   };
 
@@ -413,6 +533,7 @@ export const createCourseHandler = async (req: express.Request, res: express.Res
     course_code: uniqueCode,
     name: c.name,
     description: c.description || "",
+    class_length: classLength,
     duration: c.duration || (durationMonths ? `${durationMonths} Months` : ""),
     duration_months: durationMonths,
     package_hours: packageHours,
@@ -431,11 +552,12 @@ export const createCourseHandler = async (req: express.Request, res: express.Res
     .select()
     .single();
 
-  if (error && (error.message.includes("duration_months") || error.message.includes("package_hours") || error.message.includes("package_price") || error.message.includes("hourly_rate"))) {
+  if (error && (error.message.includes("duration_months") || error.message.includes("package_hours") || error.message.includes("package_price") || error.message.includes("hourly_rate") || error.message.includes("class_length"))) {
     delete courseRow.duration_months;
     delete courseRow.package_hours;
     delete courseRow.package_price;
     delete courseRow.hourly_rate;
+    delete courseRow.class_length;
     const retry = await supabaseAdmin.from("courses").insert([courseRow]).select().single();
     data = retry.data;
     error = retry.error;
@@ -445,12 +567,56 @@ export const createCourseHandler = async (req: express.Request, res: express.Res
     return res.status(500).json({ success: false, message: error?.message || "Failed to create course in Supabase." });
   }
 
-  const savedData = mapSupabaseCourseToCourseData(data);
+  // 3. Create schedule slots in one atomic batch; if any fail, rollback course and slots
+  const createdSlots: any[] = [];
+  try {
+    for (const slot of plannedSlots) {
+      const slotRecord = await ScheduleDataService.createSchedule({
+        course_id: data.id,
+        course_name: data.name,
+        teacher_id: slot.teacherId,
+        teacher_name: slot.teacherName,
+        open_for_teachers: !slot.teacherId,
+        day_of_week: slot.day,
+        start_time: slot.startTime,
+        end_time: slot.endTime,
+        room: slot.room,
+        location: slot.location,
+        max_capacity: slot.capacity,
+        program_type: slot.programType
+      });
+      createdSlots.push(slotRecord);
+    }
+  } catch (schedErr: any) {
+    for (const s of createdSlots) {
+      await ScheduleDataService.deleteSchedule(s.id).catch(() => {});
+    }
+    await supabaseAdmin.from("courses").delete().eq("id", data.id);
+    const isConflict = schedErr.message?.includes("Collision") || schedErr.message?.includes("already scheduled") || schedErr.message?.includes("booked");
+    return res.status(isConflict ? 409 : 400).json({
+      success: false,
+      message: `Failed to create schedule slots: ${schedErr.message}`,
+      error: schedErr.message
+    });
+  }
 
-  res.status(201).json({
-    success: true,
-    message: `Course '${savedData.name}' created with code ${uniqueCode}.`,
-    data: savedData
+  const savedData = mapSupabaseCourseToCourseData(data);
+  savedData.schedule = createdSlots.map(s => ({
+    id: s.id,
+    day: s.day_of_week as any,
+    slot: s.time_slot,
+    room: s.room,
+    programTrack: s.program_type || "TUTORING",
+    teacherId: s.teacher_id,
+    teacherName: s.teacher_name
+  }));
+
+    return res.status(201).json({
+      success: true,
+      message: `Course '${savedData.name}' and ${createdSlots.length} schedule slot(s) created successfully.`,
+      data: savedData,
+      createdSlots
+    });
   });
 };
 
@@ -482,9 +648,33 @@ export const editCourseHandler = async (req: express.Request, res: express.Respo
     } catch {}
   }
 
+  // Class length lock: Class length cannot be changed once students are enrolled in this course
+  if (c.class_length !== undefined || c.classLength !== undefined) {
+    const newClassLen = Number(c.class_length || c.classLength);
+    const existingClassLen = existingCourse.class_length || materialObj.class_length || 1;
+    if (newClassLen !== existingClassLen) {
+      const allSchedules = await ScheduleDataService.listSchedules();
+      const courseSlots = allSchedules.filter(s => s.course_id === existingCourse.id || s.course_name?.toLowerCase() === existingCourse.name?.toLowerCase());
+      const hasEnrolledStudents = courseSlots.some(s => Array.isArray(s.students) && s.students.length > 0) ||
+        (Array.isArray(materialObj.mapped_students) && materialObj.mapped_students.length > 0);
+      
+      if (hasEnrolledStudents) {
+        return res.status(400).json({
+          success: false,
+          message: "Class length cannot be changed once students are enrolled in this course."
+        });
+      }
+      materialObj.class_length = newClassLen;
+    }
+  }
+
   const updateRow: any = {
     updated_at: new Date().toISOString()
   };
+
+  if (materialObj.class_length) {
+    updateRow.class_length = materialObj.class_length;
+  }
 
   if (c.duration_months !== undefined) {
     if (c.duration_months !== null && c.duration_months !== "") {

@@ -380,6 +380,8 @@ export class SessionAttendanceService {
       const prevMark = existingMarkMap.get(entry.studentId);
       const isCorrection = prevMark && prevMark.status && prevMark.status.toUpperCase() !== status;
 
+      const classHours = slot.duration_hours === 2 ? 2 : 1;
+
       let saved;
       try {
         const noteWithAudit = input.auditNote
@@ -394,6 +396,7 @@ export class SessionAttendanceService {
           scheduleId: slot.id,
           date: rollDate,
           remarks: noteWithAudit,
+          hours: classHours,
           scanMethod: "TEACHER_BATCH",
           markedByName: actor?.name || slot.teacher_name || "Faculty",
           ...(actor?.id ? { markedByUserId: actor.id } : {})
@@ -432,19 +435,23 @@ export class SessionAttendanceService {
           ? `[Corrected] Attendance Notice: ${slot.course_name}`
           : `Attendance Notice: ${slot.course_name} (${status === "PRESENT" ? "Present" : "Absent"})`;
 
+        const statusCopy = status === "PRESENT"
+          ? `Present (${classHours} ${classHours > 1 ? "hours" : "hour"} deducted)`
+          : `Absent (nothing deducted)`;
+
         const emailMessage = isCorrection
           ? `CORRECTION NOTICE: Attendance for ${studentName} in '${slot.course_name}' on ${rollDate} has been updated.\n\n` +
             `• Class: ${slot.course_name}\n` +
             `• Date & Time: ${rollDate} (${slot.time_slot})\n` +
-            `• Updated Status: ${status === "PRESENT" ? "Present" : "Absent"}\n` +
-            `• Hours Remaining: ${hoursLeft} hr(s) ${status === "ABSENT" ? "(no hour deducted)" : ""}\n` +
+            `• Updated Status: ${statusCopy}\n` +
+            `• Hours Remaining: ${hoursLeft} hr(s) ${status === "ABSENT" ? "(nothing deducted)" : ""}\n` +
             (input.auditNote ? `• Audit Note: ${input.auditNote}\n` : "") +
             `\nPlease contact the institute if you have any questions.`
           : `Dear ${studentName},\n\nYour attendance for '${slot.course_name}' on ${rollDate} has been recorded.\n\n` +
             `• Class: ${slot.course_name}\n` +
             `• Date & Time: ${rollDate} (${slot.time_slot})\n` +
-            `• Status: ${status === "PRESENT" ? "Present" : "Absent"}\n` +
-            `• Hours Remaining: ${hoursLeft} hr(s) ${status === "ABSENT" ? "(no hour deducted)" : ""}\n` +
+            `• Status: ${statusCopy}\n` +
+            `• Hours Remaining: ${hoursLeft} hr(s) ${status === "ABSENT" ? "(nothing deducted)" : ""}\n` +
             `\nPlease contact the institute if you have any questions.`;
 
         // Claim in email_log to guarantee one email per student per class per date per status

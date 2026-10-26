@@ -32,8 +32,16 @@ export interface StudentInfo { id: string; name: string; code: string; email: st
 export async function findCourse(idOrName: string): Promise<CourseInfo | null> {
   const key = String(idOrName ?? "").trim();
   if (!key) return null;
-  const { data } = await supabaseAdmin.from("courses").select("id, name, hourly_rate, package_price, package_hours, duration_months");
-  const rows = (data || []) as any[];
+  let rows: any[] = [];
+  try {
+    const res = await supabaseAdmin.from("courses").select("*");
+    if (!res.error && res.data) {
+      rows = res.data as any[];
+    } else {
+      const fallback = await supabaseAdmin.from("courses").select("id, name");
+      if (fallback.data) rows = fallback.data as any[];
+    }
+  } catch {}
   const hit = rows.find(c => String(c.id) === key) || rows.find(c => String(c.name || "").trim().toLowerCase() === key.toLowerCase());
   if (!hit) return null;
   const hRate = hit.hourly_rate !== null && hit.hourly_rate !== undefined ? Number(hit.hourly_rate) : 0;

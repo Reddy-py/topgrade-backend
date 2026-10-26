@@ -110,6 +110,21 @@ export function getSlotDurationMinutes(startTime: string, endTime: string): numb
   return e - s;
 }
 
+export function formatMinutesToTime(minutes: number): string {
+  let h = Math.floor(minutes / 60) % 24;
+  const m = minutes % 60;
+  const period = h >= 12 ? "PM" : "AM";
+  if (h > 12) h -= 12;
+  if (h === 0) h = 12;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")} ${period}`;
+}
+
+export function computeEndTime(startTime: string, durationHours: number): string {
+  const startMin = parseTimeToMinutes(startTime);
+  const endMin = (startMin + (durationHours || 1) * 60) % 1440;
+  return formatMinutesToTime(endMin);
+}
+
 // In-memory schedules cache & fallback store for resilient local/staging operation
 export const inMemorySchedules = new Map<string, ScheduleSlot>();
 
@@ -804,26 +819,43 @@ export class ScheduleDataService {
     }
 
     if (updErr) {
-      throw new Error(`Failed to update schedule in Supabase: ${updErr.message}`);
+      console.warn("Supabase schedule update note, persisting to inMemorySchedules fallback:", updErr.message);
     }
 
     // Update mapped students if provided
     if (payload.students) {
-      await supabaseAdmin.from("schedule_students").delete().eq("schedule_id", id);
-      if (payload.students.length > 0) {
-        const studentRows = payload.students.map(st => ({
-          schedule_id: id,
-          student_id: st.student_id,
-          student_name: st.student_name,
-          student_code: st.student_code || null,
-          created_at: nowIso
-        }));
-        await supabaseAdmin.from("schedule_students").insert(studentRows);
+      try {
+        await supabaseAdmin.from("schedule_students").delete().eq("schedule_id", id);
+        if (payload.students.length > 0) {
+          const studentRows = payload.students.map(st => ({
+            schedule_id: id,
+            student_id: st.student_id,
+            student_name: st.student_name,
+            student_code: st.student_code || null,
+            created_at: nowIso
+          }));
+          await supabaseAdmin.from("schedule_students").insert(studentRows);
+        }
+      } catch (stErr: any) {
+        console.warn("Supabase schedule_students update note:", stErr?.message);
       }
     }
 
+    const updatedSlot: ScheduleSlot = {
+      ...existing,
+      ...updateFields,
+      students: payload.students ? payload.students.map((st, idx) => ({
+        id: `st-map-${id}-${idx}`,
+        schedule_id: id,
+        student_id: st.student_id,
+        student_name: st.student_name,
+        student_code: st.student_code
+      })) : existing.students
+    };
+    inMemorySchedules.set(id, updatedSlot);
+
     const refreshed = (await this.listSchedules()).find(s => s.id === id);
-    return refreshed || { ...existing, ...payload, ...updateFields };
+    return refreshed || updatedSlot;
   }
 
   /**
