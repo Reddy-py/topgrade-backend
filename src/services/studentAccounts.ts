@@ -22,6 +22,27 @@ const frontendUrl = (): string => (parseEnv("FRONTEND_URL", "http://localhost:51
 
 export const randomPassword = (): string => crypto.randomBytes(24).toString("base64url");
 
+export function generateTemporaryPassword(length: number = 16): string {
+  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lower = "abcdefghjkmnpqrstuvwxyz";
+  const numbers = "23456789";
+  const symbols = "!@#$%*?";
+  const all = upper + lower + numbers + symbols;
+
+  let pwd = "";
+  pwd += upper[crypto.randomInt(0, upper.length)];
+  pwd += lower[crypto.randomInt(0, lower.length)];
+  pwd += numbers[crypto.randomInt(0, numbers.length)];
+  pwd += symbols[crypto.randomInt(0, symbols.length)];
+
+  for (let i = 4; i < length; i++) {
+    pwd += all[crypto.randomInt(0, all.length)];
+  }
+
+  // Shuffle array
+  return pwd.split("").sort(() => crypto.randomInt(-1, 2)).join("");
+}
+
 async function findAuthUserIdByEmail(email: string): Promise<string | null> {
   for (let page = 1; page <= 20; page++) {
     const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 1000 });
@@ -36,6 +57,9 @@ async function findAuthUserIdByEmail(email: string): Promise<string | null> {
 export interface EnsuredLogin {
   userId: string;
   created: boolean; // false = this email already had a login of the same role
+  temporaryPassword?: string | undefined;
+  existingName?: string | undefined;
+  existingRole?: string | undefined;
 }
 
 /** Makes sure one login exists for this email and role. Throws if the email belongs to a different role. */
@@ -52,20 +76,25 @@ export async function ensureLogin(params: {
 
   const { data: existing } = await supabaseAdmin
     .from("profiles")
-    .select("id, role, must_change_password")
+    .select("id, role, full_name, must_change_password")
     .eq("email", email)
     .maybeSingle();
 
   if (existing) {
     if (String(existing.role).toUpperCase() !== params.role) {
-      throw new Error(`${email} is already used by a ${String(existing.role).toLowerCase()} login. Use a different email.`);
+      throw new Error(`Email ${email} is already registered under role ${String(existing.role)}. A ${params.role.toLowerCase()} account cannot share an email with a ${String(existing.role).toLowerCase()}.`);
     }
-    return { userId: existing.id as string, created: false };
+    return {
+      userId: existing.id as string,
+      created: false,
+      existingName: existing.full_name || params.fullName,
+      existingRole: existing.role
+    };
   }
 
   let userId: string | null = null;
   let created = false;
-  const initialPw = params.initialPassword || randomPassword();
+  const initialPw = params.initialPassword || generateTemporaryPassword(16);
   const { data: createdUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
     email,
     password: initialPw,
@@ -82,8 +111,22 @@ export async function ensureLogin(params: {
     userId = createdUser.user.id;
     created = true;
   } else {
+    // If concurrent creation occurs or user already in auth
     userId = await findAuthUserIdByEmail(email);
     if (!userId) throw new Error(`Could not create a login for ${email}: ${createErr?.message || "unknown error"}`);
+
+    const { data: prof } = await supabaseAdmin.from("profiles").select("id, role, full_name").eq("email", email).maybeSingle();
+    if (prof) {
+      if (String(prof.role).toUpperCase() !== params.role) {
+        throw new Error(`Email ${email} is already registered under role ${String(prof.role)}. A ${params.role.toLowerCase()} account cannot share an email with a ${String(prof.role).toLowerCase()}.`);
+      }
+      return {
+        userId: prof.id,
+        created: false,
+        existingName: prof.full_name || params.fullName,
+        existingRole: prof.role
+      };
+    }
   }
 
   let { error: profErr } = await supabaseAdmin.from("profiles").upsert(
@@ -94,7 +137,7 @@ export async function ensureLogin(params: {
       role: params.role,
       status: "Active",
       phone: params.phone || null,
-      must_change_password: params.mustChangePassword ?? false,
+      must_change_password: true, // first login forces password change
       updated_at: new Date().toISOString()
     },
     { onConflict: "id" }
@@ -120,7 +163,11 @@ export async function ensureLogin(params: {
     if (created) await supabaseAdmin.auth.admin.deleteUser(userId).catch(() => undefined);
     throw new Error(`Could not save the profile for ${email}: ${profErr.message}`);
   }
-  return { userId, created };
+  return {
+    userId,
+    created,
+    temporaryPassword: created ? initialPw : undefined
+  };
 }
 
 export async function deleteLogin(userId: string): Promise<void> {

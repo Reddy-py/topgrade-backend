@@ -7,6 +7,8 @@ import { authorizePermission } from "../middleware/authorize.js";
 import { dispatchMultiChannelNotification } from "../services/notificationService.js";
 import { ScheduleDataService } from "../services/scheduleDataService.js";
 import { resolveTeacherIdentity } from "../services/teacherIdentity.js";
+import { ensureLogin, emailSetPasswordLink, generateTemporaryPassword, isValidEmail, normEmail } from "../services/studentAccounts.js";
+import { isRealEmail } from "../constants/domains.js";
 
 const router = express.Router();
 
@@ -82,7 +84,15 @@ router.get("/", getTeachersHandler);
 export const createTeacherHandler = async (req: express.Request, res: express.Response) => {
   const t = req.body;
   const uniqueId = t.teacher_id_code || `TG-FAC-${Math.floor(100 + Math.random() * 900)}`;
-  const defaultPassword = t.password || "TopGrade@2026!";
+
+  if (!t.name || !t.name.trim()) {
+    return res.status(400).json({ success: false, message: "Teacher name is required." });
+  }
+
+  const cleanEmail = normEmail(t.email);
+  if (!cleanEmail || !isValidEmail(cleanEmail)) {
+    return res.status(400).json({ success: false, message: "Teacher official email is mandatory and must be a valid email format." });
+  }
 
   const cleanSlots = (t.availabilitySlots || ["Morning - 09:00 AM - 12:00 PM", "Afternoon - 01:00 PM - 04:00 PM"])
     .map((s: string) => s.replace(/\(|\)/g, "").replace(/\s*-\s*/, " - ").trim())
@@ -90,7 +100,7 @@ export const createTeacherHandler = async (req: express.Request, res: express.Re
 
   const newTeacher: any = {
     teacher_id_code: uniqueId,
-    name: t.name,
+    name: t.name.trim(),
     dob: t.dateOfBirth || null,
     age: parseInt(t.age) || 0,
     qualification: t.qualification || null,
@@ -98,7 +108,7 @@ export const createTeacherHandler = async (req: express.Request, res: express.Re
     resume_url: t.resumeUrl || null,
     photo_url: t.photoUrl || null,
     phone: t.phone || null,
-    email: t.email ? t.email.trim().toLowerCase() : null,
+    email: cleanEmail,
     specialization: t.specialization || null,
     experience: t.experience || null,
     joining_date: t.joiningDate || new Date().toISOString().split("T")[0],
@@ -110,39 +120,31 @@ export const createTeacherHandler = async (req: express.Request, res: express.Re
   };
 
   let savedTeacher: any = newTeacher;
+  let createdLogins: Array<{ role: string; email: string; name: string; temporaryPassword: string }> = [];
 
-  // Supabase Database & Auth sync
+  // Supabase Database & Auth sync using ensureLogin
   try {
-    let teacherAuthId: string | null = null;
-    if (newTeacher.email) {
-      const { data: tAuth, error: tAuthErr } = await supabaseAdmin.auth.admin.createUser({
-        email: newTeacher.email,
-        password: defaultPassword,
-        email_confirm: true,
-        user_metadata: {
-          full_name: newTeacher.name,
-          role: "TEACHER",
-          teacher_id_code: uniqueId
-        }
-      });
-      if (tAuth?.user) {
-        teacherAuthId = tAuth.user.id;
-      } else if (tAuthErr) {
-        console.warn("Notice teacher auth createUser:", tAuthErr.message);
-      }
+    const loginRes = await ensureLogin({
+      email: cleanEmail,
+      fullName: newTeacher.name,
+      role: "TEACHER",
+      phone: newTeacher.phone,
+      mustChangePassword: true,
+      metadata: { teacher_id_code: uniqueId }
+    });
 
-      // Upsert into Supabase profiles
-      await supabaseAdmin.from("profiles").upsert({
-        ...(teacherAuthId ? { id: teacherAuthId } : {}),
-        email: newTeacher.email,
-        full_name: newTeacher.name,
+    if (loginRes.userId) newTeacher.user_id = loginRes.userId;
+
+    if (loginRes.created && loginRes.temporaryPassword) {
+      createdLogins.push({
         role: "TEACHER",
-        status: "Active",
-        updated_at: new Date().toISOString()
-      }, { onConflict: "email" });
+        email: cleanEmail,
+        name: newTeacher.name,
+        temporaryPassword: loginRes.temporaryPassword
+      });
+      // Send set-password link without logging or printing password
+      await emailSetPasswordLink({ email: cleanEmail, name: newTeacher.name, role: "TEACHER" });
     }
-
-    if (teacherAuthId) newTeacher.user_id = teacherAuthId;
 
     const { data: inserted, error: tUpsertErr } = await supabaseAdmin
       .from("teachers")
@@ -156,18 +158,15 @@ export const createTeacherHandler = async (req: express.Request, res: express.Re
       savedTeacher = inserted;
     }
   } catch (error: any) {
-    console.warn("Supabase teacher creation notice:", error?.message);
+    return res.status(400).json({ success: false, message: error.message || "Failed to add teacher profile." });
   }
 
   // Automatic Email Dispatch to Teacher and Admin
   try {
     const recipients: Array<{ role: "TEACHER" | "ADMIN"; email: string; name: string }> = [
-      { role: "ADMIN", email: process.env.ADMIN_EMAIL || "tglbiz101@gmail.com", name: "TopGrade Admin" }
+      { role: "ADMIN", email: process.env.ADMIN_EMAIL || "tglbiz101@gmail.com", name: "TopGrade Admin" },
+      { role: "TEACHER", email: cleanEmail, name: newTeacher.name }
     ];
-
-    if (newTeacher.email && newTeacher.email.includes("@")) {
-      recipients.unshift({ role: "TEACHER", email: newTeacher.email, name: newTeacher.name });
-    }
 
     await dispatchMultiChannelNotification({
       recipients: recipients as any,
@@ -177,7 +176,7 @@ export const createTeacherHandler = async (req: express.Request, res: express.Re
                `• Teacher Name: ${newTeacher.name}\n` +
                `• Teacher ID: ${uniqueId}\n` +
                `• Specialization: ${newTeacher.specialization || "General"}\n` +
-               `• Official Email: ${newTeacher.email || "N/A"}\n` +
+               `• Official Email: ${newTeacher.email}\n` +
                `• Status: Active\n\n` +
                `Please sign in at the TopGrade CRM Faculty Portal to manage your course schedules and attendance rosters.\n\n` +
                `TopGrade Administration Center`,
@@ -189,11 +188,69 @@ export const createTeacherHandler = async (req: express.Request, res: express.Re
 
   res.status(201).json({
     success: true,
-    message: `Teacher '${newTeacher.name}' added successfully! Email notification dispatched to teacher and admin.`,
-    data: savedTeacher
+    message: `Teacher '${newTeacher.name}' added successfully!`,
+    data: savedTeacher,
+    createdLogins
   });
 };
 
+/**
+ * POST /api/teachers/:id/reset-password
+ * Admin generates new unique temporary password for a faculty teacher.
+ */
+export const adminResetTeacherPasswordHandler = async (req: AuthenticatedRequest, res: express.Response) => {
+  try {
+    const teacherId = String(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id || req.body?.id || req.body?.email);
+    if (!teacherId) {
+      return res.status(400).json({ success: false, message: "Teacher identifier or email is required." });
+    }
+
+    const { data: teacher } = await supabaseAdmin
+      .from("teachers")
+      .select("id, name, email, user_id, teacher_id_code")
+      .or(`id.eq.${teacherId},teacher_id_code.eq.${teacherId},email.eq.${teacherId}`)
+      .maybeSingle();
+
+    if (!teacher || !teacher.email) {
+      return res.status(404).json({ success: false, message: "Teacher account not found." });
+    }
+
+    const tempPw = generateTemporaryPassword(16);
+    let targetUserId = teacher.user_id;
+
+    if (!targetUserId) {
+      const { data: prof } = await supabaseAdmin.from("profiles").select("id").eq("email", normEmail(teacher.email)).maybeSingle();
+      targetUserId = prof?.id;
+    }
+
+    if (targetUserId) {
+      await supabaseAdmin.auth.admin.updateUserById(targetUserId, { password: tempPw });
+      await supabaseAdmin.from("profiles").update({
+        must_change_password: true,
+        updated_at: new Date().toISOString()
+      }).eq("id", targetUserId);
+    }
+
+    if (isRealEmail(teacher.email)) {
+      await emailSetPasswordLink({ email: teacher.email, name: teacher.name, role: "TEACHER" });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Password reset successfully for teacher ${teacher.name}.`,
+      data: {
+        role: "TEACHER",
+        email: teacher.email,
+        name: teacher.name,
+        temporaryPassword: tempPw
+      }
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message || "Failed to reset teacher password." });
+  }
+};
+
+router.post("/:id/reset-password", authenticateJwt, authorizePermission("teachers.edit"), adminResetTeacherPasswordHandler);
 router.post("/create", createTeacherHandler);
 router.post("/add", createTeacherHandler);
 router.post("/", createTeacherHandler);

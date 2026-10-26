@@ -98,7 +98,7 @@ describe("TASK 17 - PART B: Role Rules, Menus and Permission Matrix", () => {
   });
 
   test("Route access matrix per role: allowed routes return true, forbidden return false", () => {
-    const routePermissionMap: Record<string, PermissionString> = {
+    const routePermissionMap = {
       "/app/dashboard": "dashboard.view",
       "/app/students": "students.view",
       "/app/teachers": "teachers.view",
@@ -109,7 +109,7 @@ describe("TASK 17 - PART B: Role Rules, Menus and Permission Matrix", () => {
       "/app/reports": "reports.view",
       "/app/settings": "settings.view",
       "/app/history": "history.view"
-    };
+    } as const;
 
     // Teacher check: exactly Dashboard, Profile, Courses, Schedule, Attendance
     assert.equal(hasBackendPermission("TEACHER", routePermissionMap["/app/dashboard"]), true);

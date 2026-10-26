@@ -77,6 +77,10 @@ export interface StudentDossier {
   referredByCode?: string | undefined;
   createdAt?: string | undefined;
   updatedAt?: string | undefined;
+  createdLogins?: Array<{ role: string; email: string; name: string; temporaryPassword: string }> | undefined;
+  existingParents?: Array<{ email: string; name: string }> | undefined;
+  existingParentMessage?: string | undefined;
+  confirmSiblingDuplicate?: boolean | undefined;
 }
 
 /**
@@ -756,15 +760,10 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
   if (!payload.firstName || !payload.firstName.trim()) {
     throw new Error("First Name is a mandatory field.");
   }
-  if (!payload.lastName || !payload.lastName.trim()) {
-    throw new Error("Last Name is a mandatory field.");
-  }
-  if (!payload.dob || !payload.dob.trim()) {
-    throw new Error("Date of Birth is a mandatory field.");
-  }
-  if (!payload.school || !payload.school.trim()) {
-    throw new Error("School Name is a mandatory field.");
-  }
+  const firstName = payload.firstName.trim();
+  const lastName = (payload.lastName || "").trim();
+  const derivedFullName = lastName ? `${firstName} ${lastName}`.trim() : firstName;
+
   const fatherName = (payload.fatherName || "").trim();
   const motherName = (payload.motherName || "").trim();
   const guardianName = (payload.guardianName || "").trim();
@@ -772,19 +771,11 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
   const parentLastName = payload.parentLastName ? payload.parentLastName.trim() : "";
   const derivedParentName = (parentFirstName || parentLastName)
     ? `${parentFirstName} ${parentLastName}`.trim()
-    : (fatherName || motherName || guardianName);
+    : (fatherName || motherName || guardianName || "Parent");
 
-  if (!derivedParentName) {
-    throw new Error("At least one parent or guardian name is required.");
-  }
-
-  const schoolName = payload.school.trim();
-  const firstName = payload.firstName.trim();
-  const lastName = payload.lastName.trim();
-  const derivedFullName = `${firstName} ${lastName}`.trim();
-
-  const dobStr: string = payload.dob ? String(payload.dob) : new Date().toISOString().split("T")[0] || "";
-  const calculatedAge = calculateAgeFromDOB(dobStr);
+  const schoolName = (payload.school && payload.school.trim()) ? payload.school.trim() : "Top Grade Academy";
+  const dobStr: string = payload.dob ? String(payload.dob).trim() : "";
+  const calculatedAge = dobStr ? calculateAgeFromDOB(dobStr) : (payload.age || 0);
 
   const studentId = `std-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
   const randomSuffix = Math.floor(1000 + Math.random() * 9000);
@@ -826,9 +817,9 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
   }
 
   // Parent email is MANDATORY: the parent login is created from it (father and mother = two logins).
-  const uniqueParentEmails = Array.from(new Set(cleanParentEmails.map(normEmail)));
+  const uniqueParentEmails = Array.from(new Set(cleanParentEmails.map(normEmail).filter(Boolean)));
   if (uniqueParentEmails.length === 0) {
-    throw new Error("Parent email is mandatory. Enter at least one parent email (father and/or mother): the parent login is created from it.");
+    throw new Error("Parent email is mandatory. Enter at least one parent email: the parent login is created from it.");
   }
   const badParentEmail = uniqueParentEmails.find(e => !isValidEmail(e));
   if (badParentEmail) {
@@ -836,17 +827,48 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
   }
   cleanParentEmails.splice(0, cleanParentEmails.length, ...uniqueParentEmails);
 
+  // Student email is MANDATORY for a NEW student
   const studentLoginEmail = normEmail(cleanStudentEmails[0] || payload.email);
-  if (studentLoginEmail && !isValidEmail(studentLoginEmail)) {
+  if (!studentLoginEmail) {
+    throw new Error("Student email is mandatory for a new student registration.");
+  }
+  if (!isValidEmail(studentLoginEmail)) {
     throw new Error(`'${studentLoginEmail}' is not a valid student email.`);
   }
-  if (studentLoginEmail && uniqueParentEmails.includes(studentLoginEmail)) {
+  if (uniqueParentEmails.includes(studentLoginEmail)) {
     throw new Error("A parent email must be different from the student's own email, because each email is one login.");
   }
-  if (studentLoginEmail) {
-    const { data: dupStudent } = await supabaseAdmin.from("students").select("id").eq("email", studentLoginEmail).limit(1);
-    if (dupStudent && dupStudent.length > 0) {
-      throw new Error("A student with this email already exists.");
+
+  const { data: dupStudent } = await supabaseAdmin.from("students").select("id").eq("email", studentLoginEmail).limit(1);
+  if (dupStudent && dupStudent.length > 0) {
+    throw new Error("A student with this email already exists.");
+  }
+
+  // Sibling duplicate check (normalized first name + shared parent email + same grade or DOB)
+  if (!payload.confirmSiblingDuplicate) {
+    const normFirst = normEmail(firstName);
+    const matchingSibling = inMemoryStudentStore.find(s => {
+      const sFirst = normEmail(s.firstName || (s.fullName || "").split(" ")[0]);
+      if (sFirst !== normFirst) return false;
+      const sParents = (s.parentEmails || []).map(normEmail);
+      const sharesParent = uniqueParentEmails.some(pe => sParents.includes(normEmail(pe)));
+      if (!sharesParent) return false;
+      const sameDob = dobStr && s.dob && String(dobStr).trim() === String(s.dob).trim();
+      const sameGrade = payload.grade && s.grade && normEmail(payload.grade) === normEmail(s.grade);
+      return Boolean(sameDob || sameGrade);
+    });
+
+    if (matchingSibling) {
+      const reason = (dobStr && matchingSibling.dob === dobStr) ? `date of birth (${matchingSibling.dob})` : `grade (${matchingSibling.grade})`;
+      return {
+        requiresConfirmation: true,
+        duplicateWarning: `A student named "${matchingSibling.fullName || matchingSibling.firstName}" with the same parent and ${reason} already exists. Please confirm if you wish to add this student as a duplicate record.`,
+        matchingStudent: {
+          id: matchingSibling.id,
+          name: matchingSibling.fullName,
+          studentCode: matchingSibling.studentCode
+        }
+      } as any;
     }
   }
 
@@ -967,53 +989,92 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
     throw dossierErr;
   }
 
-  // 2) One login per email: the student (if they have an email) and EVERY parent email.
+  // 2) One login per email: student + 1 or 2 parents (rollback all if any step fails)
   const newLogins: Array<{ email: string; name: string; role: "STUDENT" | "PARENT"; userId: string }> = [];
   const existingParentLogins: Array<{ email: string; name: string }> = [];
+  const createdLogins: Array<{ role: string; email: string; name: string; temporaryPassword: string }> = [];
+
   try {
-    if (studentLoginEmail) {
-      const l = await ensureLogin({ email: studentLoginEmail, fullName: newStudent.fullName, role: "STUDENT", metadata: { student_code: newStudent.studentCode } });
-      await supabaseAdmin.from("students").update({ user_id: l.userId }).eq("id", newStudent.id);
-      if (l.created) newLogins.push({ email: studentLoginEmail, name: newStudent.fullName, role: "STUDENT", userId: l.userId });
+    // 2a. Student login
+    const sLogin = await ensureLogin({
+      email: studentLoginEmail,
+      fullName: newStudent.fullName,
+      role: "STUDENT",
+      mustChangePassword: true,
+      metadata: { student_code: newStudent.studentCode }
+    });
+    await supabaseAdmin.from("students").update({ user_id: sLogin.userId }).eq("id", newStudent.id);
+    if (sLogin.created && sLogin.temporaryPassword) {
+      newLogins.push({ email: studentLoginEmail, name: newStudent.fullName, role: "STUDENT", userId: sLogin.userId });
+      createdLogins.push({
+        role: "STUDENT",
+        email: studentLoginEmail,
+        name: newStudent.fullName,
+        temporaryPassword: sLogin.temporaryPassword
+      });
     }
+
+    // 2b. Parent logins (1 or 2)
     for (const parentEmail of cleanParentEmails) {
       const parentName = newStudent.fatherName || newStudent.motherName || "Parent";
-      const l = await ensureLogin({ email: parentEmail, fullName: parentName, role: "PARENT", metadata: { student_code: newStudent.studentCode } });
-      if (l.created) newLogins.push({ email: parentEmail, name: parentName, role: "PARENT", userId: l.userId });
-      else existingParentLogins.push({ email: parentEmail, name: parentName });
+      const pLogin = await ensureLogin({
+        email: parentEmail,
+        fullName: parentName,
+        role: "PARENT",
+        mustChangePassword: true,
+        metadata: { student_code: newStudent.studentCode }
+      });
+
+      // Maintain relational link in student_parents table
+      try {
+        await supabaseAdmin.from("student_parents").upsert({
+          student_id: newStudent.id,
+          parent_id: pLogin.userId,
+          parent_email: normEmail(parentEmail)
+        }, { onConflict: "student_id,parent_id" });
+      } catch {
+        // Safe fallback if table is not yet migrated
+      }
+
+      if (pLogin.created && pLogin.temporaryPassword) {
+        newLogins.push({ email: parentEmail, name: parentName, role: "PARENT", userId: pLogin.userId });
+        createdLogins.push({
+          role: "PARENT",
+          email: parentEmail,
+          name: parentName,
+          temporaryPassword: pLogin.temporaryPassword
+        });
+      } else {
+        existingParentLogins.push({
+          email: parentEmail,
+          name: pLogin.existingName || parentName
+        });
+      }
     }
   } catch (loginErr: any) {
-    // Undo: no half-created student without logins.
+    // Rollback all created logins and the student row
     for (const nl of newLogins) await deleteLogin(nl.userId);
+    try {
+      await supabaseAdmin.from("student_parents").delete().eq("student_id", newStudent.id);
+    } catch {
+      // ignore
+    }
     await supabaseAdmin.from("students").delete().eq("id", newStudent.id);
     throw new Error(loginErr?.message || "Could not create the logins for this student.");
   }
 
-  // 3) Only now does the student exist for the rest of the app.
+  // Attach login reporting metadata for the one-time admin dialog
+  newStudent.createdLogins = createdLogins;
+  newStudent.existingParents = existingParentLogins;
+  if (existingParentLogins.length > 0) {
+    newStudent.existingParentMessage = `Existing parent found: ${existingParentLogins.map(p => p.name || p.email).join(", ")}. This student will be added to the same parent login.`;
+  }
+
+  // 3) Register in local store & cache
   inMemoryStudentStore.unshift(newStudent);
   lastSupabaseStudentFetch = 0; // invalidate cache
 
-  // Automatic Birthday Wish Email Trigger if Birthday is today
-  if (newStudent.dob) {
-    const today = new Date();
-    const curMonth = today.getMonth() + 1;
-    const curDay = today.getDate();
-    const parts = newStudent.dob.split(/[-/]/).map(Number);
-    let isBirthdayToday = false;
-    const [p0, p1, p2] = parts;
-    if (p0 !== undefined && p1 !== undefined && p2 !== undefined) {
-      if (p0 > 1900 && p1 === curMonth && p2 === curDay) isBirthdayToday = true;
-      else if (p2 > 1900 && p1 === curMonth && p0 === curDay) isBirthdayToday = true;
-    }
-    if (isBirthdayToday) {
-      sendBirthdayGreetings(newStudent).catch(err =>
-        console.warn("Auto birthday greeting error:", err)
-      );
-    }
-  }
-
-  // 4) Emails. New logins get a one-time set-password link (no default passwords). A parent who already had a
-  //    login (a second child) gets a notice. The admin gets a summary without any link.
+  // 4) Emails. Set-password links dispatched. Existing parent receives linkage notice.
   try {
     for (const nl of newLogins) {
       await emailSetPasswordLink({ email: nl.email, name: nl.name, role: nl.role, childName: newStudent.fullName });
@@ -1026,14 +1087,14 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
         recipients: [{ role: "PARENT", email: ep.email, name: ep.name, phone: "" }]
       });
     }
-    // Requirement 2: the student (or the parent, if the student has no email) is told what was registered.
+    // Student registration confirmation email
     await sendStudentAddedEmail(newStudent);
 
     const adminEmail = process.env.ADMIN_EMAIL || "tglbiz101@gmail.com";
     await dispatchMultiChannelNotification({
       eventType: "ADMISSION_APPROVED",
       subject: `New student registered: ${newStudent.fullName} (${newStudent.studentCode})`,
-      message: `Student ${newStudent.fullName} (${newStudent.studentCode}) was registered.\nStudent login: ${studentLoginEmail || "none (no student email)"}\nParent logins: ${cleanParentEmails.join(", ")}\nSet-password emails sent to: ${newLogins.map(n => n.email).join(", ") || "nobody (all logins already existed)"}`,
+      message: `Student ${newStudent.fullName} (${newStudent.studentCode}) was registered.\nStudent login: ${studentLoginEmail}\nParent logins: ${cleanParentEmails.join(", ")}\nNew logins generated: ${createdLogins.length}`,
       recipients: [{ role: "ADMIN", email: adminEmail, name: "System Administrator", phone: "" }]
     });
   } catch (err) {

@@ -15,7 +15,9 @@ import {
   sendParentCredentialsService
 } from "../services/studentService.js";
 import { dispatchMultiChannelNotification } from "../services/notificationService.js";
-import { changeUserPassword } from "../services/studentAccounts.js";
+import { changeUserPassword, generateTemporaryPassword, emailSetPasswordLink, normEmail, isValidEmail } from "../services/studentAccounts.js";
+import { isRealEmail } from "../constants/domains.js";
+import { supabaseAdmin } from "../supabase.js";
 
 const router = express.Router();
 
@@ -191,6 +193,15 @@ export const createStudentHandler = async (req: AuthenticatedRequest, res: expre
     const body = req.body;
     const newStudent = await createStudentService(body);
 
+    if ((newStudent as any)?.requiresConfirmation) {
+      return res.status(200).json({
+        success: false,
+        requiresConfirmation: true,
+        message: (newStudent as any).duplicateWarning,
+        data: newStudent
+      });
+    }
+
     res.status(201).json({
       success: true,
       message: `Student '${newStudent.fullName}' successfully created with code ${newStudent.studentCode || ""}.`,
@@ -200,6 +211,73 @@ export const createStudentHandler = async (req: AuthenticatedRequest, res: expre
     res.status(400).json({ success: false, message: error.message || "Failed to create student profile." });
   }
 };
+
+/**
+ * POST /api/students/:id/reset-password & POST /api/students/admin-reset-password
+ * Admin resets student/parent account password with a fresh high-entropy temporary password.
+ */
+export const adminResetPasswordHandler = async (req: AuthenticatedRequest, res: express.Response) => {
+  try {
+    const target = req.body?.email || req.body?.userId || req.params?.id || req.body?.studentId;
+    if (!target) {
+      return res.status(400).json({ success: false, message: "User email, ID, or student identifier is required." });
+    }
+    const cleanTarget = normEmail(target);
+
+    // Look up profile
+    let profile: any = null;
+    const { data: prof } = await supabaseAdmin
+      .from("profiles")
+      .select("id, email, full_name, role")
+      .or(`email.eq.${cleanTarget},id.eq.${cleanTarget}`)
+      .maybeSingle();
+
+    if (prof) {
+      profile = prof;
+    } else {
+      const { data: st } = await supabaseAdmin
+        .from("students")
+        .select("id, email, name, user_id")
+        .or(`id.eq.${cleanTarget},student_id_code.eq.${cleanTarget},email.eq.${cleanTarget}`)
+        .maybeSingle();
+      if (st?.user_id) {
+        const { data: stProf } = await supabaseAdmin.from("profiles").select("id, email, full_name, role").eq("id", st.user_id).maybeSingle();
+        profile = stProf;
+      }
+    }
+
+    if (!profile) {
+      return res.status(404).json({ success: false, message: "Account profile not found." });
+    }
+
+    const tempPw = generateTemporaryPassword(16);
+    await supabaseAdmin.auth.admin.updateUserById(profile.id, { password: tempPw });
+    await supabaseAdmin.from("profiles").update({
+      must_change_password: true,
+      updated_at: new Date().toISOString()
+    }).eq("id", profile.id);
+
+    if (isRealEmail(profile.email)) {
+      await emailSetPasswordLink({ email: profile.email, name: profile.full_name || "User", role: profile.role });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Password reset successfully for ${profile.email}.`,
+      data: {
+        role: profile.role,
+        email: profile.email,
+        name: profile.full_name,
+        temporaryPassword: tempPw
+      }
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message || "Failed to reset password." });
+  }
+};
+
+router.post("/:id/reset-password", authenticateJwt, authorizePermission("students.edit"), adminResetPasswordHandler);
+router.post("/admin-reset-password", authenticateJwt, authorizePermission("students.edit"), adminResetPasswordHandler);
 
 router.post("/", createStudentHandler);
 router.post("/add", createStudentHandler);
