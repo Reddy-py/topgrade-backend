@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { supabaseAdmin } from "../supabase.js";
 import { isUserRole, type UserRole } from "../constants/rolePermissions.js";
+import { extractSessionId, checkAndTouchSession } from "../services/sessionTracker.js";
 
 export interface AuthenticatedUser {
   id: string;
@@ -54,6 +55,23 @@ export const authenticateJwt = async (
     const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
     if (error || !user) {
       res.status(401).json({ success: false, message: "Unauthorized: your session is invalid or expired. Sign in again." });
+      return;
+    }
+
+    // PART A.4: All authenticated API responses send Cache-Control: no-store
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+
+    // PART A.5: Server-side idle check as the real control (5m + 30s grace = 330s max idle)
+    const sessionId = extractSessionId(token);
+    const sessionStatus = checkAndTouchSession(sessionId, user.id);
+    if (!sessionStatus.allowed) {
+      res.status(401).json({
+        success: false,
+        code: sessionStatus.code || "SESSION_IDLE",
+        message: sessionStatus.message || "Session expired due to inactivity. Please sign in again."
+      });
       return;
     }
 

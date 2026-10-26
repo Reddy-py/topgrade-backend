@@ -2,6 +2,8 @@ import { Router, type Request, type Response } from "express";
 import { createClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "../supabase.js";
 import { loginAttemptTracker, rateLimit } from "../middleware/rateLimit.js";
+import { authenticateJwt, type AuthenticatedRequest } from "../middleware/auth.js";
+import { extractSessionId, revokeSession, checkAndTouchSession } from "../services/sessionTracker.js";
 
 const router = Router();
 
@@ -221,6 +223,40 @@ router.post("/login", loginIpRateLimit, async (req: Request, res: Response) => {
       message: "Invalid identifier or password."
     });
   }
+});
+
+/**
+ * Touch session activity: POST /api/auth/touch-session
+ * Called by frontend when the user clicks "Stay signed in" on the idle warning modal.
+ */
+router.post("/touch-session", authenticateJwt, (req: AuthenticatedRequest, res: Response) => {
+  const authHeader = req.headers.authorization || "";
+  const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+  const sessionId = extractSessionId(token);
+  const touchRes = checkAndTouchSession(sessionId, req.user?.id || "unknown", Date.now());
+  if (!touchRes.allowed) {
+    return res.status(401).json({
+      success: false,
+      code: touchRes.code || "SESSION_IDLE",
+      message: touchRes.message || "Session expired."
+    });
+  }
+  return res.status(200).json({ success: true, timestamp: Date.now() });
+});
+
+/**
+ * Explicit server-side logout & session revocation: POST /api/auth/logout
+ */
+router.post("/logout", async (req: Request, res: Response) => {
+  try {
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+    if (token) {
+      const sessionId = extractSessionId(token);
+      await revokeSession(sessionId);
+    }
+  } catch {}
+  return res.status(200).json({ success: true, message: "Logged out successfully" });
 });
 
 export default router;
