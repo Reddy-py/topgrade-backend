@@ -68,6 +68,7 @@ export interface RecordInput {
   scanMethod: ScanMethodEnum;
   markedByUserId?: string | undefined; // auth user id (uuid)
   markedByName?: string | undefined;
+  hours?: number | undefined;
   checkInTime?: string | undefined;
   checkOutTime?: string | undefined;
 }

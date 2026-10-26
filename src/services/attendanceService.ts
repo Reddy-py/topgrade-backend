@@ -42,15 +42,28 @@ export async function markAttendance(p: RecordInput): Promise<{ record: Attendan
     if (!courseKey || !(await findCourse(courseKey))) {
       token.warning = "No hour was used: this class is not linked to a course.";
     } else if (isAttended(p.status)) {
-      const used = await consumeAttendanceToken({ studentIdOrCode: p.studentIdOrCode, courseIdOrName: courseKey, classRef, by: p.markedByUserId ?? null });
+      const used = await consumeAttendanceToken({
+        studentIdOrCode: p.studentIdOrCode,
+        courseIdOrName: courseKey,
+        classRef,
+        hours: p.hours,
+        by: p.markedByUserId ?? null
+      });
       token.remaining = used.balance;
       token.owed = !!used.owed;
       token.low = !!used.low;
+      const hrsText = (p.hours || 1) > 1 ? `${p.hours} hours deducted` : "1 hour deducted";
       token.warning = used.owed
-        ? `No hours left: ${-(used.balance ?? 0)} class(es) owed. Ask the parent to buy hours.`
-        : used.low ? `Low hours: ${used.balance} class(es) left.` : undefined;
+        ? `No hours left (${hrsText}): ${-(used.balance ?? 0)} hour(s) owed. Ask the parent to buy hours.`
+        : used.low ? `Low hours (${hrsText}): ${used.balance} hour(s) left.` : undefined;
     } else {
-      const back = await refundAttendanceToken({ studentIdOrCode: p.studentIdOrCode, courseIdOrName: courseKey, classRef, by: p.markedByUserId ?? null });
+      const back = await refundAttendanceToken({
+        studentIdOrCode: p.studentIdOrCode,
+        courseIdOrName: courseKey,
+        classRef,
+        hours: p.hours,
+        by: p.markedByUserId ?? null
+      });
       token.remaining = back.balance;
     }
   } catch (err: any) {

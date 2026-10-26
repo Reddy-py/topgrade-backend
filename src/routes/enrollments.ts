@@ -2,8 +2,11 @@ import { Router } from "express";
 import { EnrollmentService, type EnrollmentStage } from "../services/enrollmentService.js";
 import { LedgerService } from "../services/ledgerService.js";
 import { supabaseAdmin } from "../supabase.js";
+import { getInstituteSettings } from "../services/instituteSettingsService.js";
 
 const router = Router();
+
+export const inMemoryJoinRequests = new Map<string, any>();
 
 function mapEnrollmentRow(row: any): any {
   return {
@@ -635,6 +638,296 @@ router.all(["/:id/status", "/:id/cancel", "/:id/end"], async (req: any, res: any
       data: updatedEnrollment,
       studentMovedToPast,
       studentStatus: newStudentStatus
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ========================================================
+// COURSE JOIN REQUESTS (Self-enrollment: OFF | REQUEST | AUTO)
+// ========================================================
+
+// 1. Submit a join request for a course & slot
+router.post("/join-request", async (req, res): Promise<any> => {
+  try {
+    const authUser = (req as AuthenticatedRequest).user;
+    if (!authUser) {
+      return res.status(401).json({ success: false, message: "Authentication required." });
+    }
+
+    const { course_id, slot_id, notes } = req.body;
+    let student_id = req.body.student_id;
+    let student_name = req.body.student_name;
+
+    const userAny = authUser as any;
+    if (authUser.role === "STUDENT") {
+      student_id = userAny.student_id || authUser.id;
+      student_name = userAny.full_name || userAny.name || authUser.email || "Student";
+    }
+
+    if (!course_id || !slot_id) {
+      return res.status(400).json({ success: false, message: "course_id and slot_id are required." });
+    }
+    if (!student_id) {
+      return res.status(400).json({ success: false, message: "student_id is required." });
+    }
+
+    // 1. Check institute self_enrollment_mode
+    const settings = await getInstituteSettings();
+    const mode = settings.self_enrollment_mode || "REQUEST";
+    if (mode === "OFF") {
+      return res.status(403).json({
+        success: false,
+        message: "Self-enrollment is currently disabled by the institute administrator."
+      });
+    }
+
+    // 2. Fetch the slot
+    const allSlots = await ScheduleDataService.listSchedules();
+    const slot = allSlots.find(s => s.id === slot_id);
+    if (!slot) {
+      return res.status(404).json({ success: false, message: `Schedule slot '${slot_id}' not found.` });
+    }
+
+    // 3. Capacity check
+    const enrolledCount = (slot.students || []).length;
+    if (enrolledCount >= slot.max_capacity) {
+      return res.status(400).json({
+        success: false,
+        message: `Slot is at full capacity (${enrolledCount}/${slot.max_capacity} seats filled).`
+      });
+    }
+
+    // 4. Collision check for student
+    const studentConflict = await ScheduleDataService.checkCollisions({
+      scheduleIdToExclude: slot.id,
+      day_of_week: slot.day_of_week,
+      start_time: slot.start_time,
+      end_time: slot.end_time,
+      teacher_id: "",
+      room: "",
+      student_ids: [student_id]
+    });
+    if (studentConflict.hasConflict) {
+      return res.status(409).json({
+        success: false,
+        message: `Time conflict: Student already has a class scheduled at this time (${studentConflict.error}).`
+      });
+    }
+
+    const nowIso = new Date().toISOString();
+    const requestId = `req-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+
+    // AUTO mode: enroll directly
+    if (mode === "AUTO") {
+      await ScheduleDataService.enrollStudentInSchedule({
+        schedule_id: slot.id,
+        student_id,
+        student_name: student_name || "Student"
+      });
+
+      const autoRequest = {
+        id: requestId,
+        student_id,
+        student_name: student_name || "Student",
+        course_id,
+        course_name: slot.course_name,
+        slot_id: slot.id,
+        slot_details: `${slot.day_of_week} ${slot.time_slot} (${slot.room})`,
+        status: "APPROVED",
+        notes: notes || "Auto-enrolled",
+        created_at: nowIso,
+        approved_at: nowIso,
+        decided_by: "AUTO_SYSTEM"
+      };
+      inMemoryJoinRequests.set(requestId, autoRequest);
+
+      try {
+        await supabaseAdmin.from("course_enrollment_requests").insert([autoRequest]);
+      } catch {}
+
+      return res.status(201).json({
+        success: true,
+        message: "Successfully enrolled in course slot!",
+        mode: "AUTO",
+        data: autoRequest
+      });
+    }
+
+    // REQUEST mode: create PENDING request
+    const pendingRequest = {
+      id: requestId,
+      student_id,
+      student_name: student_name || "Student",
+      course_id,
+      course_name: slot.course_name,
+      slot_id: slot.id,
+      slot_details: `${slot.day_of_week} ${slot.time_slot} (${slot.room})`,
+      status: "PENDING",
+      notes: notes || null,
+      created_at: nowIso
+    };
+
+    inMemoryJoinRequests.set(requestId, pendingRequest);
+
+    try {
+      await supabaseAdmin.from("course_enrollment_requests").insert([pendingRequest]);
+    } catch {}
+
+    return res.status(201).json({
+      success: true,
+      message: "Join request submitted successfully and is pending admin approval.",
+      mode: "REQUEST",
+      data: pendingRequest
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// 2. List enrollment join requests
+router.get("/requests", async (req, res): Promise<any> => {
+  try {
+    const authUser = (req as AuthenticatedRequest).user;
+    if (!authUser) {
+      return res.status(401).json({ success: false, message: "Authentication required." });
+    }
+
+    let list = Array.from(inMemoryJoinRequests.values());
+    try {
+      const { data, error } = await supabaseAdmin
+        .from("course_enrollment_requests")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (!error && data) {
+        for (const row of data) {
+          if (!inMemoryJoinRequests.has(row.id)) {
+            list.push(row);
+          }
+        }
+      }
+    } catch {}
+
+    // Filter by student if STUDENT role
+    if (authUser.role === "STUDENT") {
+      const sId = (authUser as any).student_id || authUser.id;
+      list = list.filter(r => r.student_id === sId);
+    } else if (authUser.role !== "ADMIN") {
+      return res.status(403).json({ success: false, message: "Forbidden." });
+    }
+
+    return res.status(200).json({ success: true, count: list.length, data: list });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// 3. Admin approves a join request
+router.post("/requests/:id/approve", async (req, res): Promise<any> => {
+  try {
+    const authUser = (req as AuthenticatedRequest).user;
+    if (!authUser || authUser.role !== "ADMIN") {
+      return res.status(403).json({ success: false, message: "Only administrators can approve course requests." });
+    }
+
+    const { id } = req.params;
+    let request = inMemoryJoinRequests.get(id);
+
+    if (!request) {
+      try {
+        const { data } = await supabaseAdmin
+          .from("course_enrollment_requests")
+          .select("*")
+          .eq("id", id)
+          .maybeSingle();
+        if (data) request = data;
+      } catch {}
+    }
+
+    if (!request) {
+      return res.status(404).json({ success: false, message: `Request '${id}' not found.` });
+    }
+
+    if (request.status === "APPROVED") {
+      return res.status(400).json({ success: false, message: "Request is already approved." });
+    }
+
+    // Enroll student in schedule
+    await ScheduleDataService.enrollStudentInSchedule({
+      schedule_id: request.slot_id,
+      student_id: request.student_id,
+      student_name: request.student_name
+    });
+
+    const nowIso = new Date().toISOString();
+    request.status = "APPROVED";
+    request.approved_at = nowIso;
+    request.decided_by = authUser.email;
+
+    inMemoryJoinRequests.set(id, request);
+    try {
+      await supabaseAdmin
+        .from("course_enrollment_requests")
+        .update({ status: "APPROVED", approved_at: nowIso, decided_by: authUser.email })
+        .eq("id", id);
+    } catch {}
+
+    return res.status(200).json({
+      success: true,
+      message: "Request approved and student successfully added to class slot.",
+      data: request
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// 4. Admin rejects a join request
+router.post("/requests/:id/reject", async (req, res): Promise<any> => {
+  try {
+    const authUser = (req as AuthenticatedRequest).user;
+    if (!authUser || authUser.role !== "ADMIN") {
+      return res.status(403).json({ success: false, message: "Only administrators can reject course requests." });
+    }
+
+    const { id } = req.params;
+    const { reason } = req.body;
+    let request = inMemoryJoinRequests.get(id);
+
+    if (!request) {
+      try {
+        const { data } = await supabaseAdmin
+          .from("course_enrollment_requests")
+          .select("*")
+          .eq("id", id)
+          .maybeSingle();
+        if (data) request = data;
+      } catch {}
+    }
+
+    if (!request) {
+      return res.status(404).json({ success: false, message: `Request '${id}' not found.` });
+    }
+
+    const nowIso = new Date().toISOString();
+    request.status = "REJECTED";
+    request.rejection_reason = reason || "Not specified";
+    request.rejected_at = nowIso;
+    request.decided_by = authUser.email;
+
+    inMemoryJoinRequests.set(id, request);
+    try {
+      await supabaseAdmin
+        .from("course_enrollment_requests")
+        .update({ status: "REJECTED", rejection_reason: reason || "Not specified", rejected_at: nowIso, decided_by: authUser.email })
+        .eq("id", id);
+    } catch {}
+
+    return res.status(200).json({
+      success: true,
+      message: "Request rejected.",
+      data: request
     });
   } catch (err: any) {
     return res.status(500).json({ success: false, message: err.message });

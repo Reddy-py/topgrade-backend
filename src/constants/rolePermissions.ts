@@ -23,7 +23,7 @@ export type PermissionString =
   | "history.view" | "alerts.manage";
 
 export const ROLE_PERMISSIONS: Record<UserRole, PermissionString[]> = {
-  // Admin: whole access.
+  // Admin: whole access. Full add, edit, delete of students, teachers, courses.
   ADMIN: [
     "dashboard.view",
     "students.view", "students.create", "students.edit", "students.delete",
@@ -41,20 +41,18 @@ export const ROLE_PERMISSIONS: Record<UserRole, PermissionString[]> = {
     "settings.view", "settings.edit", "settings.manage",
     "history.view", "alerts.manage",
   ],
-  // Teacher: sees own classes and assigned students, marks attendance. No fees, reports, settings.
+  // Teacher: sidebar = Dashboard, Profile, Courses, Schedule, Attendance. Marks attendance for own classes and students only.
   TEACHER: [
     "dashboard.view",
     "teachers.view",
-    "students.view",
     "courses.view",
     "classes.view",
     "attendance.view", "attendance.create", "attendance.edit",
   ],
-  // Parent: read-only view of own children (courses, attendance, schedule) plus fees and receipts.
+  // Parent: sidebar = Dashboard, My Children, Courses, Schedule, Attendance, Fees.
   PARENT: [
     "dashboard.view",
     "students.view",
-    "teachers.view",
     "courses.view",
     "classes.view",
     "attendance.view",
@@ -62,14 +60,16 @@ export const ROLE_PERMISSIONS: Record<UserRole, PermissionString[]> = {
     "payments.view",
     "receipts.view", "receipts.download",
   ],
-  // Student: read-only view of own profile, courses, schedule and attendance. No fees.
+  // Student: sidebar = Dashboard, Profile, Courses, Schedule, Attendance, Fees (can buy hours for themselves).
   STUDENT: [
     "dashboard.view",
     "students.view",
-    "teachers.view",
     "courses.view",
     "classes.view",
     "attendance.view",
+    "fees.view", "fees.pay",
+    "payments.view",
+    "receipts.view", "receipts.download",
   ],
 };
 

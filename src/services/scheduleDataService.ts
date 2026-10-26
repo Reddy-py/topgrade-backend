@@ -33,6 +33,9 @@ export interface ScheduleSlot {
   eligible_teacher_ids?: string[] | undefined;  // if course lists assigned teachers, only they may take it
   program?: string | undefined;
   program_type?: string | undefined;
+  start_minute?: number | undefined;
+  end_minute?: number | undefined;
+  duration_hours?: number | undefined;
   created_at?: string;
   updated_at?: string;
 }
@@ -349,6 +352,11 @@ export class ScheduleDataService {
         const claim = isOpen ? claimBySlot.get(s.id) : undefined;
         const rawProgram = s.program_type || s.program || "TUTORING";
 
+        const sMin = typeof s.start_minute === "number" ? s.start_minute : parseTimeToMinutes(s.start_time);
+        const eMin = typeof s.end_minute === "number" ? s.end_minute : parseTimeToMinutes(s.end_time);
+        const durMins = getSlotDurationMinutes(s.start_time, s.end_time);
+        const durHours = typeof s.duration_hours === "number" ? s.duration_hours : (durMins >= 90 ? 2 : 1);
+
         return {
           id: String(s.id),
           course_id: String(s.course_id || ""),
@@ -358,6 +366,9 @@ export class ScheduleDataService {
           day_of_week: s.day_of_week,
           start_time: s.start_time,
           end_time: s.end_time,
+          start_minute: sMin,
+          end_minute: eMin,
+          duration_hours: durHours,
           time_slot: s.time_slot || `${s.start_time} - ${s.end_time}`,
           room: s.room || "Room 101",
           location: s.location || "Main Academic Center",
@@ -404,7 +415,7 @@ export class ScheduleDataService {
         ...slot,
         duration_minutes: getSlotDurationMinutes(slot.start_time, slot.end_time)
       }))
-      .filter(slot => slot.duration_minutes !== 60);
+      .filter(slot => slot.duration_minutes !== 60 && slot.duration_minutes !== 120);
 
     return {
       totalScanned: allSlots.length,
@@ -436,8 +447,8 @@ export class ScheduleDataService {
     students?: Array<{ student_id: string; student_name: string; student_code?: string }>;
   }): Promise<ScheduleSlot> {
     const duration = getSlotDurationMinutes(payload.start_time, payload.end_time);
-    if (duration !== 60) {
-      throw new Error(`Invalid class duration: slot must be exactly 60 minutes (1 hour). Received ${duration} minutes (${payload.start_time} to ${payload.end_time}).`);
+    if (duration !== 60 && duration !== 120) {
+      throw new Error(`Invalid class duration: slot must be 60 or 120 minutes (1 or 2 hours). Received ${duration} minutes (${payload.start_time} to ${payload.end_time}).`);
     }
 
     const studentIds = (payload.students || []).map(s => s.student_id);
@@ -491,6 +502,9 @@ export class ScheduleDataService {
       day_of_week: payload.day_of_week,
       start_time: payload.start_time,
       end_time: payload.end_time,
+      start_minute: parseTimeToMinutes(payload.start_time),
+      end_minute: parseTimeToMinutes(payload.end_time),
+      duration_hours: duration >= 90 ? 2 : 1,
       time_slot: timeSlot,
       room: payload.room || "Room 101",
       location: locName,
@@ -515,6 +529,9 @@ export class ScheduleDataService {
       day_of_week: newSlot.day_of_week,
       start_time: newSlot.start_time,
       end_time: newSlot.end_time,
+      start_minute: newSlot.start_minute,
+      end_minute: newSlot.end_minute,
+      duration_hours: newSlot.duration_hours,
       time_slot: newSlot.time_slot,
       room: newSlot.room,
       location: newSlot.location,
@@ -530,7 +547,7 @@ export class ScheduleDataService {
     };
 
     let { error: insErr } = await supabaseAdmin.from("schedules").insert([insertRow]);
-    if (insErr && (insErr.message.includes("location_id") || insErr.message.includes("location_address") || insErr.message.includes("program_type"))) {
+    if (insErr && (insErr.message.includes("location_id") || insErr.message.includes("location_address") || insErr.message.includes("program_type") || insErr.message.includes("duration_hours"))) {
       delete insertRow.location_id;
       delete insertRow.location_address;
       delete insertRow.program_type;
@@ -671,7 +688,7 @@ export class ScheduleDataService {
    */
   static async updateSchedule(
     id: string,
-    payload: Partial<ScheduleSlot> & { students?: Array<{ student_id: string; student_name: string; student_code?: string }> }
+    payload: Omit<Partial<ScheduleSlot>, "students"> & { students?: Array<{ student_id: string; student_name: string; student_code?: string }> }
   ): Promise<ScheduleSlot> {
     const existing = (await this.listSchedules()).find(s => s.id === id);
     if (!existing) {
@@ -683,8 +700,8 @@ export class ScheduleDataService {
     const updatedEnd = payload.end_time || existing.end_time;
 
     const duration = getSlotDurationMinutes(updatedStart, updatedEnd);
-    if (duration !== 60) {
-      throw new Error(`Invalid class duration: slot must be exactly 60 minutes (1 hour). Received ${duration} minutes (${updatedStart} to ${updatedEnd}).`);
+    if (duration !== 60 && duration !== 120) {
+      throw new Error(`Invalid class duration: slot must be 60 or 120 minutes (1 or 2 hours). Received ${duration} minutes (${updatedStart} to ${updatedEnd}).`);
     }
 
     const updatedTeacher = payload.teacher_id !== undefined ? payload.teacher_id : existing.teacher_id;
@@ -822,6 +839,56 @@ export class ScheduleDataService {
       console.warn("Supabase schedule delete notice:", e?.message);
     }
     return true;
+  }
+
+  /**
+   * Enroll a student into a schedule slot (checks capacity)
+   */
+  static async enrollStudentInSchedule(params: {
+    schedule_id: string;
+    student_id: string;
+    student_name: string;
+    student_code?: string;
+  }): Promise<ScheduleSlot> {
+    const all = await this.listSchedules();
+    const slot = all.find(s => s.id === params.schedule_id);
+    if (!slot) {
+      throw new Error(`Schedule slot '${params.schedule_id}' not found.`);
+    }
+
+    const currentStudents = slot.students || [];
+    if (currentStudents.some(s => s.student_id === params.student_id)) {
+      return slot; // already enrolled
+    }
+
+    if (currentStudents.length >= slot.max_capacity) {
+      throw new Error(`Schedule slot is at full capacity (${currentStudents.length}/${slot.max_capacity}).`);
+    }
+
+    const studentList: Array<{ student_id: string; student_name: string; student_code?: string }> = [
+      ...currentStudents.map(s => {
+        const item: { student_id: string; student_name: string; student_code?: string } = {
+          student_id: s.student_id,
+          student_name: s.student_name
+        };
+        if (s.student_code) item.student_code = s.student_code;
+        return item;
+      }),
+      (() => {
+        const item: { student_id: string; student_name: string; student_code?: string } = {
+          student_id: params.student_id,
+          student_name: params.student_name
+        };
+        if (params.student_code) item.student_code = params.student_code;
+        return item;
+      })()
+    ];
+
+    const updated = await this.updateSchedule(slot.id, {
+      students: studentList
+    });
+
+    return updated;
   }
 
   /**

@@ -10,6 +10,7 @@ import { findStudent, isUuid } from "../services/tokenService.js";
 import { ScheduleDataService } from "../services/scheduleDataService.js";
 import type { AuthenticatedRequest } from "../middleware/auth.js";
 import { getAccessScope, allowsStudent, scopeSessions, slotBelongsToTeacher } from "../services/accessScope.js";
+import { isRealEmail } from "../constants/domains.js";
 
 const router = express.Router();
 
@@ -42,8 +43,21 @@ router.post("/daily-rollcall", async (req, res): Promise<any> => {
     const rollDate = String(date || instituteNow().dateStr).slice(0, 10);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(rollDate)) return res.status(400).json({ success: false, message: "date must be YYYY-MM-DD." });
 
+    // PART B & OVERRIDES: Teachers mark attendance ONLY for today's class (admin can correct any date with a note)
+    const todayStr = instituteNow().dateStr;
+    if (user.role === "TEACHER" && rollDate !== todayStr) {
+      return res.status(403).json({
+        success: false,
+        message: "Teachers may only mark attendance for today's class. Only an administrator can correct attendance for other dates."
+      });
+    }
+
     const recordedBy = (user.metadata as any)?.full_name || user.email || "Faculty";
     const courseName = slot.course_name;
+    const startMin = slot.start_minute || 0;
+    const endMin = slot.end_minute || (startMin + 60);
+    const classLengthHours = Math.max(1, Math.round((endMin - startMin) / 60));
+
     const classStudents = new Set(
       (slot.students || []).flatMap(st => [st.student_id, st.student_code].filter(Boolean).map(k => String(k).toLowerCase()))
     );
@@ -63,9 +77,25 @@ router.post("/daily-rollcall", async (req, res): Promise<any> => {
           continue;
         }
         const status = normalizeStatus(entry.status);
+
+        // PART B: Teachers can mark Present or Absent only
+        if (user.role === "TEACHER" && status !== "PRESENT" && status !== "ABSENT") {
+          rejected.push({ studentId: studentKey, reason: "Teachers can only mark Present or Absent." });
+          continue;
+        }
+
         const saved = await markAttendance({
-          studentIdOrCode: studentKey, status, courseId: slot.course_id, courseName, scheduleId,
-          date: rollDate, remarks, scanMethod: "TEACHER_ROLLCALL", markedByUserId: user.id, markedByName: recordedBy,
+          studentIdOrCode: studentKey,
+          status,
+          courseId: slot.course_id,
+          courseName,
+          scheduleId,
+          date: rollDate,
+          hours: classLengthHours,
+          remarks,
+          scanMethod: "TEACHER_ROLLCALL",
+          markedByUserId: user.id,
+          markedByName: recordedBy,
         });
         if (status === "PRESENT" || status === "LATE") presentCount++;
         else if (status === "ABSENT") absentCount++;
@@ -85,14 +115,25 @@ router.post("/daily-rollcall", async (req, res): Promise<any> => {
           actor: recordedBy
         });
 
-        // Parent email
+        // PART B: Automatic email: student's own real email, otherwise parents; placeholder counts as no email; correction sends 'corrected' notice
         const student = await findStudent(studentKey);
-        const parentEmail = student?.parentEmails?.[0] || student?.email;
-        if (parentEmail) {
+        const studentRealEmail = isRealEmail(student?.email) ? student!.email : null;
+        const parentRealEmail = (student?.parentEmails || []).find((e: string) => isRealEmail(e)) || null;
+        const targetEmail = studentRealEmail || parentRealEmail;
+
+        if (targetEmail) {
+          const isCorrection = !saved.created;
+          const noticeRemarks = isCorrection ? `[Corrected] ${remarks || ""}`.trim() : remarks;
           sendDailyAttendanceRollCallEmail({
-            parentEmail, studentName, courseName, date: rollDate, status, remarks,
-            attendancePercentage: stats.attendancePercentage, markedBy: recordedBy
-          }).catch(err => console.warn("Roll-call parent email warning:", err));
+            parentEmail: targetEmail,
+            studentName,
+            courseName,
+            date: rollDate,
+            status,
+            remarks: noticeRemarks,
+            attendancePercentage: stats.attendancePercentage,
+            markedBy: recordedBy
+          }).catch(err => console.warn("Roll-call email warning:", err));
         }
 
         processedRecords.push({

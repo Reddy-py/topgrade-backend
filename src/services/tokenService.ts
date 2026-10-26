@@ -89,37 +89,39 @@ async function refundCount(studentId: string, base: string): Promise<number> {
 }
 
 export async function consumeAttendanceToken(p: {
-  studentIdOrCode: string; courseIdOrName: string; classRef: string; by?: string | null;
-}): Promise<{ ok: boolean; reason?: string; balance?: number; owed?: boolean; low?: boolean; courseName?: string }> {
+  studentIdOrCode: string; courseIdOrName: string; classRef: string; hours?: number | undefined; by?: string | null;
+}): Promise<{ ok: boolean; reason?: string; balance?: number; owed?: boolean; low?: boolean; courseName?: string; hoursDeducted?: number }> {
   const student = await findStudent(p.studentIdOrCode);
   const course = await findCourse(p.courseIdOrName);
   if (!student) return { ok: false, reason: "Student not found." };
   if (!course) return { ok: false, reason: "Course not found." };
+  const hrs = p.hours && p.hours > 0 ? p.hours : 1;
   const base = `${student.id}:${p.classRef}`;
   const k = await refundCount(student.id, base);
   const r = await applyTokens({
-    studentId: student.id, courseId: course.id, delta: -1, reason: "CLASS_ATTENDED",
-    ref: `${base}#${k}`, note: `Class attended: ${course.name}`, by: p.by ?? null,
+    studentId: student.id, courseId: course.id, delta: -hrs, reason: "CLASS_ATTENDED",
+    ref: `${base}#${k}`, note: `Class attended (${hrs} hr${hrs > 1 ? "s" : ""}): ${course.name}`, by: p.by ?? null,
   });
-  return { ok: true, balance: r.balance, owed: r.balance < 0, low: r.balance <= LOW_TOKEN_LIMIT, courseName: course.name };
+  return { ok: true, balance: r.balance, owed: r.balance < 0, low: r.balance <= LOW_TOKEN_LIMIT, courseName: course.name, hoursDeducted: hrs };
 }
 
 export async function refundAttendanceToken(p: {
-  studentIdOrCode: string; courseIdOrName: string; classRef: string; by?: string | null;
-}): Promise<{ ok: boolean; refunded: boolean; balance?: number }> {
+  studentIdOrCode: string; courseIdOrName: string; classRef: string; hours?: number | undefined; by?: string | null;
+}): Promise<{ ok: boolean; refunded: boolean; balance?: number; hoursRefunded?: number }> {
   const student = await findStudent(p.studentIdOrCode);
   const course = await findCourse(p.courseIdOrName);
   if (!student || !course) return { ok: false, refunded: false };
+  const hrs = p.hours && p.hours > 0 ? p.hours : 1;
   const base = `${student.id}:${p.classRef}`;
   const k = await refundCount(student.id, base);
   const { data: used } = await supabaseAdmin
     .from("token_ledger").select("id").eq("student_id", student.id).eq("reason", "CLASS_ATTENDED").eq("ref", `${base}#${k}`).maybeSingle();
   if (!used) return { ok: true, refunded: false };
   const r = await applyTokens({
-    studentId: student.id, courseId: course.id, delta: 1, reason: "REFUND",
-    ref: `refund:${base}#${k}`, note: "Attendance changed: hour returned", by: p.by ?? null,
+    studentId: student.id, courseId: course.id, delta: hrs, reason: "REFUND",
+    ref: `refund:${base}#${k}`, note: `Attendance changed: ${hrs} hour${hrs > 1 ? "s" : ""} returned`, by: p.by ?? null,
   });
-  return { ok: true, refunded: r.applied, balance: r.balance };
+  return { ok: true, refunded: r.applied, balance: r.balance, hoursRefunded: hrs };
 }
 
 // ------------------------------------------------------------------ balances

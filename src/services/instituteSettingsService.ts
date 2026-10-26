@@ -28,6 +28,7 @@ export interface InstituteSettings {
   saved_bank_csv_mapping?: Record<string, string>;
   card_enabled?: boolean;
   zelle_enabled?: boolean;
+  self_enrollment_mode?: "OFF" | "REQUEST" | "AUTO";
   created_at?: string;
   updated_at?: string;
 }
@@ -71,6 +72,7 @@ export const DEFAULT_INSTITUTE_SETTINGS: InstituteSettings = {
   auto_confirm_strong_matches: false,
   card_enabled: true,
   zelle_enabled: true,
+  self_enrollment_mode: "REQUEST",
 };
 
 let cachedSettings: InstituteSettings = { ...DEFAULT_INSTITUTE_SETTINGS };
