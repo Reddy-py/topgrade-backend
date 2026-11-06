@@ -182,7 +182,7 @@ async function run() {
 
     // Student login credentials
     const cleanStudentName = r.studentName.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
-    const cleanParentPrefix = pEmail ? pEmail.split("@")[0].replace(/[^a-zA-Z0-9]/g, "").toLowerCase() : "parent";
+    const cleanParentPrefix = pEmail ? (pEmail.split("@")[0] ?? "").replace(/[^a-zA-Z0-9]/g, "").toLowerCase() : "parent";
     const studentLoginEmail = `${cleanStudentName}.${cleanParentPrefix}@student.topgrade.edu`;
 
     const stUserId = await ensureUser(studentLoginEmail, "Student@TopGrade2026", "STUDENT", r.studentName);
