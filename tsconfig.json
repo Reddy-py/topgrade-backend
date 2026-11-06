@@ -42,5 +42,13 @@
     "skipLibCheck": true
   },
   "include": ["src/**/*"],
-  "exclude": ["dist", "node_modules", "src/test*.ts", "src/scripts/**/*"]
+  "exclude": [
+    "dist",
+    "node_modules",
+    "src/test*.ts",
+    "src/scripts/**/*",
+    "src/check_and_enable_all_logins.ts",
+    "src/verify_all_teacher_logins.ts",
+    "src/provision_teacher_logins.ts"
+  ]
 }
