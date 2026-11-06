@@ -4,6 +4,11 @@ import ws from "ws";
 
 dotenv.config();
 
+// Polyfill global WebSocket for Node.js 20 so all Supabase clients have transport support
+if (typeof globalThis.WebSocket === "undefined") {
+  (globalThis as any).WebSocket = ws;
+}
+
 // Server-side admin Supabase client.
 // Node.js 20 has no native WebSocket; @supabase/realtime-js requires
 // the 'ws' package to be provided as a transport for Node < 22.

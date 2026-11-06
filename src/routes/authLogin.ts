@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { createClient } from "@supabase/supabase-js";
+import ws from "ws";
 import { supabaseAdmin } from "../supabase.js";
 import { loginAttemptTracker, rateLimit } from "../middleware/rateLimit.js";
 import { authenticateJwt, type AuthenticatedRequest } from "../middleware/auth.js";
@@ -148,6 +149,10 @@ router.post("/login", loginIpRateLimit, async (req: Request, res: Response) => {
           persistSession: false,
           autoRefreshToken: false,
           detectSessionInUrl: false
+        },
+        realtime: {
+          // @ts-expect-error - ws is the correct type for Node.js transport
+          transport: ws
         }
       }
     );
@@ -158,6 +163,7 @@ router.post("/login", loginIpRateLimit, async (req: Request, res: Response) => {
     });
 
     if (authError || !authData?.user || !authData?.session) {
+      console.warn(`[authLogin] Supabase Auth failure for identifier "${cleanIdentifier}": ${authError?.message || "Missing user/session"}`);
       loginAttemptTracker.recordFailure(ip, cleanIdentifier);
       return res.status(401).json({
         success: false,
@@ -217,6 +223,7 @@ router.post("/login", loginIpRateLimit, async (req: Request, res: Response) => {
       }
     });
   } catch (err: any) {
+    console.error(`[authLogin] Exception during login resolution for "${cleanIdentifier}":`, err?.message || err);
     loginAttemptTracker.recordFailure(ip, cleanIdentifier);
     return res.status(401).json({
       success: false,
