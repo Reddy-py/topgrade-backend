@@ -48,7 +48,7 @@ export const DEFAULT_COURSE_CATEGORIES = [
 export const DEFAULT_INSTITUTE_SETTINGS: InstituteSettings = {
   id: "default",
   institute_name: "Top Grade Learning",
-  timezone: process.env.INSTITUTE_TIMEZONE || "America/New_York",
+  timezone: process.env.INSTITUTE_TIMEZONE || "America/Chicago",
   address_line1: process.env.INSTITUTE_ADDRESS_LINE1 || "100 Plainfield Ave, Suite 2B",
   address_line2: process.env.INSTITUTE_ADDRESS_LINE2 || "",
   city: process.env.INSTITUTE_CITY || "Edison",

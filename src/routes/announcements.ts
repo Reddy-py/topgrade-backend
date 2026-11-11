@@ -18,7 +18,7 @@ router.post("/", async (req: Request, res: Response): Promise<any> => {
       return res.status(403).json({ success: false, message: "Only administrators can broadcast announcements." });
     }
 
-    const { title, body, audience, targetFilter } = req.body || {};
+    const { title, body, audience, targetFilter, customEmail } = req.body || {};
 
     if (!title || !title.trim()) {
       return res.status(400).json({ success: false, message: "Announcement title is required." });
@@ -27,7 +27,16 @@ router.post("/", async (req: Request, res: Response): Promise<any> => {
       return res.status(400).json({ success: false, message: "Announcement message body is required." });
     }
 
-    const validAudiences = ["ALL_PARENTS", "ALL_STUDENTS", "ALL_TEACHERS", "COURSE", "PROGRAM", "EVERYONE"];
+    const validAudiences = [
+      "ALL_PARENTS",
+      "ALL_STUDENTS",
+      "ALL_TEACHERS",
+      "COURSE",
+      "PROGRAM",
+      "EVERYONE",
+      "CUSTOM_EMAIL",
+      "SINGLE_EMAIL"
+    ];
     if (!validAudiences.includes(audience)) {
       return res.status(400).json({
         success: false,
@@ -35,11 +44,21 @@ router.post("/", async (req: Request, res: Response): Promise<any> => {
       });
     }
 
+    const effectiveTargetFilter = (customEmail || targetFilter ? String(customEmail || targetFilter).trim() : undefined);
+
+    if ((audience === "CUSTOM_EMAIL" || audience === "SINGLE_EMAIL") && (!effectiveTargetFilter || !effectiveTargetFilter.includes("@"))) {
+      return res.status(400).json({
+        success: false,
+        message: "A valid recipient email address is required for custom single email announcements."
+      });
+    }
+
     const result = await broadcastAnnouncement({
       title: title.trim(),
       body: body.trim(),
       audience,
-      targetFilter: targetFilter ? String(targetFilter).trim() : undefined,
+      customEmail: effectiveTargetFilter,
+      targetFilter: effectiveTargetFilter,
       senderAdminEmail: authReq.user?.email
     });
 

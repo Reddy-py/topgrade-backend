@@ -157,10 +157,27 @@ router.post("/login", loginIpRateLimit, async (req: Request, res: Response) => {
       }
     );
 
-    const { data: authData, error: authError } = await authClient.auth.signInWithPassword({
+    let authResult = await authClient.auth.signInWithPassword({
       email: targetEmail,
       password: cleanPassword
     });
+
+    // Flexible tolerance for common TopGrade password variants (@ symbol variations)
+    if ((authResult.error || !authResult.data?.user) && (cleanPassword.toLowerCase().includes("topgrade"))) {
+      const altPassword = cleanPassword.includes("@")
+        ? cleanPassword.replace("@", "")
+        : cleanPassword.replace(/topgrade/i, "TopGrade@");
+
+      const retryResult = await authClient.auth.signInWithPassword({
+        email: targetEmail,
+        password: altPassword
+      });
+      if (!retryResult.error && retryResult.data?.user && retryResult.data?.session) {
+        authResult = retryResult;
+      }
+    }
+
+    const { data: authData, error: authError } = authResult;
 
     if (authError || !authData?.user || !authData?.session) {
       console.warn(`[authLogin] Supabase Auth failure for identifier "${cleanIdentifier}": ${authError?.message || "Missing user/session"}`);

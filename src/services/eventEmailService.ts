@@ -404,8 +404,9 @@ export async function sendTeacherScheduleActionNotice(params: {
 export interface BroadcastAnnouncementInput {
   title: string;
   body: string;
-  audience: "ALL_PARENTS" | "ALL_STUDENTS" | "ALL_TEACHERS" | "COURSE" | "PROGRAM" | "EVERYONE" | "PARENTS" | "STUDENTS" | "TEACHERS";
-  targetFilter?: string | undefined; // course_id or program name
+  audience: "ALL_PARENTS" | "ALL_STUDENTS" | "ALL_TEACHERS" | "COURSE" | "PROGRAM" | "EVERYONE" | "PARENTS" | "STUDENTS" | "TEACHERS" | "CUSTOM_EMAIL" | "SINGLE_EMAIL";
+  targetFilter?: string | undefined; // course_id, program name, or custom email
+  customEmail?: string | undefined;
   senderAdminEmail?: string | undefined;
   recipients?: Array<{ email: string; name?: string | undefined }> | undefined;
 }
@@ -433,6 +434,7 @@ export async function broadcastAnnouncement(input: BroadcastAnnouncementInput): 
 
   // 2. Resolve audience email addresses
   const recipientSet = new Set<string>();
+  const aud = input.audience;
 
   // If explicit recipient list is provided (e.g. targeted announcements or direct dispatch), populate them
   if (input.recipients && Array.isArray(input.recipients)) {
@@ -441,7 +443,13 @@ export async function broadcastAnnouncement(input: BroadcastAnnouncementInput): 
     }
   }
 
-  const aud = input.audience;
+  // Handle single direct email announcement
+  if (aud === "CUSTOM_EMAIL" || aud === "SINGLE_EMAIL") {
+    const rawSingleEmail = (input.customEmail || input.targetFilter || "").trim();
+    if (rawSingleEmail && rawSingleEmail.includes("@")) {
+      recipientSet.add(normEmail(rawSingleEmail));
+    }
+  }
   if (aud === "ALL_TEACHERS" || aud === "TEACHERS" || aud === "EVERYONE") {
     const { data: teachers } = await supabaseAdmin.from("teachers").select("email").eq("status", "Active");
     for (const t of (teachers || []) as any[]) {

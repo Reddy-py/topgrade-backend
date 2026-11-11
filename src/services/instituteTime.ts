@@ -8,7 +8,7 @@ import { getCachedInstituteSettings } from "./instituteSettingsService.js";
  */
 export const instituteTimezone = (): string => {
   const settings = getCachedInstituteSettings();
-  return settings.timezone || process.env.INSTITUTE_TIMEZONE || "America/New_York";
+  return settings.timezone || process.env.INSTITUTE_TIMEZONE || "America/Chicago";
 };
 
 export interface InstituteNow {
