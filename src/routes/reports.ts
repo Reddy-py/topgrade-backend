@@ -7,6 +7,7 @@ import { classSessionQrStore } from "../services/sessionAttendanceService.js";
 import { HistoryService } from "../services/historyService.js";
 import { inMemoryStudentStore } from "../services/studentService.js";
 import { getNeedsAttentionData } from "./needsAttention.js";
+import { ScheduleSlotService, utcToCstParts, cstDateTimeToUtc } from "../services/scheduleSlotService.js";
 
 const router = express.Router();
 
@@ -71,134 +72,134 @@ router.get("/dashboard-metrics", async (req: Request, res: Response): Promise<an
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count);
 
-    // 2. Scheduled Classes Today
+    // 2. Scheduled Classes Today (in America/Chicago CST/CDT)
+    const cstNow = utcToCstParts(new Date());
+    const cstTodayStr = cstNow.cstDate;
+    const startOfTodayUtc = cstDateTimeToUtc(cstTodayStr, "00:00").toISOString();
+    const endOfTodayUtc = cstDateTimeToUtc(cstTodayStr, "23:59").toISOString();
+
     let classesToday = 0;
     try {
-      const allSchedules = await ScheduleDataService.listSchedules();
-      const todaySlots = allSchedules.filter(
-        s => (s.day_of_week || "").trim().toLowerCase() === todayWeekday && s.is_active !== false
-      );
-      classesToday = todaySlots.length;
+      const { count: slotCount, error: slotErr } = await supabaseAdmin
+        .from("schedule_slots")
+        .select("id", { count: "exact", head: true })
+        .gte("start_at", startOfTodayUtc)
+        .lte("start_at", endOfTodayUtc)
+        .neq("status", "cancelled");
+
+      if (!slotErr && slotCount !== null) {
+        classesToday = slotCount;
+      } else {
+        const allSchedules = await ScheduleDataService.listSchedules();
+        classesToday = allSchedules.filter(
+          s => (s.day_of_week || "").trim().toLowerCase() === todayWeekday && s.is_active !== false
+        ).length;
+      }
     } catch (e) {
-      // Fallback to active sessions store
-      classesToday = classSessionQrStore.length;
+      classesToday = 0;
     }
 
-    // 3. Attendance Rate This Week (last 7 calendar days)
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-    const { data: weekAttendance } = await supabaseAdmin
-      .from("attendance")
-      .select("*")
-      .gte("date", sevenDaysAgo)
-      .lte("date", todayIsoDate);
-
-    const weekLogs = weekAttendance || [];
-    let attendanceRateThisWeek = "N/A";
+    // 3. Attendance Rate This Week (in America/Chicago CST/CDT)
+    // Formula: (present + late) / (present + late + absent). Returns "—" if no records.
+    let attendanceRateThisWeek = "—";
     let weekPresentCount = 0;
-    let weekTotalCount = weekLogs.length;
-
-    if (weekTotalCount > 0) {
-      weekPresentCount = weekLogs.filter(
-        (a: any) => (a.status || "").trim().toLowerCase() === "present"
-      ).length;
-      attendanceRateThisWeek = `${Math.round((weekPresentCount / weekTotalCount) * 100)}%`;
-    } else {
-      // If no records in last 7 days, compute overall rate from all attendance
-      const { data: allAtt } = await supabaseAdmin.from("attendance").select("status");
-      if (allAtt && allAtt.length > 0) {
-        const pres = allAtt.filter((a: any) => (a.status || "").toLowerCase() === "present").length;
-        attendanceRateThisWeek = `${Math.round((pres / allAtt.length) * 100)}% (Overall)`;
-      } else {
-        attendanceRateThisWeek = "100%";
-      }
+    let weekTotalCount = 0;
+    try {
+      const weeklyStats = await ScheduleSlotService.getWeeklyAttendanceRate();
+      attendanceRateThisWeek = weeklyStats.display;
+      weekPresentCount = weeklyStats.presentCount + weeklyStats.lateCount;
+      weekTotalCount = weeklyStats.totalMarked;
+    } catch (e) {
+      console.warn("Notice: getWeeklyAttendanceRate:", e);
+      attendanceRateThisWeek = "—";
     }
 
     // 4. Students with Low or Owed Hours (< 5 hours balance or negative)
+    // ONLY count students who have ever had a token grant (prevents flagging un-onboarded 0-token students)
     const lowOrOwedList: any[] = [];
     const studentMap = new Map(studentList.map(s => [s.id, s]));
 
-    // Check token_wallets
     try {
-      const { data: wallets } = await supabaseAdmin
-        .from("token_wallets")
-        .select("*");
+      // Find students with at least 1 grant
+      const { data: grantRows } = await supabaseAdmin
+        .from("token_ledger")
+        .select("student_id")
+        .eq("type", "grant");
 
-      if (wallets && wallets.length > 0) {
-        for (const w of wallets) {
-          const bal = Number(w.balance || 0);
-          if (bal < 5) {
-            const stu = studentMap.get(w.student_id);
+      const grantedStudentIds = Array.from(new Set((grantRows || []).map((r: any) => r.student_id)));
+
+      if (grantedStudentIds.length > 0) {
+        // Fetch balances for these students
+        const { data: balances } = await supabaseAdmin
+          .from("student_course_balance")
+          .select("student_id, course_id, available_tokens")
+          .in("student_id", grantedStudentIds);
+
+        const { data: courses } = await supabaseAdmin.from("courses").select("id, name");
+        const courseMap = new Map((courses || []).map(c => [c.id, c.name]));
+
+        for (const bal of balances || []) {
+          const avail = Number(bal.available_tokens);
+          if (avail < 5) {
+            const stu = studentMap.get(bal.student_id);
             if (stu) {
+              const cName = courseMap.get(bal.course_id) || "General";
               lowOrOwedList.push({
-                id: stu.id,
+                id: `${stu.id}-${bal.course_id}`,
+                studentId: stu.id,
                 studentName: stu.name,
                 studentCode: stu.student_id_code || `TG-STU-${stu.id.slice(0, 6)}`,
-                program: stu.program || "General",
-                hoursBalance: bal,
-                status: bal < 0 ? "Owed" : "Low",
-                hoursOwed: bal < 0 ? Math.abs(bal) : 0,
-                hoursRemaining: bal >= 0 ? bal : 0
+                courseId: bal.course_id,
+                courseName: cName,
+                program: cName,
+                hoursBalance: avail,
+                status: avail < 0 ? "Owed" : "Low",
+                hoursOwed: avail < 0 ? Math.abs(avail) : 0,
+                hoursRemaining: avail >= 0 ? avail : 0
               });
             }
           }
         }
       }
     } catch (e) {
-      console.warn("token_wallets query notice:", e);
+      console.warn("student_course_balance query notice in dashboard-metrics:", e);
     }
 
-    // Also check student records with purchased_hours < 5
-    for (const s of studentList) {
-      if (s.purchased_hours !== null && s.purchased_hours !== undefined) {
-        const hrs = Number(s.purchased_hours);
-        if (hrs < 5 && !lowOrOwedList.some(item => item.id === s.id)) {
-          lowOrOwedList.push({
-            id: s.id,
-            studentName: s.name,
-            studentCode: s.student_id_code || `TG-STU-${s.id.slice(0, 6)}`,
-            program: s.program || "General",
-            hoursBalance: hrs,
-            status: hrs <= 0 ? "Owed" : "Low",
-            hoursOwed: hrs < 0 ? Math.abs(hrs) : 0,
-            hoursRemaining: hrs >= 0 ? hrs : 0
-          });
-        }
-      }
-    }
-
-    // 5. Packages Ending in 14 Days
+    // 5. Packages / Token Grants Expiring in 14 Days
     const endingPackagesList: any[] = [];
-    const in14Days = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const in14DaysIso = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString();
 
     try {
-      const { data: enrollments } = await supabaseAdmin
-        .from("student_enrollments")
-        .select("*")
-        .eq("status", "ACTIVE")
-        .gte("expires_on", todayIsoDate)
-        .lte("expires_on", in14Days);
+      const { data: expiringGrants } = await supabaseAdmin
+        .from("token_ledger")
+        .select("id, student_id, course_id, hours, expires_at, note, courses(id, name)")
+        .not("expires_at", "is", null)
+        .gt("expires_at", now.toISOString())
+        .lte("expires_at", in14DaysIso);
 
-      if (enrollments && enrollments.length > 0) {
-        for (const enr of enrollments) {
-          const stu = studentMap.get(enr.student_id);
+      if (expiringGrants && expiringGrants.length > 0) {
+        for (const g of expiringGrants) {
+          const stu = studentMap.get(g.student_id);
           const daysLeft = Math.max(
             0,
-            Math.ceil((new Date(enr.expires_on).getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+            Math.ceil((new Date(g.expires_at).getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
           );
           endingPackagesList.push({
-            id: enr.id,
-            studentId: enr.student_id,
+            id: g.id,
+            studentId: g.student_id,
             studentName: stu?.name || "Student",
-            studentCode: stu?.student_id_code || `TG-STU-${enr.student_id.slice(0, 6)}`,
-            courseId: enr.course_id,
-            expiresOn: enr.expires_on,
+            studentCode: stu?.student_id_code || `TG-STU-${g.student_id.slice(0, 6)}`,
+            courseId: g.course_id,
+            courseName: (g as any).courses?.name || "Course Package",
+            expiresOn: g.expires_at,
             daysLeft,
-            plan: enr.plan
+            hours: Number(g.hours),
+            plan: g.note || "Expiring Token Package"
           });
         }
       }
     } catch (e) {
-      console.warn("student_enrollments query notice:", e);
+      console.warn("expiring token_ledger query notice:", e);
     }
 
     // 6. Recent Activities Feed (Merged from student_history, email_log, enrollments)

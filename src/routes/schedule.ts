@@ -4,6 +4,7 @@ import { supabaseAdmin } from "../supabase.js";
 import { dispatchMultiChannelNotification, sendClassScheduleEmail } from "../services/notificationService.js";
 import { sendScheduleClassEvent } from "../services/eventEmailService.js";
 import { ScheduleDataService, getSlotDurationMinutes } from "../services/scheduleDataService.js";
+import { ScheduleSlotService } from "../services/scheduleSlotService.js";
 import type { AuthenticatedRequest } from "../middleware/auth.js";
 import { getAccessScope, allowsStudent, allowsTeacher, scopeSchedules } from "../services/accessScope.js";
 import { listOpenSlots, claimSlot, releaseSlot } from "../services/slotClaimService.js";
@@ -432,6 +433,120 @@ router.delete("/:id", async (req, res): Promise<any> => {
     });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 5b. Cancel schedule slot (releases all tokens, cancels attendance)
+router.post("/cancel/:id", async (req, res): Promise<any> => {
+  try {
+    const { id } = req.params;
+    const user = (req as AuthenticatedRequest).user;
+    const reason = req.body?.reason || "Cancelled by administrator";
+    const result = await ScheduleSlotService.cancelSlot(id, user?.id, reason);
+
+    return res.status(200).json({
+      success: true,
+      message: `Schedule slot cancelled. ${result.bookingsCancelled} booking(s) cancelled and ${result.tokensReleased} hours released back to students.`,
+      data: result
+    });
+  } catch (err: any) {
+    return res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+// 5c. Transactional Student Booking (uses public.book_slot RPC)
+router.post("/book", async (req, res): Promise<any> => {
+  try {
+    const { slot_id, student_id } = req.body;
+    if (!slot_id || !student_id) {
+      return res.status(400).json({
+        success: false,
+        error: "Both slot_id and student_id are required."
+      });
+    }
+
+    const result = await ScheduleSlotService.bookSlot(student_id, slot_id);
+    return res.status(200).json({
+      success: true,
+      message: "Class slot booked successfully! Tokens reserved and attendance scheduled.",
+      data: result
+    });
+  } catch (err: any) {
+    return res.status(400).json({
+      success: false,
+      error: err.message || "Failed to book class slot."
+    });
+  }
+});
+
+// 5d. Cancel Booking with 24h Cutoff Policy
+router.post("/cancel-booking", async (req, res): Promise<any> => {
+  try {
+    const { booking_id, reason } = req.body;
+    const user = (req as AuthenticatedRequest).user;
+    if (!booking_id) {
+      return res.status(400).json({
+        success: false,
+        error: "booking_id is required."
+      });
+    }
+
+    const result = await ScheduleSlotService.cancelBooking(booking_id, user?.id, reason);
+    return res.status(200).json({
+      success: true,
+      message: result.tokensReleased > 0
+        ? `Booking cancelled. ${result.tokensReleased} hours released back to your token balance.`
+        : "Booking cancelled within 24 hours. Under institute policy, hours remain consumed.",
+      data: result
+    });
+  } catch (err: any) {
+    return res.status(400).json({
+      success: false,
+      error: err.message || "Failed to cancel booking."
+    });
+  }
+});
+
+// 5e. Get Student's Bookings
+router.get("/student/:studentId/bookings", async (req, res): Promise<any> => {
+  try {
+    const { studentId } = req.params;
+    const { data: bookings, error } = await supabaseAdmin
+      .from("bookings")
+      .select(`
+        id,
+        slot_id,
+        student_id,
+        status,
+        tokens_reserved,
+        created_at,
+        cancelled_at,
+        schedule_slots (
+          id,
+          course_id,
+          teacher_id,
+          start_at,
+          end_at,
+          duration_hours,
+          status,
+          courses ( name ),
+          teachers ( name )
+        )
+      `)
+      .eq("student_id", studentId)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    return res.status(200).json({
+      success: true,
+      data: bookings || []
+    });
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      error: err.message
+    });
   }
 });
 

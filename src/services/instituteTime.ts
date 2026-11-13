@@ -41,3 +41,27 @@ export function isBirthdayToday(dob: { month: number; day: number }, now: Instit
   const leap = (now.year % 4 === 0 && now.year % 100 !== 0) || now.year % 400 === 0;
   return !leap && dob.month === 2 && dob.day === 29 && now.month === 2 && now.day === 28;
 }
+
+/**
+ * Returns the YYYY-MM-DD date string of the upcoming occurrence of a weekday in America/Chicago.
+ */
+export function getNextDayOfWeekDateStr(dayName: string): string {
+  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const targetDay = dayNames.findIndex(d => d.toLowerCase() === dayName.toLowerCase());
+  if (targetDay === -1) return instituteToday();
+
+  const now = new Date();
+  const todayParts = instituteNow(now);
+  const todayUtc = new Date(Date.UTC(todayParts.year, todayParts.month - 1, todayParts.day));
+  const currentDay = todayUtc.getUTCDay();
+
+  let diff = targetDay - currentDay;
+  if (diff <= 0) diff += 7;
+
+  const nextDate = new Date(todayUtc.getTime() + diff * 24 * 3600 * 1000);
+  const y = nextDate.getUTCFullYear();
+  const m = String(nextDate.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(nextDate.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+

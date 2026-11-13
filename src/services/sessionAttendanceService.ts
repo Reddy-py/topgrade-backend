@@ -7,6 +7,7 @@ import { dispatchMultiChannelNotification } from "./notificationService.js";
 import { supabaseAdmin } from "../supabase.js";
 import { claimEmail, finishEmail } from "./emailLog.js";
 import { getBalances } from "./tokenService.js";
+import { ScheduleSlotService } from "./scheduleSlotService.js";
 
 export interface ClassSessionQRRecord {
   id: string;
@@ -401,6 +402,24 @@ export class SessionAttendanceService {
           markedByName: actor?.name || slot.teacher_name || "Faculty",
           ...(actor?.id ? { markedByUserId: actor.id } : {})
         });
+
+        // Also sync directly to unified public.attendance table & schedule_slots completion
+        try {
+          const { data: attRow } = await supabaseAdmin
+            .from("attendance")
+            .select("id")
+            .eq("slot_id", slot.id)
+            .eq("student_id", entry.studentId)
+            .neq("status", "cancelled")
+            .maybeSingle();
+
+          if (attRow) {
+            const normStat = status.toLowerCase() as "present" | "absent" | "late" | "excused";
+            await ScheduleSlotService.markAttendance(attRow.id, normStat, actor?.id, noteWithAudit);
+          }
+        } catch (attSyncErr) {
+          console.warn("Unified attendance sync note:", attSyncErr);
+        }
       } catch (saveErr: any) {
         warnings.push(`${studentName}: ${saveErr?.message}`);
         continue;

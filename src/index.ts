@@ -31,6 +31,8 @@ import monthlyNotesRouter from "./routes/monthlyNotes.js";
 import engagementRouter from "./routes/engagement.js";
 import upsellRouter from "./routes/upsell.js";
 import performanceRouter from "./routes/performance.js";
+import coursePackagesRouter from "./routes/coursePackages.js";
+import tokensRouter from "./routes/tokens.js";
 import { TimedEmailScheduler } from "./services/timedEmailScheduler.js";
 import { initializeAutomatedEmailScheduler } from "./services/automatedEmailService.js";
 import { authenticateJwt } from "./middleware/auth.js";
@@ -208,6 +210,8 @@ app.use("/api/locations", routeGuard("classes", [
   { method: "GET", path: /^\/[^/]+\/?$/, permission: "dashboard.view" },
 ]));
 app.use("/api/locations", locationsRouter);
+app.use("/api/course-packages", coursePackagesRouter);
+app.use("/api/tokens", tokensRouter);
 
 // A parent may pay only for their own child; a student only scans for themselves.
 app.post("/api/payments/zelle-order", requireOwnStudent("student_id"));

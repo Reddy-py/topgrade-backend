@@ -2,6 +2,8 @@ import express from "express";
 import { supabaseAdmin } from "../supabase.js";
 import { removeAttendanceSessionsForCourse } from "../services/sessionAttendanceService.js";
 import { ScheduleDataService, computeEndTime } from "../services/scheduleDataService.js";
+import { ScheduleSlotService } from "../services/scheduleSlotService.js";
+import { getNextDayOfWeekDateStr } from "../services/instituteTime.js";
 import { authenticateJwt, type AuthenticatedRequest } from "../middleware/auth.js";
 import { getAccessScope, allowsCourse } from "../services/accessScope.js";
 import { getInstituteSettings, updateInstituteSettings } from "../services/instituteSettingsService.js";
@@ -809,37 +811,42 @@ export const createCourseHandler = async (req: express.Request, res: express.Res
     return res.status(500).json({ success: false, message: error?.message || "Failed to create course in Supabase." });
   }
 
-  // 3. Create schedule slots in one atomic batch; if any fail, rollback course and slots
-  const createdSlots: any[] = [];
-  try {
-    for (const slot of plannedSlots) {
-      const slotRecord = await ScheduleDataService.createSchedule({
+  // 3. Create default package in course_packages if package_hours provided
+  if (data?.id && (packageHours || 20)) {
+    try {
+      const pkgHoursVal = packageHours || 20;
+      await supabaseAdmin.from("course_packages").insert({
         course_id: data.id,
-        course_name: data.name,
-        teacher_id: slot.teacherId,
-        teacher_name: slot.teacherName,
-        open_for_teachers: !slot.teacherId,
-        day_of_week: slot.day,
-        start_time: slot.startTime,
-        end_time: slot.endTime,
-        room: slot.room,
-        location: slot.location,
-        max_capacity: slot.capacity,
-        program_type: slot.programType
+        name: `${pkgHoursVal} Hours Standard Package`,
+        hours: pkgHoursVal,
+        validity_days: (durationMonths ? durationMonths * 30 : 90),
+        price: packagePrice || 900
       });
-      createdSlots.push(slotRecord);
+    } catch (pkgErr: any) {
+      console.warn("Notice creating default course package:", pkgErr?.message);
     }
-  } catch (schedErr: any) {
-    for (const s of createdSlots) {
-      await ScheduleDataService.deleteSchedule(s.id).catch(() => {});
+  }
+
+  // 4. Create schedule slots if planned and teacher is selected
+  const createdSlots: any[] = [];
+  for (const slot of plannedSlots) {
+    if (slot.teacherId && slot.teacherId.trim() !== "") {
+      try {
+        const slotRecord = await ScheduleSlotService.createSlot({
+          course_id: data.id,
+          teacher_id: slot.teacherId,
+          grade: Array.isArray(c.gradeEligibility) && c.gradeEligibility[0] ? c.gradeEligibility[0] : "Grade 10",
+          date_cst: getNextDayOfWeekDateStr(slot.day),
+          start_time_cst: slot.startTime,
+          duration_hours: classLength,
+          max_students: slot.capacity || 15,
+          notes: `Class room: ${slot.room || 'Room 101'}`
+        });
+        createdSlots.push(slotRecord);
+      } catch (schedErr: any) {
+        console.warn(`Notice scheduling slot on ${slot.day}:`, schedErr.message);
+      }
     }
-    await supabaseAdmin.from("courses").delete().eq("id", data.id);
-    const isConflict = schedErr.message?.includes("Collision") || schedErr.message?.includes("already scheduled") || schedErr.message?.includes("booked");
-    return res.status(isConflict ? 409 : 400).json({
-      success: false,
-      message: `Failed to create schedule slots: ${schedErr.message}`,
-      error: schedErr.message
-    });
   }
 
   const savedData = mapSupabaseCourseToCourseData(data);

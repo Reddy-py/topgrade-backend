@@ -176,26 +176,79 @@ async function viewWallets(rows: any[]): Promise<WalletView[]> {
 export async function getBalances(studentIdOrCode: string): Promise<WalletView[]> {
   const student = await findStudent(studentIdOrCode);
   if (!student) return [];
-  const { data } = await supabaseAdmin.from("token_wallets").select("*").eq("student_id", student.id);
-  return viewWallets((data || []) as any[]);
+  const { data: balances } = await supabaseAdmin
+    .from("student_course_balance")
+    .select("student_id, course_id, available_tokens")
+    .eq("student_id", student.id);
+
+  const { data: courses } = await supabaseAdmin.from("courses").select("id, name, hourly_rate");
+  const byId = new Map<string, CourseInfo>();
+  for (const c of (courses || []) as any[]) {
+    byId.set(String(c.id), { id: String(c.id), name: String(c.name || ""), price: Number(c.hourly_rate || 50) });
+  }
+
+  return (balances || []).map((b: any) => {
+    const c = byId.get(String(b.course_id));
+    const balance = Number(b.available_tokens) || 0;
+    return {
+      studentId: b.student_id,
+      courseId: b.course_id,
+      courseName: c?.name || "Course",
+      pricePerToken: c?.price || 50,
+      balance,
+      totalPurchased: balance,
+      totalUsed: 0,
+      low: balance <= LOW_TOKEN_LIMIT,
+      owed: balance < 0
+    };
+  });
 }
 
 export async function getBalancesForStudents(studentUuids: string[]): Promise<Array<WalletView & { studentName: string; studentCode: string }>> {
   const ids = studentUuids.filter(isUuid);
   if (ids.length === 0) return [];
-  const { data: wallets } = await supabaseAdmin.from("token_wallets").select("*").in("student_id", ids);
+  const { data: balances } = await supabaseAdmin
+    .from("student_course_balance")
+    .select("student_id, course_id, available_tokens")
+    .in("student_id", ids);
+
   const { data: students } = await supabaseAdmin.from("students").select("id, name, student_id_code").in("id", ids);
   const nameOf = new Map<string, any>((students || []).map((s: any) => [s.id, s]));
-  const views = await viewWallets((wallets || []) as any[]);
-  return views.map(v => ({ ...v, studentName: nameOf.get(v.studentId)?.name || "", studentCode: nameOf.get(v.studentId)?.student_id_code || "" }));
+
+  const { data: courses } = await supabaseAdmin.from("courses").select("id, name, hourly_rate");
+  const byId = new Map<string, CourseInfo>();
+  for (const c of (courses || []) as any[]) {
+    byId.set(String(c.id), { id: String(c.id), name: String(c.name || ""), price: Number(c.hourly_rate || 50) });
+  }
+
+  return (balances || []).map((b: any) => {
+    const c = byId.get(String(b.course_id));
+    const balance = Number(b.available_tokens) || 0;
+    return {
+      studentId: b.student_id,
+      studentName: nameOf.get(b.student_id)?.name || "",
+      studentCode: nameOf.get(b.student_id)?.student_id_code || "",
+      courseId: b.course_id,
+      courseName: c?.name || "Course",
+      pricePerToken: c?.price || 50,
+      balance,
+      totalPurchased: balance,
+      totalUsed: 0,
+      low: balance <= LOW_TOKEN_LIMIT,
+      owed: balance < 0
+    };
+  });
 }
 
 export async function getLedger(studentIdOrCode: string, limit = 100) {
   const student = await findStudent(studentIdOrCode);
   if (!student) return [];
   const { data } = await supabaseAdmin
-    .from("token_ledger").select("id, course_id, delta, reason, note, balance_after, created_at")
-    .eq("student_id", student.id).order("created_at", { ascending: false }).limit(limit);
+    .from("token_ledger")
+    .select("id, course_id, hours, type, ref_booking_id, expires_at, note, created_at")
+    .eq("student_id", student.id)
+    .order("created_at", { ascending: false })
+    .limit(limit);
   return data || [];
 }
 

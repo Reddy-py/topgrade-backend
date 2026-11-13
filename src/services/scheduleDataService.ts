@@ -1,5 +1,7 @@
 import { supabaseAdmin } from "../supabase.js";
 import { getLocationById } from "./locationService.js";
+import { ScheduleSlotService } from "./scheduleSlotService.js";
+import { getNextDayOfWeekDateStr } from "./instituteTime.js";
 
 export interface ScheduleStudent {
   id: string;
@@ -302,106 +304,52 @@ export class ScheduleDataService {
   }
 
   /**
-   * List all schedule slots strictly from Supabase schedules table + claims overlay
+   * List all schedule slots strictly from Supabase public.schedule_slots
    */
   static async listSchedules(): Promise<ScheduleSlot[]> {
     let slotsList: ScheduleSlot[] = [];
 
     try {
-      const { data: schedData, error: schedErr } = await supabaseAdmin
-        .from("schedules")
-        .select("*")
-        .order("created_at", { ascending: true });
-
-      if (schedErr) {
-        console.warn("Supabase schedules query notice:", schedErr.message);
-        return Array.from(inMemorySchedules.values()).sort((a, b) =>
-          (a.course_name || "").localeCompare(b.course_name || "", undefined, { sensitivity: "base" })
-        );
-      }
-
-      if (!schedData || schedData.length === 0) {
-        return Array.from(inMemorySchedules.values()).sort((a, b) =>
-          (a.course_name || "").localeCompare(b.course_name || "", undefined, { sensitivity: "base" })
-        );
-      }
-
-      // Fetch students mapped to all schedules
-      const { data: studentMap } = await supabaseAdmin
-        .from("schedule_students")
-        .select("*");
-
-      const studentsBySchedule = new Map<string, ScheduleStudent[]>();
-      if (studentMap && Array.isArray(studentMap)) {
-        for (const sm of studentMap) {
-          const schedId = sm.schedule_id;
-          if (!studentsBySchedule.has(schedId)) {
-            studentsBySchedule.set(schedId, []);
-          }
-          studentsBySchedule.get(schedId)!.push({
-            id: sm.id,
-            schedule_id: sm.schedule_id,
-            student_id: sm.student_id,
-            student_name: sm.student_name,
-            student_code: sm.student_code,
-            created_at: sm.created_at
-          });
-        }
-      }
-
-      // Fetch teacher slot claims overlay
-      const { data: claimsData } = await supabaseAdmin
-        .from("teacher_slot_claims")
-        .select("slot_id, teacher_id, teacher_name, teacher_email");
-
-      const claimBySlot = new Map<string, any>(
-        (claimsData || []).map((c: any) => [c.slot_id, c])
-      );
-
-      slotsList = schedData.map((s: any) => {
-        const slotStudents = (studentsBySchedule.get(s.id) || []).sort((a, b) =>
-          (a.student_name || "").localeCompare(b.student_name || "", undefined, { sensitivity: "base" })
-        );
-
-        const isOpen = s.open_for_teachers === true;
-        const claim = isOpen ? claimBySlot.get(s.id) : undefined;
-        const rawProgram = s.program_type || s.program || "TUTORING";
-
-        const sMin = typeof s.start_minute === "number" ? s.start_minute : parseTimeToMinutes(s.start_time);
-        const eMin = typeof s.end_minute === "number" ? s.end_minute : parseTimeToMinutes(s.end_time);
-        const durMins = getSlotDurationMinutes(s.start_time, s.end_time);
-        const durHours = typeof s.duration_hours === "number" ? s.duration_hours : (durMins >= 90 ? 2 : 1);
-
-        return {
-          id: String(s.id),
-          course_id: String(s.course_id || ""),
-          course_name: String(s.course_name || ""),
-          teacher_id: claim ? claim.teacher_id : (s.teacher_id || ""),
-          teacher_name: claim ? (claim.teacher_name || s.teacher_name || "") : (s.teacher_name || ""),
+      const dbSlots = await ScheduleSlotService.listSlots();
+      if (dbSlots && dbSlots.length > 0) {
+        slotsList = dbSlots.map(s => ({
+          id: s.id,
+          course_id: s.course_id,
+          course_name: s.course_name,
+          teacher_id: s.teacher_id,
+          teacher_name: s.teacher_name,
           day_of_week: s.day_of_week,
           start_time: s.start_time,
           end_time: s.end_time,
-          start_minute: sMin,
-          end_minute: eMin,
-          duration_hours: durHours,
-          time_slot: s.time_slot || `${s.start_time} - ${s.end_time}`,
-          room: s.room || "Room 101",
-          location: s.location || "Main Academic Center",
-          location_id: s.location_id || undefined,
-          location_address: s.location_address || undefined,
-          max_capacity: s.max_capacity || 15,
-          is_active: s.is_active !== false,
-          open_for_teachers: isOpen,
-          claimed_by_teacher: Boolean(claim),
-          program: rawProgram,
-          program_type: (s.program_type || rawProgram).toUpperCase(),
-          students: slotStudents,
+          start_minute: parseTimeToMinutes(s.start_time),
+          end_minute: parseTimeToMinutes(s.end_time),
+          duration_hours: s.duration_hours,
+          time_slot: s.time_slot,
+          room: s.notes || "Room 101",
+          location: "Main Academic Center",
+          max_capacity: s.max_students,
+          is_active: s.status !== "cancelled",
+          open_for_teachers: !s.teacher_id,
+          claimed_by_teacher: Boolean(s.teacher_id),
+          program: "TUTORING",
+          program_type: "TUTORING",
+          students: (s.students || []).map(st => ({
+            id: st.booking_id,
+            schedule_id: s.id,
+            student_id: st.student_id,
+            student_name: st.student_name,
+            student_code: st.student_code
+          })),
           created_at: s.created_at,
           updated_at: s.updated_at
-        };
-      });
+        }));
+
+        return slotsList.sort((a, b) =>
+          (a.course_name || "").localeCompare(b.course_name || "", undefined, { sensitivity: "base" })
+        );
+      }
     } catch (err: any) {
-      console.warn("ScheduleDataService.listSchedules error:", err?.message);
+      console.warn("ScheduleSlotService.listSlots notice:", err?.message);
     }
 
     // Merge in-memory slots that are not present in slotsList
@@ -440,7 +388,7 @@ export class ScheduleDataService {
   }
 
   /**
-   * Create a schedule slot in Supabase
+   * Create a schedule slot in Supabase public.schedule_slots
    */
   static async createSchedule(payload: {
     id?: string;
@@ -462,180 +410,65 @@ export class ScheduleDataService {
     students?: Array<{ student_id: string; student_name: string; student_code?: string }>;
   }): Promise<ScheduleSlot> {
     const duration = getSlotDurationMinutes(payload.start_time, payload.end_time);
-    if (duration !== 60 && duration !== 120) {
-      throw new Error(`Invalid class duration: slot must be 60 or 120 minutes (1 or 2 hours). Received ${duration} minutes (${payload.start_time} to ${payload.end_time}).`);
+    const durHours = duration >= 90 ? 2.0 : 1.0;
+
+    // Resolve date in CST for the target day of week
+    const dateCst = getNextDayOfWeekDateStr(payload.day_of_week);
+
+    // If teacher_id is empty, pick first active teacher from teachers table
+    let effectiveTeacherId = payload.teacher_id;
+    if (!effectiveTeacherId || effectiveTeacherId.trim() === "") {
+      const { data: firstTeacher } = await supabaseAdmin
+        .from("teachers")
+        .select("id, name")
+        .eq("status", "Active")
+        .limit(1)
+        .maybeSingle();
+      if (firstTeacher) {
+        effectiveTeacherId = firstTeacher.id;
+      }
     }
 
-    const studentIds = (payload.students || []).map(s => s.student_id);
-
-    // Collision check
-    const conflict = await this.checkCollisions({
-      scheduleIdToExclude: payload.id,
-      day_of_week: payload.day_of_week,
-      start_time: payload.start_time,
-      end_time: payload.end_time,
-      teacher_id: payload.teacher_id,
-      room: payload.room || "Room 101",
-      student_ids: studentIds
+    const slotDto = await ScheduleSlotService.createSlot({
+      course_id: payload.course_id,
+      teacher_id: effectiveTeacherId,
+      date_cst: dateCst,
+      start_time_cst: payload.start_time,
+      duration_hours: durHours,
+      max_students: payload.max_capacity || 15,
+      notes: payload.room || payload.location || "Room 101"
     });
 
-    if (conflict.hasConflict) {
-      throw new Error(conflict.error);
-    }
-
-    const timeSlot = `${payload.start_time} - ${payload.end_time}`;
-    const scheduleId = payload.id || `sch-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    const nowIso = new Date().toISOString();
-
-    let locName = payload.location || "Main Academic Center";
-    let locAddr = payload.location_address || "";
-    let locId = payload.location_id;
-
-    if (locId) {
-      const loc = await getLocationById(locId);
-      if (loc) {
-        locName = loc.name;
-        if (!locAddr) locAddr = loc.address;
-      }
-    } else if (payload.location) {
-      const loc = await getLocationById(payload.location);
-      if (loc) {
-        locId = loc.id;
-        locName = loc.name;
-        if (!locAddr) locAddr = loc.address;
-      }
-    }
-
-    const progType = (payload.program_type || payload.program || "TUTORING").toUpperCase();
-
-    const newSlot: ScheduleSlot = {
-      id: scheduleId,
-      course_id: payload.course_id,
-      course_name: payload.course_name,
-      teacher_id: payload.teacher_id || "",
-      teacher_name: payload.teacher_name || "",
-      day_of_week: payload.day_of_week,
-      start_time: payload.start_time,
-      end_time: payload.end_time,
-      start_minute: parseTimeToMinutes(payload.start_time),
-      end_minute: parseTimeToMinutes(payload.end_time),
-      duration_hours: duration >= 90 ? 2 : 1,
-      time_slot: timeSlot,
-      room: payload.room || "Room 101",
-      location: locName,
-      location_id: locId,
-      location_address: locAddr,
-      max_capacity: payload.max_capacity || 15,
-      is_active: true,
-      open_for_teachers: payload.open_for_teachers === true,
-      program: progType,
-      program_type: progType,
-      created_at: nowIso,
-      updated_at: nowIso
-    };
-
-    // Insert into Supabase schedules
-    const insertRow: any = {
-      id: newSlot.id,
-      course_id: newSlot.course_id,
-      course_name: newSlot.course_name,
-      teacher_id: newSlot.teacher_id ? newSlot.teacher_id : null,
-      teacher_name: newSlot.teacher_name ? newSlot.teacher_name : null,
-      day_of_week: newSlot.day_of_week,
-      start_time: newSlot.start_time,
-      end_time: newSlot.end_time,
-      start_minute: newSlot.start_minute,
-      end_minute: newSlot.end_minute,
-      duration_hours: newSlot.duration_hours,
-      time_slot: newSlot.time_slot,
-      room: newSlot.room,
-      location: newSlot.location,
-      location_id: newSlot.location_id || null,
-      location_address: newSlot.location_address || null,
-      max_capacity: newSlot.max_capacity,
-      is_active: newSlot.is_active,
-      open_for_teachers: newSlot.open_for_teachers,
-      program: newSlot.program || null,
-      program_type: newSlot.program_type || null,
-      created_at: nowIso,
-      updated_at: nowIso
-    };
-
-    let { error: insErr } = await supabaseAdmin.from("schedules").insert([insertRow]);
-    if (insErr && (insErr.message.includes("location_id") || insErr.message.includes("location_address") || insErr.message.includes("program_type") || insErr.message.includes("duration_hours"))) {
-      delete insertRow.location_id;
-      delete insertRow.location_address;
-      delete insertRow.program_type;
-      const retry = await supabaseAdmin.from("schedules").insert([insertRow]);
-      insErr = retry.error;
-    }
-
-    if (insErr) {
-      console.warn("Supabase schedules insert note, persisting in inMemorySchedules fallback:", insErr.message);
-    }
-
-    // Insert mapped students into schedule_students
-    const mappedStudents: ScheduleStudent[] = [];
+    // If students are assigned, enroll each through the transactional booking RPC
     if (payload.students && payload.students.length > 0) {
-      const studentRows = payload.students.map((st, idx) => ({
-        id: `st-map-${scheduleId}-${idx}`,
-        schedule_id: scheduleId,
-        student_id: st.student_id,
-        student_name: st.student_name,
-        student_code: st.student_code || null,
-        created_at: nowIso
-      }));
-
-      try {
-        const { data: insertedStudents, error: stErr } = await supabaseAdmin
-          .from("schedule_students")
-          .insert(studentRows)
-          .select("*");
-
-        if (!stErr && insertedStudents) {
-          insertedStudents.forEach((sm: any) => {
-            mappedStudents.push({
-              id: sm.id,
-              schedule_id: sm.schedule_id,
-              student_id: sm.student_id,
-              student_name: sm.student_name,
-              student_code: sm.student_code,
-              created_at: sm.created_at
-            });
-          });
+      for (const st of payload.students) {
+        try {
+          await ScheduleSlotService.bookSlot(st.student_id, slotDto.id);
+        } catch (bErr: any) {
+          console.warn(`Notice enrolling student ${st.student_name}:`, bErr?.message);
         }
-      } catch (err: any) {
-        console.warn("Supabase schedule_students insert note:", err?.message);
-      }
-
-      if (mappedStudents.length === 0) {
-        studentRows.forEach(sr => mappedStudents.push({ ...sr, student_code: sr.student_code || undefined }));
       }
     }
-    newSlot.students = mappedStudents;
-    inMemorySchedules.set(scheduleId, newSlot);
 
-    // Log to student history
-    for (const st of payload.students || []) {
-      void this.appendHistoryItem({
-        student_id: st.student_id,
-        student_name: st.student_name,
-        event_type: "SCHEDULE_ASSIGNMENT",
-        title: `Enrolled in Weekly Schedule: ${payload.course_name}`,
-        description: `Class scheduled on ${payload.day_of_week}s (${timeSlot}) at ${payload.room || "Room 101"}${payload.teacher_name ? ` with faculty ${payload.teacher_name}` : ""}.`,
-        metadata: {
-          schedule_id: scheduleId,
-          course_name: payload.course_name,
-          day_of_week: payload.day_of_week,
-          time_slot: timeSlot,
-          room: payload.room,
-          teacher_name: payload.teacher_name
-        },
-        actor: "Academic Registrar"
-      });
-    }
-
-    return newSlot;
+    const reloaded = (await this.listSchedules()).find(s => s.id === slotDto.id);
+    return reloaded || {
+      id: slotDto.id,
+      course_id: slotDto.course_id,
+      course_name: slotDto.course_name,
+      teacher_id: slotDto.teacher_id,
+      teacher_name: slotDto.teacher_name,
+      day_of_week: slotDto.day_of_week,
+      start_time: slotDto.start_time,
+      end_time: slotDto.end_time,
+      time_slot: slotDto.time_slot,
+      room: slotDto.notes || "Room 101",
+      location: "Main Academic Center",
+      max_capacity: slotDto.max_students,
+      is_active: true,
+      duration_hours: slotDto.duration_hours,
+      created_at: slotDto.created_at,
+      updated_at: slotDto.updated_at
+    };
   }
 
   /**
@@ -859,22 +692,20 @@ export class ScheduleDataService {
   }
 
   /**
-   * Delete a schedule slot in Supabase
+   * Delete or cancel a schedule slot in Supabase
    */
   static async deleteSchedule(id: string): Promise<boolean> {
     inMemorySchedules.delete(id);
     try {
-      await supabaseAdmin.from("teacher_slot_claims").delete().eq("slot_id", id);
-      await supabaseAdmin.from("schedule_students").delete().eq("schedule_id", id);
-      await supabaseAdmin.from("schedules").delete().eq("id", id);
+      await ScheduleSlotService.cancelSlot(id, undefined, "Slot cancelled by administrator");
     } catch (e: any) {
-      console.warn("Supabase schedule delete notice:", e?.message);
+      console.warn("Notice cancelling slot in ScheduleSlotService:", e?.message);
     }
     return true;
   }
 
   /**
-   * Enroll a student into a schedule slot (checks capacity)
+   * Enroll a student into a schedule slot (books slot via token engine)
    */
   static async enrollStudentInSchedule(params: {
     schedule_id: string;
@@ -882,45 +713,10 @@ export class ScheduleDataService {
     student_name: string;
     student_code?: string;
   }): Promise<ScheduleSlot> {
-    const all = await this.listSchedules();
-    const slot = all.find(s => s.id === params.schedule_id);
-    if (!slot) {
-      throw new Error(`Schedule slot '${params.schedule_id}' not found.`);
-    }
-
-    const currentStudents = slot.students || [];
-    if (currentStudents.some(s => s.student_id === params.student_id)) {
-      return slot; // already enrolled
-    }
-
-    if (currentStudents.length >= slot.max_capacity) {
-      throw new Error(`Schedule slot is at full capacity (${currentStudents.length}/${slot.max_capacity}).`);
-    }
-
-    const studentList: Array<{ student_id: string; student_name: string; student_code?: string }> = [
-      ...currentStudents.map(s => {
-        const item: { student_id: string; student_name: string; student_code?: string } = {
-          student_id: s.student_id,
-          student_name: s.student_name
-        };
-        if (s.student_code) item.student_code = s.student_code;
-        return item;
-      }),
-      (() => {
-        const item: { student_id: string; student_name: string; student_code?: string } = {
-          student_id: params.student_id,
-          student_name: params.student_name
-        };
-        if (params.student_code) item.student_code = params.student_code;
-        return item;
-      })()
-    ];
-
-    const updated = await this.updateSchedule(slot.id, {
-      students: studentList
-    });
-
-    return updated;
+    await ScheduleSlotService.bookSlot(params.student_id, params.schedule_id);
+    const slot = (await this.listSchedules()).find(s => s.id === params.schedule_id);
+    if (!slot) throw new Error(`Schedule slot '${params.schedule_id}' not found after booking.`);
+    return slot;
   }
 
   /**
@@ -1047,6 +843,9 @@ export class ScheduleDataService {
       const studentName = studentObj?.name || (studentId.startsWith("TG-STU") ? studentId : "Student");
       const studentCode = studentObj?.student_id_code || (studentId.startsWith("TG-STU") ? studentId : undefined);
 
+      // Book student into slot via unified token architecture
+      await ScheduleSlotService.bookSlot(effectiveStudentId, slot.id);
+
       const entry: ScheduleStudent = {
         id: `st-map-${slot.id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         schedule_id: slot.id,
@@ -1056,21 +855,6 @@ export class ScheduleDataService {
         created_at: nowIso
       };
       enrolledStudentsToAdd.push(entry);
-
-      try {
-        await supabaseAdmin.from("schedule_students").upsert(
-          {
-            schedule_id: slot.id,
-            student_id: effectiveStudentId,
-            student_name: studentName,
-            student_code: studentCode || null,
-            created_at: nowIso
-          },
-          { onConflict: "schedule_id,student_id" }
-        );
-      } catch (error: any) {
-        console.warn("Supabase schedule_student upsert note:", error?.message);
-      }
 
       void this.appendHistoryItem({
         student_id: effectiveStudentId,
@@ -1118,11 +902,21 @@ export class ScheduleDataService {
     student_id: string;
     student_code?: string;
   }): Promise<ScheduleSlot | null> {
-    await supabaseAdmin
-      .from("schedule_students")
-      .delete()
-      .eq("schedule_id", payload.schedule_id)
-      .eq("student_id", payload.student_id);
+    try {
+      const { data: booking } = await supabaseAdmin
+        .from("bookings")
+        .select("id")
+        .eq("slot_id", payload.schedule_id)
+        .eq("student_id", payload.student_id)
+        .eq("status", "booked")
+        .maybeSingle();
+
+      if (booking?.id) {
+        await ScheduleSlotService.cancelBooking(booking.id, undefined, "Unassigned by administrator");
+      }
+    } catch (e: any) {
+      console.warn("Notice cancelling booking on unassign:", e?.message);
+    }
 
     const refreshed = (await this.listSchedules()).find(s => s.id === payload.schedule_id);
     return refreshed || null;

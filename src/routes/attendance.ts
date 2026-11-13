@@ -11,8 +11,80 @@ import { ScheduleDataService } from "../services/scheduleDataService.js";
 import type { AuthenticatedRequest } from "../middleware/auth.js";
 import { getAccessScope, allowsStudent, scopeSessions, slotBelongsToTeacher } from "../services/accessScope.js";
 import { isRealEmail } from "../constants/domains.js";
+import { ScheduleSlotService } from "../services/scheduleSlotService.js";
 
 const router = express.Router();
+
+// ==============================================================
+// UNIFIED TOKEN ARCHITECTURE: SCHEDULE-DRIVEN ATTENDANCE (STEP 8)
+// ==============================================================
+
+/**
+ * GET /api/attendance/slots
+ * Returns schedule slots for a CST date with booked students and attendance status.
+ */
+router.get("/slots", async (req, res): Promise<any> => {
+  try {
+    const { date, teacher_id } = req.query;
+    const slots = await ScheduleSlotService.listAttendanceSlots(
+      date as string | undefined,
+      teacher_id as string | undefined
+    );
+    return res.json({ success: true, data: slots });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * POST /api/attendance/mark
+ * Marks student attendance with strict net-zero token rules.
+ */
+router.post("/mark", async (req, res): Promise<any> => {
+  try {
+    const { attendanceId, status, remarks } = req.body || {};
+    if (!attendanceId) {
+      return res.status(400).json({ success: false, message: "attendanceId is required." });
+    }
+    if (!["present", "absent", "late", "excused"].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Status must be 'present', 'absent', 'late', or 'excused'."
+      });
+    }
+
+    const authUser = (req as AuthenticatedRequest).user;
+    const markedBy = authUser?.id;
+
+    const result = await ScheduleSlotService.markAttendance(
+      attendanceId,
+      status,
+      markedBy,
+      remarks
+    );
+
+    return res.json({
+      success: true,
+      message: `Marked as ${status}.`,
+      data: result
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * GET /api/attendance/weekly-rate
+ * Computes weekly attendance rate in America/Chicago.
+ */
+router.get("/weekly-rate", async (_req, res): Promise<any> => {
+  try {
+    const stats = await ScheduleSlotService.getWeeklyAttendanceRate();
+    return res.json({ success: true, data: stats });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
 
 // ==============================================================
 // NODE 6: SCHEDULE-DRIVEN DAILY ATTENDANCE SYSTEM (NO QR CODE)
