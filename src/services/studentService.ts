@@ -1370,7 +1370,50 @@ export async function deleteStudentService(id: string): Promise<boolean> {
     const targetStudentName = removed?.fullName;
     const targetStudentEmail = removed?.email;
 
-    // 1. Delete from students table
+    // 1. Clean up child relations first to prevent foreign key violations
+    if (targetStudentId) {
+      try {
+        await supabaseAdmin.from("bookings").delete().eq("student_id", targetStudentId);
+      } catch {}
+      try {
+        const { data: wallets } = await supabaseAdmin.from("hour_wallets").select("id").eq("student_id", targetStudentId);
+        if (wallets && wallets.length > 0) {
+          const wIds = wallets.map(w => w.id);
+          await supabaseAdmin.from("hour_ledger").delete().in("wallet_id", wIds);
+          await supabaseAdmin.from("hour_wallets").delete().eq("student_id", targetStudentId);
+        }
+      } catch {}
+      try {
+        await supabaseAdmin.from("student_enrollments").delete().eq("student_id", targetStudentId);
+      } catch {}
+      try {
+        await supabaseAdmin.from("schedule_students").delete().eq("student_id", targetStudentId);
+      } catch {}
+      try {
+        await supabaseAdmin.from("attendance").delete().eq("student_id", targetStudentId);
+      } catch {}
+      try {
+        await supabaseAdmin.from("fees").delete().eq("student_id", targetStudentId);
+      } catch {}
+      try {
+        await supabaseAdmin.from("parent_students").delete().eq("student_id", targetStudentId);
+      } catch {}
+    }
+
+    if (targetStudentCode) {
+      try {
+        await supabaseAdmin.from("schedule_students").delete().eq("student_code", targetStudentCode);
+        await supabaseAdmin.from("fees").delete().eq("student_code", targetStudentCode);
+      } catch {}
+    }
+
+    if (targetStudentName) {
+      try {
+        await supabaseAdmin.from("attendance").delete().eq("student_name", targetStudentName);
+      } catch {}
+    }
+
+    // 2. Delete from students table and profiles table
     if (targetStudentId && isUUID(targetStudentId)) {
       await supabaseAdmin.from("students").delete().eq("id", targetStudentId);
     }
@@ -1380,35 +1423,6 @@ export async function deleteStudentService(id: string): Promise<boolean> {
     if (targetStudentEmail) {
       await supabaseAdmin.from("students").delete().eq("email", targetStudentEmail);
       await supabaseAdmin.from("profiles").delete().eq("email", targetStudentEmail);
-    }
-
-    // 2. Delete from schedule_students table
-    if (targetStudentId) {
-      await supabaseAdmin.from("schedule_students").delete().eq("student_id", targetStudentId);
-    }
-    if (targetStudentCode) {
-      await supabaseAdmin.from("schedule_students").delete().eq("student_code", targetStudentCode);
-    }
-
-    // 3. Delete from attendance table
-    if (targetStudentId) {
-      await supabaseAdmin.from("attendance").delete().eq("student_id", targetStudentId);
-    }
-    if (targetStudentName) {
-      await supabaseAdmin.from("attendance").delete().eq("student_name", targetStudentName);
-    }
-
-    // 4. Delete from fees table
-    if (targetStudentId) {
-      await supabaseAdmin.from("fees").delete().eq("student_id", targetStudentId);
-    }
-    if (targetStudentCode) {
-      await supabaseAdmin.from("fees").delete().eq("student_code", targetStudentCode);
-    }
-
-    // 5. Delete from parent_students table
-    if (targetStudentId) {
-      await supabaseAdmin.from("parent_students").delete().eq("student_id", targetStudentId);
     }
 
     // 6. Remove from schedule_students table

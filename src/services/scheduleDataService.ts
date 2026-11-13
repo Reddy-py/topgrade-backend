@@ -312,7 +312,9 @@ export class ScheduleDataService {
     try {
       const dbSlots = await ScheduleSlotService.listSlots();
       if (dbSlots && dbSlots.length > 0) {
-        slotsList = dbSlots.map(s => ({
+        slotsList = dbSlots
+          .filter(s => s.status !== "cancelled")
+          .map(s => ({
           id: s.id,
           course_id: s.course_id,
           course_name: s.course_name,
@@ -410,7 +412,7 @@ export class ScheduleDataService {
     students?: Array<{ student_id: string; student_name: string; student_code?: string }>;
   }): Promise<ScheduleSlot> {
     const duration = getSlotDurationMinutes(payload.start_time, payload.end_time);
-    const durHours = duration >= 90 ? 2.0 : 1.0;
+    const durHours = duration / 60;
 
     // Resolve date in CST for the target day of week
     const dateCst = getNextDayOfWeekDateStr(payload.day_of_week);
@@ -548,8 +550,9 @@ export class ScheduleDataService {
     const updatedEnd = payload.end_time || existing.end_time;
 
     const duration = getSlotDurationMinutes(updatedStart, updatedEnd);
-    if (duration !== 60 && duration !== 120) {
-      throw new Error(`Invalid class duration: slot must be 60 or 120 minutes (1 or 2 hours). Received ${duration} minutes (${updatedStart} to ${updatedEnd}).`);
+    const validDurations = [60, 120, 180, 240];
+    if (!validDurations.includes(duration)) {
+      throw new Error(`Invalid class duration: slot must be 1, 2, 3, or 4 whole hours (60, 120, 180, or 240 minutes). Received ${duration} minutes (${updatedStart} to ${updatedEnd}).`);
     }
 
     const updatedTeacher = payload.teacher_id !== undefined ? payload.teacher_id : existing.teacher_id;
@@ -575,17 +578,47 @@ export class ScheduleDataService {
 
     const timeSlot = `${updatedStart} - ${updatedEnd}`;
     const nowIso = new Date().toISOString();
+    const durHours = duration / 60;
+    const dateCst = getNextDayOfWeekDateStr(updatedDay);
+    const startUtc = cstDateTimeToUtc(dateCst, updatedStart);
+    const endUtc = new Date(startUtc.getTime() + durHours * 3600 * 1000);
 
+    // 1. Update public.schedule_slots (single source of truth for slot management)
+    try {
+      const slotUpdates: any = {
+        start_at: startUtc.toISOString(),
+        end_at: endUtc.toISOString(),
+        duration_hours: durHours,
+        max_students: payload.max_capacity !== undefined ? payload.max_capacity : (existing.max_capacity || 15),
+        notes: payload.room || existing.room || "Room 101",
+        updated_at: nowIso
+      };
+      if (payload.course_id) slotUpdates.course_id = payload.course_id;
+      if (payload.grade) slotUpdates.grade = payload.grade;
+      if (payload.teacher_id) {
+        slotUpdates.teacher_id = payload.teacher_id;
+      } else if (payload.open_for_teachers === true) {
+        slotUpdates.teacher_id = null;
+      }
+      const { error: slotErr } = await supabaseAdmin.from("schedule_slots").update(slotUpdates).eq("id", id);
+      if (slotErr) {
+        console.warn("Supabase schedule_slots update note:", slotErr.message);
+      }
+    } catch (sErr: any) {
+      console.warn("Notice updating schedule_slots in updateSchedule:", sErr?.message);
+    }
+
+    // 2. Update legacy public.schedules for backward compatibility
     const updateFields: any = {
       updated_at: nowIso,
-      time_slot: timeSlot
+      time_slot: timeSlot,
+      start_time: updatedStart,
+      end_time: updatedEnd,
+      day_of_week: updatedDay
     };
 
     if (payload.course_id !== undefined) updateFields.course_id = payload.course_id;
     if (payload.course_name !== undefined) updateFields.course_name = payload.course_name;
-    if (payload.day_of_week !== undefined) updateFields.day_of_week = payload.day_of_week;
-    if (payload.start_time !== undefined) updateFields.start_time = payload.start_time;
-    if (payload.end_time !== undefined) updateFields.end_time = payload.end_time;
     if (payload.location !== undefined || payload.location_id !== undefined || payload.location_address !== undefined) {
       let locName = payload.location || existing.location;
       let locAddr = payload.location_address !== undefined ? payload.location_address : (existing.location_address || "");
@@ -619,9 +652,6 @@ export class ScheduleDataService {
     if (payload.max_capacity !== undefined) updateFields.max_capacity = payload.max_capacity;
     if (payload.is_active !== undefined) updateFields.is_active = payload.is_active;
 
-    // Admin claims logic:
-    //  - assigning a teacher closes the slot and clears claims
-    //  - opening for teachers clears teacher and clears claims
     if (payload.teacher_id) {
       updateFields.open_for_teachers = false;
       updateFields.teacher_id = payload.teacher_id;
@@ -677,6 +707,10 @@ export class ScheduleDataService {
     const updatedSlot: ScheduleSlot = {
       ...existing,
       ...updateFields,
+      start_time: updatedStart,
+      end_time: updatedEnd,
+      day_of_week: updatedDay,
+      duration_hours: durHours,
       students: payload.students ? payload.students.map((st, idx) => ({
         id: `st-map-${id}-${idx}`,
         schedule_id: id,
@@ -696,11 +730,32 @@ export class ScheduleDataService {
    */
   static async deleteSchedule(id: string): Promise<boolean> {
     inMemorySchedules.delete(id);
+    // 1. Cancel via ScheduleSlotService (releases tokens, marks bookings cancelled)
     try {
       await ScheduleSlotService.cancelSlot(id, undefined, "Slot cancelled by administrator");
     } catch (e: any) {
       console.warn("Notice cancelling slot in ScheduleSlotService:", e?.message);
     }
+
+    // 2. Delete or mark schedule_slots cancelled
+    try {
+      await supabaseAdmin.from("schedule_slots").update({ status: "cancelled", updated_at: new Date().toISOString() }).eq("id", id);
+      const { data: bList } = await supabaseAdmin.from("bookings").select("id").eq("slot_id", id);
+      if (!bList || bList.length === 0) {
+        await supabaseAdmin.from("schedule_slots").delete().eq("id", id);
+      }
+    } catch (e: any) {
+      console.warn("Notice deleting from schedule_slots table:", e?.message);
+    }
+
+    // 3. Delete from legacy schedules and student links
+    try {
+      await supabaseAdmin.from("schedules").delete().eq("id", id);
+      await supabaseAdmin.from("schedule_students").delete().eq("schedule_id", id);
+    } catch (e: any) {
+      console.warn("Notice deleting from schedules table:", e?.message);
+    }
+
     return true;
   }
 

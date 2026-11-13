@@ -396,6 +396,22 @@ export const deleteTeacherHandler = async (req: express.Request, res: express.Re
 
     deletedTeacher = target;
 
+    const realTeacherId = deletedTeacher?.id || (isUUID(teacherId) ? teacherId : null);
+    if (realTeacherId) {
+      try {
+        await supabaseAdmin.from("schedule_slots").update({ teacher_id: null }).eq("teacher_id", realTeacherId);
+        await supabaseAdmin.from("schedules").update({ teacher_id: null, teacher_name: null, open_for_teachers: true }).eq("teacher_id", realTeacherId);
+        await supabaseAdmin.from("teacher_slot_claims").delete().eq("teacher_id", realTeacherId);
+      } catch (unlinkErr: any) {
+        console.warn("Notice unlinking teacher from slots:", unlinkErr?.message);
+      }
+    }
+    if (deletedTeacher?.name) {
+      try {
+        await supabaseAdmin.from("schedules").update({ teacher_id: null, teacher_name: null, open_for_teachers: true }).eq("teacher_name", deletedTeacher.name);
+      } catch {}
+    }
+
     if (deletedTeacher?.id && isUUID(deletedTeacher.id)) {
       await supabaseAdmin.from("teachers").delete().eq("id", deletedTeacher.id);
     } else if (isUUID(teacherId)) {
