@@ -19,7 +19,11 @@
     "migrate:schedules": "tsx src/migrateSchedules.ts",
     "seed:catalog": "tsx src/seedCatalog.ts",
     "demo:seed": "tsx src/scripts/seedDemoFamily.ts",
-    "demo:remove": "tsx src/scripts/removeDemoFamily.ts"
+    "demo:remove": "tsx src/scripts/removeDemoFamily.ts",
+    "reset:learning-data": "tsx src/scripts/resetLearningData.ts",
+    "check:students-editable": "tsx src/scripts/checkStudentsEditable.ts",
+    "announce:test": "tsx src/scripts/announceTest.ts",
+    "test:task18": "tsx src/scripts/testTask18Synthetic.ts"
   },
   "engines": {
     "node": ">=20.0.0"

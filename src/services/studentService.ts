@@ -1213,36 +1213,44 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
   const lastName = payload.lastName !== undefined ? payload.lastName.trim() : (payload.fullName ? payload.fullName.split(" ").slice(1).join(" ") : existing.lastName);
   const fullName = payload.fullName ? payload.fullName.trim() : ((firstName || lastName) ? `${firstName || ""} ${lastName || ""}`.trim() : existing.fullName);
 
-  const dobStr = payload.dob || existing.dob;
-  const age = payload.dob ? calculateAgeFromDOB(dobStr) : (payload.age ?? existing.age);
+  const dobStr = payload.dob || existing.dob || "";
+  const age = dobStr ? calculateAgeFromDOB(dobStr) : (payload.age ?? existing.age ?? 0);
 
-  if (payload.school !== undefined && !payload.school.trim()) {
-    throw new Error("School Name is a mandatory field.");
-  }
+  // Missing optional fields (school, last name, DOB, grade) must NOT block saving edits
+  const updatedSchool = payload.school !== undefined ? payload.school.trim() : (existing.school || "");
 
   const updated: StudentDossier = {
     ...existing,
     ...payload,
-    firstName,
-    lastName,
-    fullName,
+    firstName: firstName || existing.firstName || existing.fullName || "Student",
+    lastName: lastName || existing.lastName || "",
+    fullName: fullName || existing.fullName || "Student",
     dob: dobStr,
     age,
-    school: payload.school !== undefined ? payload.school.trim() : existing.school,
+    school: updatedSchool,
     updatedAt: new Date().toISOString()
   };
 
-  // Parent email stays mandatory when editing: at least one valid parent email, different from the student's own email.
+  // Parent email handling: validate only if emails are provided or changed; legacy missing parent email must not block edit
   const nextParentEmails = Array.from(new Set((updated.parentEmails || []).map(normEmail).filter(Boolean)));
-  if (nextParentEmails.length === 0) {
-    throw new Error("Parent email is mandatory. Enter at least one parent email (father and/or mother).");
-  }
   const badParent = nextParentEmails.find(e => !isValidEmail(e));
   if (badParent) throw new Error(`'${badParent}' is not a valid parent email.`);
+  
   const nextStudentEmail = normEmail(updated.email);
-  if (nextStudentEmail && !isValidEmail(nextStudentEmail)) throw new Error(`'${nextStudentEmail}' is not a valid student email.`);
-  if (nextStudentEmail && nextParentEmails.includes(nextStudentEmail)) {
-    throw new Error("A parent email must be different from the student's own email, because each email is one login.");
+  if (nextStudentEmail && !isValidEmail(nextStudentEmail)) {
+    throw new Error(`'${nextStudentEmail}' is not a valid student email.`);
+  }
+
+  // Only reject collision if email is being newly set or changed to match
+  if (
+    nextStudentEmail &&
+    nextParentEmails.includes(nextStudentEmail) &&
+    (payload.email || payload.parentEmails)
+  ) {
+    // If user explicitly updated them to be identical, warn/block
+    if (payload.email && payload.email !== existing.email) {
+      throw new Error("A parent email must be different from the student's own email, because each email is one login.");
+    }
   }
   updated.parentEmails = nextParentEmails;
   delete (updated as any).password;

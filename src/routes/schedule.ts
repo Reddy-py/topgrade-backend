@@ -250,10 +250,11 @@ const createScheduleSlotHandler = async (req: Request, res: Response): Promise<a
     }
 
     const duration = getSlotDurationMinutes(effectiveStartTime, effectiveEndTime);
-    if (duration !== 60 && duration !== 120) {
+    const validDurations = [60, 120, 180, 240];
+    if (!validDurations.includes(duration)) {
       return res.status(400).json({
         success: false,
-        error: `Class slot must be 1 hour (60 minutes) or 2 hours (120 minutes). Received ${duration} minutes (${effectiveStartTime} to ${effectiveEndTime}).`
+        error: `Class slot length must be a whole number of hours from 1 to 4 (60, 120, 180, or 240 minutes). Received ${duration} minutes (${effectiveStartTime} to ${effectiveEndTime}).`
       });
     }
 

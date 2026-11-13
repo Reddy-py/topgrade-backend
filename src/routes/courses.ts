@@ -612,259 +612,117 @@ const courseCreationMutex = new AsyncMutex();
 // POST: Add new course (Admin only)
 export const createCourseHandler = async (req: express.Request, res: express.Response): Promise<any> => {
   return courseCreationMutex.runExclusive(async () => {
-  const c = req.body;
-  if (!c.name || !c.category) {
-    return res.status(400).json({ success: false, message: "Course Name and Category are required." });
-  }
-
-  const classLength = Number(c.class_length || c.classLength || 1);
-  if (classLength !== 1 && classLength !== 2) {
-    return res.status(400).json({ success: false, message: "Class length must be 1 hour or 2 hours." });
-  }
-
-  const prefix = c.category.includes("STEM") ? "TG-CRS-STEM" :
-                 c.category.includes("Math") ? "TG-CRS-MTH" :
-                 c.category.includes("Science") ? "TG-CRS-SCI" :
-                 c.category.includes("Language") ? "TG-CRS-LANG" : "TG-CRS-FND";
-  const uniqueCode = c.course_code || `${prefix}-${Math.floor(100 + Math.random() * 899)}`;
-
-  let durationMonths: number | null = null;
-  if (c.duration_months !== undefined && c.duration_months !== null && c.duration_months !== "") {
-    const v = Number(c.duration_months);
-    if (isNaN(v) || v <= 0) {
-      return res.status(400).json({ success: false, message: "Course duration months must be a positive number." });
+    const c = req.body;
+    if (!c.name || !c.name.trim() || !c.category || !c.category.trim()) {
+      return res.status(400).json({ success: false, message: "Course Name and Category are required." });
     }
-    durationMonths = Math.floor(v);
-  } else if (c.duration) {
-    const parsed = parseInt(c.duration, 10);
-    if (parsed > 0) durationMonths = parsed;
-  }
 
-  let packageHours: number | null = null;
-  if (c.package_hours !== undefined && c.package_hours !== null && c.package_hours !== "") {
-    const v = Number(c.package_hours);
-    if (isNaN(v) || v <= 0) {
-      return res.status(400).json({ success: false, message: "Package hours must be a positive number." });
+    const prefix = c.category.includes("STEM") ? "TG-CRS-STEM" :
+                   c.category.includes("Math") ? "TG-CRS-MTH" :
+                   c.category.includes("Science") ? "TG-CRS-SCI" :
+                   c.category.includes("Language") ? "TG-CRS-LANG" : "TG-CRS-FND";
+    const uniqueCode = c.course_code || `${prefix}-${Math.floor(100 + Math.random() * 899)}`;
+
+    let durationMonths: number | null = null;
+    if (c.duration_months !== undefined && c.duration_months !== null && c.duration_months !== "") {
+      const v = Number(c.duration_months);
+      if (!isNaN(v) && v > 0) durationMonths = Math.floor(v);
+    } else if (c.duration) {
+      const parsed = parseInt(c.duration, 10);
+      if (parsed > 0) durationMonths = parsed;
     }
-    packageHours = Math.floor(v);
-  }
 
-  let packagePrice: number | null = null;
-  if (c.package_price !== undefined && c.package_price !== null && c.package_price !== "") {
-    const v = Number(c.package_price);
-    if (isNaN(v) || v <= 0) {
-      return res.status(400).json({ success: false, message: "Package price must be a positive number." });
+    let packageHours: number | null = null;
+    if (c.package_hours !== undefined && c.package_hours !== null && c.package_hours !== "") {
+      const v = Number(c.package_hours);
+      if (!isNaN(v) && v > 0) packageHours = Math.floor(v);
     }
-    packagePrice = Math.round(v * 100) / 100;
-  }
 
-  let hourlyRate: number | null = null;
-  if (c.hourly_rate !== undefined && c.hourly_rate !== null && c.hourly_rate !== "") {
-    const v = Number(c.hourly_rate);
-    if (isNaN(v) || v <= 0) {
-      return res.status(400).json({ success: false, message: "Hourly rate must be a positive number." });
+    let packagePrice: number | null = null;
+    if (c.package_price !== undefined && c.package_price !== null && c.package_price !== "") {
+      const v = Number(c.package_price);
+      if (!isNaN(v) && v > 0) packagePrice = Math.round(v * 100) / 100;
     }
-    hourlyRate = Math.round(v * 100) / 100;
-  }
 
-  // 1. Gather planned schedule slots from weekdays
-  interface PlannedSlot {
-    day: string;
-    startTime: string;
-    endTime: string;
-    teacherId: string;
-    teacherName: string;
-    room: string;
-    location: string;
-    capacity: number;
-    programType: string;
-  }
-
-  const plannedSlots: PlannedSlot[] = [];
-  const weekdays: string[] = Array.isArray(c.weekdays) ? c.weekdays : [];
-
-  if (weekdays.length > 0) {
-    for (const day of weekdays) {
-      const dayConfig = c.weekday_times?.[day] || {};
-      const startTime = dayConfig.startTime || c.start_time || "09:00 AM";
-      const endTime = dayConfig.endTime || computeEndTime(startTime, classLength);
-      const teacherId = dayConfig.teacherId !== undefined ? dayConfig.teacherId : (c.teacher_id || "");
-      const teacherName = dayConfig.teacherName !== undefined ? dayConfig.teacherName : (c.teacher_name || "");
-      const room = dayConfig.room || c.room || "Room 101";
-      const location = dayConfig.location || c.location || "Main Academic Center";
-      const capacity = Number(c.max_students || c.maxStudents || 20);
-      const programType = (c.program_type || c.program || "TUTORING").toUpperCase();
-
-      plannedSlots.push({
-        day,
-        startTime,
-        endTime,
-        teacherId,
-        teacherName,
-        room,
-        location,
-        capacity,
-        programType
-      });
+    let hourlyRate: number | null = null;
+    if (c.hourly_rate !== undefined && c.hourly_rate !== null && c.hourly_rate !== "") {
+      const v = Number(c.hourly_rate);
+      if (!isNaN(v) && v > 0) hourlyRate = Math.round(v * 100) / 100;
+    } else if (c.hourly_price !== undefined && c.hourly_price !== null && c.hourly_price !== "") {
+      const v = Number(c.hourly_price);
+      if (!isNaN(v) && v > 0) hourlyRate = Math.round(v * 100) / 100;
     }
-  } else if (Array.isArray(c.schedule) && c.schedule.length > 0) {
-    for (const s of c.schedule) {
-      const day = s.day || s.day_of_week || "Monday";
-      const startTime = s.startTime || s.start_time || "09:00 AM";
-      const endTime = s.endTime || s.end_time || computeEndTime(startTime, classLength);
-      const teacherId = s.teacherId || s.teacher_id || "";
-      const teacherName = s.teacherName || s.teacher_name || "";
-      const room = s.room || c.room || "Room 101";
-      const location = s.location || c.location || "Main Academic Center";
-      const capacity = Number(c.max_students || c.maxStudents || 20);
-      const programType = (c.program_type || c.program || "TUTORING").toUpperCase();
 
-      plannedSlots.push({
-        day,
-        startTime,
-        endTime,
-        teacherId,
-        teacherName,
-        room,
-        location,
-        capacity,
-        programType
-      });
+    const gradeEligibility: string[] = Array.isArray(c.grade_eligibility) 
+      ? c.grade_eligibility 
+      : (Array.isArray(c.grade_levels) ? c.grade_levels : (Array.isArray(c.gradeLevels) ? c.gradeLevels : []));
+
+    const materialObj = {
+      duration_months: durationMonths,
+      package_hours: packageHours,
+      package_price: packagePrice,
+      hourly_rate: hourlyRate,
+      grade_eligibility: gradeEligibility,
+      description: c.description || ""
+    };
+
+    const courseRow: any = {
+      course_code: uniqueCode,
+      name: c.name.trim(),
+      description: c.description ? c.description.trim() : "",
+      duration: c.duration || (durationMonths ? `${durationMonths} Months` : ""),
+      duration_months: durationMonths,
+      package_hours: packageHours,
+      package_price: packagePrice,
+      hourly_rate: hourlyRate,
+      fee: packagePrice || (hourlyRate ? hourlyRate * (packageHours || 1) : 0),
+      max_students: c.maxStudents ? parseInt(c.maxStudents) : (c.max_students ? parseInt(c.max_students) : 20),
+      required_teacher_skills: c.category.trim(),
+      status: c.status || "Active",
+      course_material: JSON.stringify(materialObj)
+    };
+
+    let { data, error } = await supabaseAdmin
+      .from("courses")
+      .insert([courseRow])
+      .select()
+      .single();
+
+    if (error && (error.message.includes("duration_months") || error.message.includes("package_hours") || error.message.includes("package_price") || error.message.includes("hourly_rate") || error.message.includes("class_length"))) {
+      delete courseRow.duration_months;
+      delete courseRow.package_hours;
+      delete courseRow.package_price;
+      delete courseRow.hourly_rate;
+      delete courseRow.class_length;
+      const retry = await supabaseAdmin.from("courses").insert([courseRow]).select().single();
+      data = retry.data;
+      error = retry.error;
     }
-  }
 
-  // 2. Pre-validate collisions across ALL planned slots (atomic check before creation)
-  for (const slot of plannedSlots) {
-    const conflict = await ScheduleDataService.checkCollisions({
-      day_of_week: slot.day,
-      start_time: slot.startTime,
-      end_time: slot.endTime,
-      teacher_id: slot.teacherId,
-      room: slot.room,
-      student_ids: []
-    });
-    if (conflict.hasConflict) {
-      return res.status(409).json({
-        success: false,
-        message: `Schedule Conflict on ${slot.day}: ${conflict.error}`,
-        error: `Schedule Conflict on ${slot.day}: ${conflict.error}`
-      });
+    if (error || !data) {
+      return res.status(500).json({ success: false, message: error?.message || "Failed to create course in database." });
     }
-  }
 
-  const materialObj = {
-    class_length: classLength,
-    duration_months: durationMonths,
-    package_hours: packageHours,
-    package_price: packagePrice,
-    hourly_rate: hourlyRate,
-    max_hours: c.max_hours ? parseInt(c.max_hours) : 25,
-    assigned_teachers: Array.isArray(c.assignedTeachers) ? c.assignedTeachers : (c.assigned_teachers || []),
-    mapped_students: Array.isArray(c.mappedStudents) ? c.mappedStudents : (c.mapped_students || []),
-    schedule: plannedSlots.map((s, idx) => ({
-      id: `slot-${idx + 1}`,
-      day: s.day,
-      slot: `${s.startTime} - ${s.endTime}`,
-      room: s.room,
-      programTrack: s.programType,
-      teacherId: s.teacherId,
-      teacherName: s.teacherName
-    })),
-    grade_eligibility: Array.isArray(c.gradeEligibility) ? c.gradeEligibility : (c.grade_eligibility ? [c.grade_eligibility] : [])
-  };
-
-  const courseRow: any = {
-    course_code: uniqueCode,
-    name: c.name,
-    description: c.description || "",
-    class_length: classLength,
-    duration: c.duration || (durationMonths ? `${durationMonths} Months` : ""),
-    duration_months: durationMonths,
-    package_hours: packageHours,
-    package_price: packagePrice,
-    hourly_rate: hourlyRate,
-    fee: c.fee !== undefined ? parseFloat(c.fee) : (packagePrice || 0),
-    max_students: c.maxStudents ? parseInt(c.maxStudents) : (c.max_students ? parseInt(c.max_students) : 20),
-    required_teacher_skills: c.category,
-    status: c.status || "Active",
-    course_material: JSON.stringify(materialObj)
-  };
-
-  let { data, error } = await supabaseAdmin
-    .from("courses")
-    .insert([courseRow])
-    .select()
-    .single();
-
-  if (error && (error.message.includes("duration_months") || error.message.includes("package_hours") || error.message.includes("package_price") || error.message.includes("hourly_rate") || error.message.includes("class_length"))) {
-    delete courseRow.duration_months;
-    delete courseRow.package_hours;
-    delete courseRow.package_price;
-    delete courseRow.hourly_rate;
-    delete courseRow.class_length;
-    const retry = await supabaseAdmin.from("courses").insert([courseRow]).select().single();
-    data = retry.data;
-    error = retry.error;
-  }
-
-  if (error || !data) {
-    return res.status(500).json({ success: false, message: error?.message || "Failed to create course in Supabase." });
-  }
-
-  // 3. Create default package in course_packages if package_hours provided
-  if (data?.id && (packageHours || 20)) {
-    try {
-      const pkgHoursVal = packageHours || 20;
-      await supabaseAdmin.from("course_packages").insert({
-        course_id: data.id,
-        name: `${pkgHoursVal} Hours Standard Package`,
-        hours: pkgHoursVal,
-        validity_days: (durationMonths ? durationMonths * 30 : 90),
-        price: packagePrice || 900
-      });
-    } catch (pkgErr: any) {
-      console.warn("Notice creating default course package:", pkgErr?.message);
-    }
-  }
-
-  // 4. Create schedule slots if planned and teacher is selected
-  const createdSlots: any[] = [];
-  for (const slot of plannedSlots) {
-    if (slot.teacherId && slot.teacherId.trim() !== "") {
+    // Default package in course_packages if package_hours provided
+    if (data?.id && packageHours) {
       try {
-        const slotRecord = await ScheduleSlotService.createSlot({
+        await supabaseAdmin.from("course_packages").insert({
           course_id: data.id,
-          teacher_id: slot.teacherId,
-          grade: Array.isArray(c.gradeEligibility) && c.gradeEligibility[0] ? c.gradeEligibility[0] : "Grade 10",
-          date_cst: getNextDayOfWeekDateStr(slot.day),
-          start_time_cst: slot.startTime,
-          duration_hours: classLength,
-          max_students: slot.capacity || 15,
-          notes: `Class room: ${slot.room || 'Room 101'}`
+          name: `${packageHours} Hours Standard Package`,
+          hours: packageHours,
+          validity_days: (durationMonths ? durationMonths * 30 : 90),
+          price: packagePrice || 0
         });
-        createdSlots.push(slotRecord);
-      } catch (schedErr: any) {
-        console.warn(`Notice scheduling slot on ${slot.day}:`, schedErr.message);
+      } catch (pkgErr: any) {
+        console.warn("Notice creating course package:", pkgErr?.message);
       }
     }
-  }
 
-  const savedData = mapSupabaseCourseToCourseData(data);
-  savedData.schedule = createdSlots.map(s => ({
-    id: s.id,
-    day: s.day_of_week as any,
-    slot: s.time_slot,
-    room: s.room,
-    programTrack: s.program_type || "TUTORING",
-    teacherId: s.teacher_id,
-    teacherName: s.teacher_name
-  }));
-
+    const savedData = mapSupabaseCourseToCourseData(data);
     return res.status(201).json({
       success: true,
-      message: `Course '${savedData.name}' and ${createdSlots.length} schedule slot(s) created successfully.`,
-      data: savedData,
-      createdSlots
+      message: `Course '${savedData.name}' created successfully.`,
+      data: savedData
     });
   });
 };
@@ -1206,49 +1064,84 @@ export const mapStudentHandler = async (req: express.Request, res: express.Respo
 
 router.post("/:id/map-student", mapStudentHandler);
 
-// DELETE: Remove course
-export const deleteCourseHandler = async (req: express.Request, res: express.Response) => {
+// DELETE: Remove course (Blocked if active slots exist, offer archive)
+export const deleteCourseHandler = async (req: express.Request, res: express.Response): Promise<any> => {
   const courseId = String(req.params.id);
   if (!courseId) {
     return res.status(400).json({ success: false, message: "Course ID is required." });
   }
 
-  const { data: deletedCourse } = await supabaseAdmin
+  const { data: courseRow } = await supabaseAdmin
     .from("courses")
     .select("*")
     .or(`id.eq.${courseId},course_code.eq.${courseId}`)
     .maybeSingle();
 
-  // Remove corresponding attendance sessions
-  removeAttendanceSessionsForCourse(String(courseId));
+  if (!courseRow) {
+    return res.status(404).json({ success: false, message: `Course '${courseId}' not found.` });
+  }
 
-  // Remove corresponding schedule slots
+  // Check R7: A course with active slots cannot be deleted; offer Archive
+  const { count: slotCount } = await supabaseAdmin
+    .from("schedule_slots")
+    .select("id", { count: "exact", head: true })
+    .eq("course_id", courseRow.id)
+    .neq("status", "cancelled");
+
+  if (slotCount && slotCount > 0) {
+    return res.status(400).json({
+      success: false,
+      message: `Course '${courseRow.name}' cannot be deleted because it has ${slotCount} active schedule slot(s). Please archive the course instead.`,
+      canArchive: true
+    });
+  }
+
+  // Also check legacy schedules
   try {
-    const courseName = deletedCourse?.name;
-    const targetId = deletedCourse?.id || courseId;
     const allSchedules = await ScheduleDataService.listSchedules();
-    for (const s of allSchedules) {
-      if (s.course_id === targetId || (courseName && s.course_name?.toLowerCase() === courseName.toLowerCase())) {
-        void ScheduleDataService.deleteSchedule(s.id);
-      }
+    const activeLegacy = allSchedules.filter(s => (s.course_id === courseRow.id || s.course_name?.toLowerCase() === courseRow.name?.toLowerCase()) && s.is_active !== false);
+    if (activeLegacy.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Course '${courseRow.name}' cannot be deleted because it has active schedule slots. Please archive the course instead.`,
+        canArchive: true
+      });
     }
-  } catch (schErr) {
-    console.warn("Notice cleaning course schedules:", schErr);
-  }
+  } catch {}
 
-  if (deletedCourse?.id) {
-    await supabaseAdmin.from("courses").delete().eq("id", deletedCourse.id);
-  } else {
-    await supabaseAdmin.from("courses").delete().or(`id.eq.${courseId},course_code.eq.${courseId}`);
-  }
+  // Archive endpoint or status set
+  await supabaseAdmin.from("courses").delete().eq("id", courseRow.id);
 
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
-    message: `Course '${deletedCourse?.name || courseId}' deleted successfully. Associated attendance sessions removed.`,
-    data: deletedCourse ? mapSupabaseCourseToCourseData(deletedCourse) : null
+    message: `Course '${courseRow.name}' deleted successfully.`,
+    data: mapSupabaseCourseToCourseData(courseRow)
   });
 };
 
+// POST /archive: Archive course (Safe R7 preservation)
+export const archiveCourseHandler = async (req: express.Request, res: express.Response): Promise<any> => {
+  const courseId = String(req.params.id);
+  const { data: updated, error } = await supabaseAdmin
+    .from("courses")
+    .update({ status: "Archived", updated_at: new Date().toISOString() })
+    .or(`id.eq.${courseId},course_code.eq.${courseId}`)
+    .select()
+    .maybeSingle();
+
+  if (error || !updated) {
+    return res.status(500).json({ success: false, message: error?.message || "Failed to archive course." });
+  }
+
+  return res.status(200).json({
+    success: true,
+    message: `Course '${updated.name}' has been archived successfully.`,
+    data: mapSupabaseCourseToCourseData(updated)
+  });
+};
+
+router.post("/:id/archive", archiveCourseHandler);
+router.put("/:id/archive", archiveCourseHandler);
 router.delete("/:id", deleteCourseHandler);
 router.delete("/delete/:id", deleteCourseHandler);
 

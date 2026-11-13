@@ -65,3 +65,28 @@ export function getNextDayOfWeekDateStr(dayName: string): string {
   return `${y}-${m}-${d}`;
 }
 
+export function formatInstituteDate(date: Date, options?: Intl.DateTimeFormatOptions): string {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: instituteTimezone(),
+    weekday: "long",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    ...options
+  }).format(date);
+}
+
+export function formatInstituteTime(date: Date, includeSeconds = false): string {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: instituteTimezone(),
+    hour: "numeric",
+    minute: "2-digit",
+    ...(includeSeconds ? { second: "2-digit" } : {}),
+    hour12: true
+  }).format(date);
+}
+
+export function getInstituteDateString(date: Date = new Date()): string {
+  return instituteNow(date).dateStr;
+}
+

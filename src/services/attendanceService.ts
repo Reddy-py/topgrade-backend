@@ -6,6 +6,8 @@ import {
 } from "./attendanceRepo.js";
 import { instituteNow } from "./instituteTime.js";
 import { studentContactEmails } from "./studentNotices.js";
+import { supabaseAdmin } from "../supabase.js";
+import { isRealEmail } from "../constants/domains.js";
 
 export type { AttendanceRecord, AttendanceStatusEnum, ScanMethodEnum };
 
@@ -56,6 +58,31 @@ export async function markAttendance(p: RecordInput): Promise<{ record: Attendan
       token.warning = used.owed
         ? `No hours left (${hrsText}): ${-(used.balance ?? 0)} hour(s) owed. Ask the parent to buy hours.`
         : used.low ? `Low hours (${hrsText}): ${used.balance} hour(s) left.` : undefined;
+
+      // R3: After a Present deduction, if remaining hours < slot class hours, transition enrollment to PAUSED_NO_HOURS
+      if (used.balance !== undefined && used.balance < (p.hours || 1)) {
+        const student = await findStudent(p.studentIdOrCode);
+        const course = await findCourse(courseKey);
+        if (student && course) {
+          try {
+            await supabaseAdmin
+              .from("bookings")
+              .update({ status: "PAUSED_NO_HOURS" })
+              .eq("student_id", student.id)
+              .eq("status", "booked");
+          } catch {}
+
+          const targetEmail = isRealEmail(student.email) ? student.email : (student.parentEmails || []).find((e: string) => isRealEmail(e));
+          if (targetEmail) {
+            dispatchMultiChannelNotification({
+              recipients: [{ role: "STUDENT", email: targetEmail, name: student.name }],
+              subject: `[TopGrade] Hours used up for ${course.name}`,
+              message: `All available hours for student ${student.name} in course ${course.name} have been used up. Their enrollment has been paused until additional hours are added by the institute.`,
+              eventType: "ATTENDANCE_ALERT"
+            }).catch((e: any) => console.warn("Hours used up email notice:", e?.message));
+          }
+        }
+      }
     } else {
       const back = await refundAttendanceToken({
         studentIdOrCode: p.studentIdOrCode,
@@ -65,6 +92,20 @@ export async function markAttendance(p: RecordInput): Promise<{ record: Attendan
         by: p.markedByUserId ?? null
       });
       token.remaining = back.balance;
+
+      // R3: When attendance is changed to absent and hours are refunded, restore active enrollment if seat available
+      if (back.balance !== undefined && back.balance >= (p.hours || 1)) {
+        const student = await findStudent(p.studentIdOrCode);
+        if (student) {
+          try {
+            await supabaseAdmin
+              .from("bookings")
+              .update({ status: "booked" })
+              .eq("student_id", student.id)
+              .eq("status", "PAUSED_NO_HOURS");
+          } catch {}
+        }
+      }
     }
   } catch (err: any) {
     token.warning = `Hour update failed: ${err?.message}`;

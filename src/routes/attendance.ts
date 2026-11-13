@@ -12,6 +12,7 @@ import type { AuthenticatedRequest } from "../middleware/auth.js";
 import { getAccessScope, allowsStudent, scopeSessions, slotBelongsToTeacher } from "../services/accessScope.js";
 import { isRealEmail } from "../constants/domains.js";
 import { ScheduleSlotService } from "../services/scheduleSlotService.js";
+import { dispatchMultiChannelNotification } from "../services/notificationService.js";
 
 const router = express.Router();
 
@@ -83,6 +84,61 @@ router.get("/weekly-rate", async (_req, res): Promise<any> => {
     return res.json({ success: true, data: stats });
   } catch (err: any) {
     return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * POST /api/attendance/cancel-session
+ * Admin cancels a single date's class session.
+ * Deducts 0 hours, restores reserved hours if any, and emails all enrolled students.
+ */
+router.post("/cancel-session", async (req, res): Promise<any> => {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    if (user?.role !== "ADMIN") {
+      return res.status(403).json({ success: false, message: "Only administrators can cancel class sessions." });
+    }
+
+    const { scheduleId, date, reason } = req.body || {};
+    if (!scheduleId || !date) {
+      return res.status(400).json({ success: false, message: "scheduleId and date are required." });
+    }
+
+    const slot = (await ScheduleDataService.listSchedules()).find(s => s.id === scheduleId);
+    if (!slot) return res.status(404).json({ success: false, message: "Schedule slot not found." });
+
+    // Mark attendance records for this session as cancelled
+    try {
+      await supabaseAdmin
+        .from("attendance")
+        .update({ status: "cancelled", remarks: reason || "Class cancelled by institute administration" })
+        .eq("slot_id", scheduleId)
+        .eq("date", date);
+    } catch {}
+
+    // Notify enrolled students/parents
+    const enrolledStudents = slot.students || [];
+    for (const st of enrolledStudents) {
+      const student = await findStudent(st.student_id);
+      const targetEmail = isRealEmail(student?.email) ? student!.email : (student?.parentEmails || []).find(e => isRealEmail(e));
+      if (targetEmail) {
+        dispatchMultiChannelNotification({
+          recipients: [{ role: "STUDENT", email: targetEmail, name: st.student_name }],
+          subject: `[TopGrade] Class Session Cancelled: ${slot.course_name} (${date})`,
+          message: `The class session for ${slot.course_name} scheduled on ${date} (${slot.time_slot}) has been cancelled by the institute.${reason ? ` Reason: ${reason}` : ""} No hours have been deducted.`,
+          eventType: "ATTENDANCE_ALERT"
+        }).catch((e: any) => console.warn("Cancel session email notice:", e?.message));
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: `Session on ${date} for '${slot.course_name}' cancelled. ${enrolledStudents.length} student(s) notified.`,
+      cancelledDate: date,
+      studentsNotified: enrolledStudents.length
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err?.message || "Failed to cancel session." });
   }
 });
 

@@ -100,50 +100,82 @@ router.get("/dashboard-metrics", async (req: Request, res: Response): Promise<an
     }
 
     // 3. Attendance Rate This Week (in America/Chicago CST/CDT)
-    // Formula: (present + late) / (present + late + absent). Returns "—" if no records.
-    let attendanceRateThisWeek = "—";
+    // Formula: (present + late) / (present + late + absent). Returns "No classes held yet" if no records.
+    let attendanceRateThisWeek = "No classes held yet";
     let weekPresentCount = 0;
     let weekTotalCount = 0;
     try {
       const weeklyStats = await ScheduleSlotService.getWeeklyAttendanceRate();
-      attendanceRateThisWeek = weeklyStats.display;
+      attendanceRateThisWeek = weeklyStats.display || "No classes held yet";
       weekPresentCount = weeklyStats.presentCount + weeklyStats.lateCount;
       weekTotalCount = weeklyStats.totalMarked;
     } catch (e) {
       console.warn("Notice: getWeeklyAttendanceRate:", e);
-      attendanceRateThisWeek = "—";
+      attendanceRateThisWeek = "No classes held yet";
     }
 
     // 4. Students with Low or Owed Hours (< 5 hours balance or negative)
-    // ONLY count students who have ever had a token grant (prevents flagging un-onboarded 0-token students)
+    // TASK 18 (R1 & PART 9): ONLY count students who have an active or paused enrollment.
+    // A student who has 0 hours and 0 enrollments is a new or inactive student, not a debtor, and must not inflate the count.
+    // Also compute 'hoursNeededCount': students with active or paused enrollment whose hours < next class duration.
     const lowOrOwedList: any[] = [];
+    const hoursNeededList: any[] = [];
     const studentMap = new Map(studentList.map(s => [s.id, s]));
 
     try {
-      // Find students with at least 1 grant
-      const { data: grantRows } = await supabaseAdmin
-        .from("token_ledger")
-        .select("student_id")
-        .eq("type", "grant");
+      // Find students who have an active or paused enrollment
+      let enrolledStudentIds: string[] = [];
 
-      const grantedStudentIds = Array.from(new Set((grantRows || []).map((r: any) => r.student_id)));
+      try {
+        const { data: bData } = await supabaseAdmin
+          .from("bookings")
+          .select("student_id, slot_id, status")
+          .in("status", ["booked", "ACTIVE", "PAUSED_NO_HOURS", "paused"]);
 
-      if (grantedStudentIds.length > 0) {
-        // Fetch balances for these students
+        if (bData && bData.length > 0) {
+          enrolledStudentIds = Array.from(new Set(bData.map((b: any) => b.student_id)));
+        }
+      } catch {}
+
+      // Fallback: check in-memory schedules or schedule_students
+      if (enrolledStudentIds.length === 0) {
+        try {
+          const allSched = await ScheduleDataService.listSchedules();
+          const stuIds = new Set<string>();
+          for (const s of allSched) {
+            for (const st of s.students || []) {
+              if (st.student_id) stuIds.add(st.student_id);
+            }
+          }
+          enrolledStudentIds = Array.from(stuIds);
+        } catch {}
+      }
+
+      if (enrolledStudentIds.length > 0) {
+        // Fetch balances for enrolled students
         const { data: balances } = await supabaseAdmin
           .from("student_course_balance")
           .select("student_id, course_id, available_tokens")
-          .in("student_id", grantedStudentIds);
+          .in("student_id", enrolledStudentIds);
 
         const { data: courses } = await supabaseAdmin.from("courses").select("id, name");
         const courseMap = new Map((courses || []).map(c => [c.id, c.name]));
 
+        // Fetch slots for duration checks
+        const { data: slots } = await supabaseAdmin.from("schedule_slots").select("id, course_id, duration_hours");
+        const slotDurByCourse = new Map<string, number>();
+        for (const sl of slots || []) {
+          slotDurByCourse.set(sl.course_id, Number(sl.duration_hours || 1.0));
+        }
+
         for (const bal of balances || []) {
           const avail = Number(bal.available_tokens);
+          const stu = studentMap.get(bal.student_id);
+          const cName = courseMap.get(bal.course_id) || "General";
+          const classReq = slotDurByCourse.get(bal.course_id) || 1.0;
+
           if (avail < 5) {
-            const stu = studentMap.get(bal.student_id);
             if (stu) {
-              const cName = courseMap.get(bal.course_id) || "General";
               lowOrOwedList.push({
                 id: `${stu.id}-${bal.course_id}`,
                 studentId: stu.id,
@@ -156,6 +188,20 @@ router.get("/dashboard-metrics", async (req: Request, res: Response): Promise<an
                 status: avail < 0 ? "Owed" : "Low",
                 hoursOwed: avail < 0 ? Math.abs(avail) : 0,
                 hoursRemaining: avail >= 0 ? avail : 0
+              });
+            }
+          }
+
+          if (avail < classReq) {
+            if (stu) {
+              hoursNeededList.push({
+                studentId: stu.id,
+                studentName: stu.name,
+                courseId: bal.course_id,
+                courseName: cName,
+                hoursBalance: avail,
+                hoursRequired: classReq,
+                hoursMissing: classReq - avail
               });
             }
           }
@@ -345,6 +391,10 @@ router.get("/dashboard-metrics", async (req: Request, res: Response): Promise<an
       studentsWithLowOrOwedHours: {
         count: lowOrOwedList.length,
         items: lowOrOwedList
+      },
+      hoursNeeded: {
+        count: hoursNeededList.length,
+        items: hoursNeededList
       },
       packagesEndingIn14Days: {
         count: endingPackagesList.length,

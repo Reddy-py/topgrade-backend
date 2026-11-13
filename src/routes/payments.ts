@@ -32,6 +32,9 @@ import { rateLimit } from "../middleware/rateLimit.js";
 
 const router = Router();
 
+// TASK 18 PART 6: Payments on Hold (default false)
+export const PAYMENTS_ENABLED = process.env.PAYMENTS_ENABLED === "true";
+
 const fail = (res: Response, err: any, fallback = 500) =>
   res.status(err?.status || fallback).json({ success: false, message: err?.message || "Something went wrong." });
 
@@ -65,6 +68,14 @@ const orderCreationRateLimit = rateLimit(5, 600_000);
  */
 router.get("/methods", async (_req, res): Promise<any> => {
   try {
+    if (!PAYMENTS_ENABLED) {
+      return res.json({
+        success: true,
+        methods: [],
+        hasAvailableMethods: false,
+        unavailableNotice: "Online payment is not available yet. Please contact the institute.",
+      });
+    }
     const methods = getAvailablePaymentMethods();
     return res.json({
       success: true,
@@ -99,6 +110,9 @@ router.get("/system-status", async (_req, res): Promise<any> => {
  */
 router.post("/checkout-session", orderCreationRateLimit, async (req, res): Promise<any> => {
   try {
+    if (!PAYMENTS_ENABLED) {
+      return res.status(403).json({ success: false, message: "Payments not enabled yet" });
+    }
     const user = userOf(req);
     const { student_id, course_id, plan, quantity } = req.body || {};
 
@@ -193,6 +207,9 @@ router.post("/stripe-webhook", async (req, res): Promise<any> => {
  */
 router.post("/zelle-order", orderCreationRateLimit, async (req, res): Promise<any> => {
   try {
+    if (!PAYMENTS_ENABLED) {
+      return res.status(403).json({ success: false, message: "Payments not enabled yet" });
+    }
     const user = userOf(req);
     const { student_id, course_id, plan, quantity } = req.body || {};
 
@@ -317,6 +334,9 @@ router.get("/orders", async (req, res): Promise<any> => {
  */
 router.post("/stripe-refund", async (req, res): Promise<any> => {
   try {
+    if (!PAYMENTS_ENABLED) {
+      return res.status(403).json({ success: false, message: "Payments not enabled yet" });
+    }
     const user = userOf(req);
     if (user.role !== "ADMIN") {
       return res.status(403).json({ success: false, message: "Forbidden: Admin access required." });

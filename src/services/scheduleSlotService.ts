@@ -302,9 +302,9 @@ export class ScheduleSlotService {
     let endUtc: Date;
     let durationHours = payload.duration_hours || 1.0;
 
-    // Validate duration: 0.5 increments between 0.5 and 4.0
-    if (durationHours < 0.5 || durationHours > 4.0 || (durationHours * 2) % 1 !== 0) {
-      throw new Error(`Invalid duration: ${durationHours} hours. Classes must be in 0.5 hour increments (0.5 to 4.0 hours).`);
+    // Validate duration: whole number of hours from 1 to 4 (TASK 18)
+    if (![1, 2, 3, 4].includes(durationHours)) {
+      throw new Error(`Invalid duration: ${durationHours} hours. Class length must be a whole number of hours from 1 to 4.`);
     }
 
     if (payload.start_at && payload.end_at) {
@@ -885,7 +885,7 @@ export class ScheduleSlotService {
     if (error || !rows || rows.length === 0) {
       return {
         rate: null,
-        display: "—",
+        display: "No classes held yet",
         presentCount: 0,
         lateCount: 0,
         absentCount: 0,
@@ -901,7 +901,7 @@ export class ScheduleSlotService {
     if (denominator === 0) {
       return {
         rate: null,
-        display: "—",
+        display: "No classes held yet",
         presentCount: 0,
         lateCount: 0,
         absentCount: 0,
