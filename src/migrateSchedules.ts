@@ -251,14 +251,12 @@ export async function runMigration(): Promise<MigrationStats> {
         ]);
       }
 
-      // Insert Schedule Students
+      // Insert Student Enrollments
       for (const ss of scheduleStudentsToInsert) {
         await client.query(`
-          INSERT INTO public.schedule_students (id, schedule_id, student_id, student_name, student_code, created_at)
-          VALUES ($1, $2, $3, $4, $5, $6)
-          ON CONFLICT (schedule_id, student_id) DO UPDATE SET
-            student_name = EXCLUDED.student_name,
-            student_code = EXCLUDED.student_code;
+          INSERT INTO public.student_enrollments (id, slot_id, student_id, course_id, plan, hours_total, status, created_at)
+          VALUES ($1, $2, $3, 'general', 'HOURS', 1, 'ACTIVE', $6)
+          ON CONFLICT (id) DO NOTHING;
         `, [ss.id, ss.schedule_id, ss.student_id, ss.student_name, ss.student_code, ss.created_at]);
       }
 
@@ -301,9 +299,18 @@ export async function runMigration(): Promise<MigrationStats> {
     }
 
     for (const ss of scheduleStudentsToInsert) {
-      const { error } = await supabaseAdmin.from("schedule_students").upsert(ss, { onConflict: "schedule_id,student_id" });
+      const { error } = await supabaseAdmin.from("student_enrollments").upsert({
+        id: ss.id,
+        slot_id: ss.schedule_id,
+        student_id: ss.student_id,
+        course_id: "general",
+        plan: "HOURS",
+        hours_total: 1,
+        status: "ACTIVE",
+        created_at: ss.created_at
+      }, { onConflict: "id" });
       if (error) {
-        const msg = `ScheduleStudents upsert error: ${error.message} (code: ${error.code})`;
+        const msg = `StudentEnrollments upsert error: ${error.message} (code: ${error.code})`;
         console.error(`[Error] ${msg}`);
         errors.push(msg);
       }
@@ -340,7 +347,7 @@ export async function runMigration(): Promise<MigrationStats> {
     if (isDirectPg && pgPool) {
       const r1 = await pgPool.query("SELECT count(*)::int AS cnt FROM public.schedules;");
       dbSchedulesCount = r1.rows[0].cnt;
-      const r2 = await pgPool.query("SELECT count(*)::int AS cnt FROM public.schedule_students;");
+      const r2 = await pgPool.query("SELECT count(*)::int AS cnt FROM public.student_enrollments;");
       dbStudentsCount = r2.rows[0].cnt;
       const r3 = await pgPool.query("SELECT count(*)::int AS cnt FROM public.student_history;");
       dbHistoryCount = r3.rows[0].cnt;
@@ -351,8 +358,8 @@ export async function runMigration(): Promise<MigrationStats> {
       if (e1) throw new Error(`SELECT count(*) on schedules failed: ${e1.message}`);
       dbSchedulesCount = c1 || 0;
 
-      const { count: c2, error: e2 } = await supabaseAdmin.from("schedule_students").select("*", { count: "exact", head: true });
-      if (e2) throw new Error(`SELECT count(*) on schedule_students failed: ${e2.message}`);
+      const { count: c2, error: e2 } = await supabaseAdmin.from("student_enrollments").select("*", { count: "exact", head: true });
+      if (e2) throw new Error(`SELECT count(*) on student_enrollments failed: ${e2.message}`);
       dbStudentsCount = c2 || 0;
 
       const { count: c3, error: e3 } = await supabaseAdmin.from("student_history").select("*", { count: "exact", head: true });
@@ -384,7 +391,7 @@ export async function runMigration(): Promise<MigrationStats> {
   console.log(`schedules             | ${slotsToInsert.length.toString().padStart(12)} | ${dbSchedulesCount.toString().padStart(13)} | ${sMatch ? "PASS ✓" : "MISMATCH ✗"}`);
   
   const ssMatch = dbStudentsCount >= scheduleStudentsToInsert.length;
-  console.log(`schedule_students     | ${scheduleStudentsToInsert.length.toString().padStart(12)} | ${dbStudentsCount.toString().padStart(13)} | ${ssMatch ? "PASS ✓" : "MISMATCH ✗"}`);
+  console.log(`student_enrollments   | ${scheduleStudentsToInsert.length.toString().padStart(12)} | ${dbStudentsCount.toString().padStart(13)} | ${ssMatch ? "PASS ✓" : "MISMATCH ✗"}`);
   
   const hMatch = dbHistoryCount >= historyToInsert.length;
   console.log(`student_history       | ${historyToInsert.length.toString().padStart(12)} | ${dbHistoryCount.toString().padStart(13)} | ${hMatch ? "PASS ✓" : "MISMATCH ✗"}`);

@@ -508,30 +508,31 @@ router.post("/cancel-booking", async (req, res): Promise<any> => {
   }
 });
 
-// 5e. Get Student's Bookings
+// 5e. Get Student's Enrollments
 router.get("/student/:studentId/bookings", async (req, res): Promise<any> => {
   try {
     const { studentId } = req.params;
-    const { data: bookings, error } = await supabaseAdmin
-      .from("bookings")
+    const { data: enrollments, error } = await supabaseAdmin
+      .from("student_enrollments")
       .select(`
         id,
         slot_id,
         student_id,
         status,
-        tokens_reserved,
+        hours_total,
         created_at,
-        cancelled_at,
-        schedule_slots (
+        schedules (
           id,
           course_id,
+          course_name,
           teacher_id,
-          start_at,
-          end_at,
+          teacher_name,
+          day_of_week,
+          time_slot,
+          start_time,
+          end_time,
           duration_hours,
-          status,
-          courses ( name ),
-          teachers ( name )
+          status
         )
       `)
       .eq("student_id", studentId)
@@ -541,7 +542,15 @@ router.get("/student/:studentId/bookings", async (req, res): Promise<any> => {
 
     return res.status(200).json({
       success: true,
-      data: bookings || []
+      data: (enrollments || []).map((e: any) => ({
+        id: e.id,
+        slot_id: e.slot_id,
+        student_id: e.student_id,
+        status: e.status,
+        tokens_reserved: e.hours_total || 1,
+        created_at: e.created_at,
+        schedule: e.schedules
+      }))
     });
   } catch (err: any) {
     return res.status(500).json({

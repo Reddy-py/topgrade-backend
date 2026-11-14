@@ -42,7 +42,7 @@ async function testLocalPostgresMigration() {
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
 
-    CREATE TABLE schedule_students (
+    CREATE TABLE student_enrollments (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         schedule_id UUID REFERENCES schedules(id) ON DELETE CASCADE,
         student_id VARCHAR(100) NOT NULL,
@@ -115,7 +115,7 @@ async function testLocalPostgresMigration() {
     INSERT INTO schedules (id, course_id, course_name, teacher_id, teacher_name, day_of_week, start_time, end_time, time_slot)
     VALUES ('${preSchedId}', 'crs-test', 'Existing Math', 'tchr-1', 'Existing Teacher', 'Monday', '09:00', '10:00', '09:00 - 10:00');
 
-    INSERT INTO schedule_students (schedule_id, student_id, student_name)
+    INSERT INTO student_enrollments (schedule_id, student_id, student_name)
     VALUES ('${preSchedId}', 'stu-pre-1', 'Pre-existing Student');
 
     INSERT INTO leads (id, source, student_name, contact_number, email, academic_grade)
@@ -130,8 +130,8 @@ async function testLocalPostgresMigration() {
   console.log("▶ Step 3: Executing data-preserving conversion (UUID -> TEXT & Adding columns)...");
   db.public.none(`
     -- Drop dependent constraints
-    ALTER TABLE schedule_students DROP CONSTRAINT IF EXISTS schedule_students_schedule_id_fkey;
-    ALTER TABLE schedule_students DROP CONSTRAINT IF EXISTS unique_schedule_student;
+    ALTER TABLE student_enrollments DROP CONSTRAINT IF EXISTS schedule_students_schedule_id_fkey;
+    ALTER TABLE student_enrollments DROP CONSTRAINT IF EXISTS unique_schedule_student;
     ALTER TABLE enrollments DROP CONSTRAINT IF EXISTS enrollments_lead_id_fkey;
 
     -- Alter ID columns to TEXT
@@ -141,8 +141,8 @@ async function testLocalPostgresMigration() {
     ALTER TABLE schedules ADD COLUMN IF NOT EXISTS program TEXT;
     ALTER TABLE schedules ADD COLUMN IF NOT EXISTS location TEXT DEFAULT 'Main Academic Center';
 
-    ALTER TABLE schedule_students ALTER COLUMN schedule_id TYPE TEXT;
-    ALTER TABLE schedule_students ALTER COLUMN id TYPE TEXT;
+    ALTER TABLE student_enrollments ALTER COLUMN schedule_id TYPE TEXT;
+    ALTER TABLE student_enrollments ALTER COLUMN id TYPE TEXT;
 
     ALTER TABLE teacher_availability ALTER COLUMN id TYPE TEXT;
     ALTER TABLE student_history ALTER COLUMN id TYPE TEXT;
@@ -312,7 +312,7 @@ async function testLocalPostgresMigration() {
       if (Array.isArray(slot.students)) {
         for (const st of slot.students) {
           db.public.none(`
-            INSERT INTO schedule_students (schedule_id, student_id, student_name, student_code)
+            INSERT INTO student_enrollments (schedule_id, student_id, student_name, student_code)
             VALUES ('${slot.id}', '${st.student_id}', '${(st.student_name || "Student").replace(/'/g, "''")}', ${st.student_code ? `'${st.student_code}'` : "NULL"})
             ON CONFLICT (schedule_id, student_id) DO UPDATE SET
               student_name = EXCLUDED.student_name;
@@ -338,7 +338,7 @@ async function testLocalPostgresMigration() {
   console.log("\n▶ Step 5: Running Migration PASS 1...");
   const pass1 = runLocalMigration();
   const dbSlots1 = db.public.many(`SELECT count(*) FROM schedules`)[0].count;
-  const dbStudents1 = db.public.many(`SELECT count(*) FROM schedule_students`)[0].count;
+  const dbStudents1 = db.public.many(`SELECT count(*) FROM student_enrollments`)[0].count;
   const dbHistory1 = db.public.many(`SELECT count(*) FROM student_history`)[0].count;
 
   console.log(`  Pass 1 Inserted:`);
@@ -349,7 +349,7 @@ async function testLocalPostgresMigration() {
   console.log("\n▶ Step 6: Running Migration PASS 2 (IDEMPOTENCY PROOF)...");
   const pass2 = runLocalMigration();
   const dbSlots2 = db.public.many(`SELECT count(*) FROM schedules`)[0].count;
-  const dbStudents2 = db.public.many(`SELECT count(*) FROM schedule_students`)[0].count;
+  const dbStudents2 = db.public.many(`SELECT count(*) FROM student_enrollments`)[0].count;
   const dbHistory2 = db.public.many(`SELECT count(*) FROM student_history`)[0].count;
 
   console.log(`  Pass 2 Results:`);

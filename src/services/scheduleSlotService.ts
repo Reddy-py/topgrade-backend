@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "../supabase.js";
 import { instituteTimezone } from "./instituteTime.js";
+import { recordDomainEvent } from "./domainEventService.js";
 
 export interface ScheduleSlotDto {
   id: string;
@@ -17,7 +18,7 @@ export interface ScheduleSlotDto {
   max_capacity: number; // backward compatibility
   booked_count: number;
   available_seats: number;
-  status: "open" | "full" | "completed" | "cancelled";
+  status: "open" | "full" | "completed" | "cancelled" | "active" | "archived";
   notes?: string;
   // CST formatted display fields
   day_of_week: string;
@@ -46,7 +47,7 @@ export interface CreateSlotPayload {
   end_at?: string;
   date_cst?: string;       // e.g. "2026-11-16"
   start_time_cst?: string; // e.g. "10:00 AM" or "10:00"
-  duration_hours?: number; // strictly 0.5 increments e.g. 1.0, 1.5, 2.0
+  duration_hours?: number; // whole number of hours from 1 to 4
   max_students?: number;
   notes?: string;
 }
@@ -127,7 +128,7 @@ export function utcToCstParts(utcDate: Date) {
 
 export class ScheduleSlotService {
   /**
-   * List schedule slots from public.schedule_slots enriched with course, teacher, and booking details.
+   * List schedule slots from canonical public.schedules enriched with course, teacher, and student_enrollments.
    */
   static async listSlots(filters?: {
     course_id?: string;
@@ -136,11 +137,10 @@ export class ScheduleSlotService {
     day_of_week?: string;
     date?: string;
   }): Promise<ScheduleSlotDto[]> {
-    // 1. Fetch slots
     let query = supabaseAdmin
-      .from("schedule_slots")
+      .from("schedules")
       .select("*")
-      .order("start_at", { ascending: true });
+      .order("created_at", { ascending: true });
 
     if (filters?.course_id && filters.course_id !== "ALL") {
       query = query.eq("course_id", filters.course_id);
@@ -154,7 +154,7 @@ export class ScheduleSlotService {
 
     const { data: rawSlots, error: slotsErr } = await query;
     if (slotsErr) {
-      throw new Error(`Failed to list schedule slots: ${slotsErr.message}`);
+      throw new Error(`Failed to list schedules: ${slotsErr.message}`);
     }
 
     if (!rawSlots || rawSlots.length === 0) {
@@ -173,81 +173,94 @@ export class ScheduleSlotService {
       .select("id, name, email, phone");
     const teacherMap = new Map((teachers || []).map(t => [t.id, t]));
 
-    // 4. Fetch active bookings with students
+    // 4. Fetch active and paused enrollments with students from canonical student_enrollments
     const slotIds = rawSlots.map(s => s.id);
-    const { data: bookings } = await supabaseAdmin
-      .from("bookings")
+    const { data: enrollments } = await supabaseAdmin
+      .from("student_enrollments")
       .select(`
         id,
         slot_id,
         student_id,
         status,
-        tokens_reserved,
+        hours_total,
         created_at,
         students ( id, name, student_id_code, email )
       `)
       .in("slot_id", slotIds)
-      .neq("status", "cancelled");
+      .in("status", ["ACTIVE", "PAUSED_NO_HOURS"]);
 
-    const bookingsBySlot = new Map<string, any[]>();
-    for (const b of bookings || []) {
-      if (!bookingsBySlot.has(b.slot_id)) {
-        bookingsBySlot.set(b.slot_id, []);
+    const enrollmentsBySlot = new Map<string, any[]>();
+    for (const enr of enrollments || []) {
+      if (enr.slot_id) {
+        if (!enrollmentsBySlot.has(enr.slot_id)) {
+          enrollmentsBySlot.set(enr.slot_id, []);
+        }
+        enrollmentsBySlot.get(enr.slot_id)!.push(enr);
       }
-      bookingsBySlot.get(b.slot_id)!.push(b);
     }
 
     // 5. Enrich and format slots
     const results: ScheduleSlotDto[] = rawSlots.map(slot => {
       const course = courseMap.get(slot.course_id);
       const teacher = teacherMap.get(slot.teacher_id);
-      const slotBookings = bookingsBySlot.get(slot.id) || [];
+      const slotEnrollments = enrollmentsBySlot.get(slot.id) || [];
 
-      const startUtc = new Date(slot.start_at);
-      const endUtc = new Date(slot.end_at);
+      let startUtcStr = slot.start_at;
+      let endUtcStr = slot.end_at;
 
+      if (!startUtcStr || !endUtcStr) {
+        const dateCst = new Date().toISOString().slice(0, 10);
+        const sDate = cstDateTimeToUtc(dateCst, slot.start_time || "10:00 AM");
+        const dur = Number(slot.duration_hours || 1.0);
+        const eDate = new Date(sDate.getTime() + dur * 3600 * 1000);
+        startUtcStr = sDate.toISOString();
+        endUtcStr = eDate.toISOString();
+      }
+
+      const startUtc = new Date(startUtcStr);
+      const endUtc = new Date(endUtcStr);
       const startParts = utcToCstParts(startUtc);
       const endParts = utcToCstParts(endUtc);
 
-      const mappedStudents = slotBookings.map(b => {
-        const sInfo = Array.isArray(b.students) ? b.students[0] : b.students;
+      const mappedStudents = slotEnrollments.map((e: any) => {
+        const sInfo = Array.isArray(e.students) ? e.students[0] : e.students;
         return {
-          booking_id: b.id,
-          student_id: b.student_id,
+          booking_id: e.id,
+          student_id: e.student_id,
           student_name: sInfo?.name || "Student",
           student_code: sInfo?.student_id_code || "",
           email: sInfo?.email || "",
-          status: b.status,
-          tokens_reserved: Number(b.tokens_reserved)
+          status: e.status,
+          tokens_reserved: Number(e.hours_total || slot.duration_hours || 1.0)
         };
       });
 
-      const bookedCount = mappedStudents.length;
-      const maxStudents = Number(slot.max_students || 15);
+      const bookedCount = mappedStudents.filter(s => s.status === "ACTIVE").length;
+      const maxStudents = Number(slot.max_capacity || slot.max_students || 15);
       const availableSeats = Math.max(0, maxStudents - bookedCount);
 
       return {
         id: slot.id,
         course_id: slot.course_id,
-        course_name: course?.name || "General Course",
+        course_name: slot.course_name || course?.name || "General Course",
         course_code: course?.course_code || "",
-        teacher_id: slot.teacher_id,
-        teacher_name: teacher?.name || "Unassigned Faculty",
+        teacher_id: slot.teacher_id || "",
+        teacher_name: slot.teacher_name || teacher?.name || "Unassigned Faculty",
         teacher_email: teacher?.email || "",
-        grade: slot.grade || "All Grades",
-        start_at: slot.start_at,
-        end_at: slot.end_at,
+        grade: slot.grade_range || slot.grade || "All Grades",
+        start_at: startUtcStr,
+        end_at: endUtcStr,
         duration_hours: Number(slot.duration_hours || 1.0),
         max_students: maxStudents,
         max_capacity: maxStudents,
         booked_count: bookedCount,
         available_seats: availableSeats,
-        status: slot.status,
-        notes: slot.notes || "",
-        day_of_week: startParts.dayOfWeek,
-        start_time: startParts.timeStr,
-        end_time: endParts.timeStr,
-        time_slot: `${startParts.timeStr} - ${endParts.timeStr}`,
+        status: slot.status || (slot.is_active ? "active" : "cancelled"),
+        notes: slot.notes || slot.room || "",
+        day_of_week: slot.day_of_week || startParts.dayOfWeek,
+        start_time: slot.start_time || startParts.timeStr,
+        end_time: slot.end_time || endParts.timeStr,
+        time_slot: slot.time_slot || `${startParts.timeStr} - ${endParts.timeStr}`,
         cst_date: startParts.cstDate,
         students: mappedStudents,
         created_at: slot.created_at,
@@ -255,7 +268,6 @@ export class ScheduleSlotService {
       };
     });
 
-    // Optional post-filters (day of week, date)
     if (filters?.day_of_week && filters.day_of_week !== "ALL") {
       const dLower = filters.day_of_week.toLowerCase().trim();
       return results.filter(r => r.day_of_week.toLowerCase() === dLower);
@@ -269,11 +281,10 @@ export class ScheduleSlotService {
   }
 
   /**
-   * Create a schedule slot in public.schedule_slots
+   * Create a schedule slot in canonical public.schedules
    */
   static async createSlot(payload: CreateSlotPayload): Promise<ScheduleSlotDto> {
     if (!payload.course_id) throw new Error("Course ID is required.");
-    if (!payload.teacher_id) throw new Error("Teacher ID is required.");
 
     // Validate course exists
     const { data: course, error: cErr } = await supabaseAdmin
@@ -286,15 +297,19 @@ export class ScheduleSlotService {
       throw new Error("Cannot schedule slots for an archived course.");
     }
 
-    // Validate teacher exists
-    const { data: teacher, error: tErr } = await supabaseAdmin
-      .from("teachers")
-      .select("id, name, status")
-      .eq("id", payload.teacher_id)
-      .single();
-    if (tErr || !teacher) throw new Error("Selected teacher does not exist.");
-    if (teacher.status && teacher.status.toLowerCase() === "archived") {
-      throw new Error("Cannot schedule slots for an archived teacher.");
+    // Validate teacher exists if provided
+    let teacherName = "Unassigned Faculty";
+    if (payload.teacher_id && payload.teacher_id.trim() !== "") {
+      const { data: teacher, error: tErr } = await supabaseAdmin
+        .from("teachers")
+        .select("id, name, status")
+        .eq("id", payload.teacher_id)
+        .single();
+      if (tErr || !teacher) throw new Error("Selected teacher does not exist.");
+      if (teacher.status && teacher.status.toLowerCase() === "archived") {
+        throw new Error("Cannot schedule slots for an archived teacher.");
+      }
+      teacherName = teacher.name;
     }
 
     // Compute start_at and end_at in UTC
@@ -321,36 +336,61 @@ export class ScheduleSlotService {
       throw new Error("End time must be after start time.");
     }
 
+    const startParts = utcToCstParts(startUtc);
+    const endParts = utcToCstParts(endUtc);
     const maxStudents = Math.max(1, payload.max_students || 15);
+    const slotId = 'sch-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
 
-    // Insert slot into Supabase
+    // Insert slot into canonical public.schedules
     const { data: newSlot, error: insertErr } = await supabaseAdmin
-      .from("schedule_slots")
+      .from("schedules")
       .insert({
+        id: slotId,
         course_id: payload.course_id,
-        teacher_id: payload.teacher_id,
-        grade: payload.grade || "Grade 10",
+        course_name: course.name,
+        teacher_id: payload.teacher_id || null,
+        teacher_name: teacherName,
+        day_of_week: startParts.dayOfWeek,
+        start_time: startParts.timeStr,
+        end_time: endParts.timeStr,
+        time_slot: `${startParts.timeStr} - ${endParts.timeStr}`,
+        duration_hours: durationHours,
+        max_capacity: maxStudents,
+        room: payload.notes || "Room 101",
+        notes: payload.notes || "",
+        location: "Main Academic Center",
+        grade_range: payload.grade || "All Grades",
         start_at: startUtc.toISOString(),
         end_at: endUtc.toISOString(),
-        duration_hours: durationHours,
-        max_students: maxStudents,
-        status: "open",
-        notes: payload.notes || ""
+        status: "active",
+        is_active: true,
+        open_for_teachers: !payload.teacher_id
       })
       .select()
       .single();
 
     if (insertErr) {
-      // Check for PostgreSQL exclusion violation (code 23P01 or constraint no_teacher_slot_overlap)
       if (
         insertErr.code === "23P01" ||
-        insertErr.message?.includes("no_teacher_slot_overlap") ||
-        insertErr.message?.includes("conflicting key value")
+        insertErr.message?.includes("no_teacher_slot_collision") ||
+        insertErr.message?.includes("Teacher collision")
       ) {
-        throw new Error(`Teacher Collision: ${teacher.name} is already scheduled for another class during this time.`);
+        throw new Error(`Teacher Collision: Teacher is already scheduled for another class during this time.`);
       }
       throw new Error(`Failed to create schedule slot: ${insertErr.message}`);
     }
+
+    void recordDomainEvent({
+      type: "slot.created",
+      entity: "schedules",
+      entity_id: newSlot.id,
+      payload: {
+        course_id: newSlot.course_id,
+        teacher_id: newSlot.teacher_id,
+        duration_hours: durationHours,
+        max_capacity: maxStudents
+      }
+    });
 
     const createdList = await this.listSlots({ course_id: newSlot.course_id });
     const enriched = createdList.find(s => s.id === newSlot.id);
@@ -359,72 +399,78 @@ export class ScheduleSlotService {
   }
 
   /**
-   * Update a schedule slot in public.schedule_slots
+   * Update a schedule slot in canonical public.schedules
    */
   static async updateSlot(
     slotId: string,
-    payload: Partial<CreateSlotPayload> & { status?: "open" | "full" | "completed" | "cancelled" }
+    payload: Partial<CreateSlotPayload> & { status?: "active" | "archived" | "cancelled" }
   ): Promise<ScheduleSlotDto> {
-    // 1. Fetch existing slot
     const { data: existing, error: existErr } = await supabaseAdmin
-      .from("schedule_slots")
+      .from("schedules")
       .select("*")
       .eq("id", slotId)
       .single();
     if (existErr || !existing) throw new Error("Schedule slot not found.");
 
-    // 2. Count active bookings
-    const { count: activeBookingsCount } = await supabaseAdmin
-      .from("bookings")
+    // Count active enrollments
+    const { count: activeEnrollmentsCount } = await supabaseAdmin
+      .from("student_enrollments")
       .select("*", { count: "exact", head: true })
       .eq("slot_id", slotId)
-      .neq("status", "cancelled");
+      .eq("status", "ACTIVE");
 
-    const activeCount = activeBookingsCount || 0;
+    const activeCount = activeEnrollmentsCount || 0;
 
-    // Check if new max_students is below active bookings
     if (payload.max_students !== undefined && payload.max_students < activeCount) {
-      throw new Error(`Cannot reduce class capacity to ${payload.max_students}. There are currently ${activeCount} active booked students.`);
+      throw new Error(`Cannot decrease capacity to ${payload.max_students}: slot currently has ${activeCount} active student enrollments.`);
     }
 
     const updates: any = { updated_at: new Date().toISOString() };
-    if (payload.course_id) updates.course_id = payload.course_id;
-    if (payload.teacher_id) updates.teacher_id = payload.teacher_id;
-    if (payload.grade) updates.grade = payload.grade;
-    if (payload.notes !== undefined) updates.notes = payload.notes;
-    if (payload.max_students) updates.max_students = payload.max_students;
+    if (payload.max_students !== undefined) updates.max_capacity = payload.max_students;
+    if (payload.notes !== undefined) {
+      updates.notes = payload.notes;
+      updates.room = payload.notes;
+    }
     if (payload.status) updates.status = payload.status;
+    if (payload.grade) updates.grade_range = payload.grade;
 
-    if (payload.date_cst && payload.start_time_cst) {
-      const dur = payload.duration_hours || existing.duration_hours;
-      const startUtc = cstDateTimeToUtc(payload.date_cst, payload.start_time_cst);
-      const endUtc = new Date(startUtc.getTime() + dur * 3600 * 1000);
-      updates.start_at = startUtc.toISOString();
-      updates.end_at = endUtc.toISOString();
-      updates.duration_hours = dur;
-    } else if (payload.start_at && payload.end_at) {
-      updates.start_at = new Date(payload.start_at).toISOString();
-      updates.end_at = new Date(payload.end_at).toISOString();
-      if (payload.duration_hours) updates.duration_hours = payload.duration_hours;
+    if (payload.duration_hours) {
+      if (![1, 2, 3, 4].includes(payload.duration_hours)) {
+        throw new Error("Class length must be a whole number of hours from 1 to 4.");
+      }
+      updates.duration_hours = payload.duration_hours;
+    }
+
+    if (payload.start_at && payload.end_at) {
+      updates.start_at = payload.start_at;
+      updates.end_at = payload.end_at;
+      const sDate = new Date(payload.start_at);
+      const eDate = new Date(payload.end_at);
+      const sParts = utcToCstParts(sDate);
+      const eParts = utcToCstParts(eDate);
+      updates.day_of_week = sParts.dayOfWeek;
+      updates.start_time = sParts.timeStr;
+      updates.end_time = eParts.timeStr;
+      updates.time_slot = `${sParts.timeStr} - ${eParts.timeStr}`;
     }
 
     const { data: updated, error: updateErr } = await supabaseAdmin
-      .from("schedule_slots")
+      .from("schedules")
       .update(updates)
       .eq("id", slotId)
       .select()
       .single();
 
     if (updateErr) {
-      if (
-        updateErr.code === "23P01" ||
-        updateErr.message?.includes("no_teacher_slot_overlap") ||
-        updateErr.message?.includes("conflicting key value")
-      ) {
-        throw new Error("Teacher Collision: Teacher is already scheduled for another class during this time.");
-      }
       throw new Error(`Failed to update schedule slot: ${updateErr.message}`);
     }
+
+    void recordDomainEvent({
+      type: "slot.updated",
+      entity: "schedules",
+      entity_id: slotId,
+      payload: updates
+    });
 
     const updatedList = await this.listSlots();
     const enriched = updatedList.find(s => s.id === updated.id);
@@ -433,200 +479,197 @@ export class ScheduleSlotService {
   }
 
   /**
-   * Cancels a schedule slot and releases all reserved tokens back to booked students.
+   * Cancels a schedule slot and ends enrollments.
+   * R4 & R5: Cancelling a slot deducts 0 hours and preserves student wallet hours.
    */
-  static async cancelSlot(slotId: string, cancelledBy?: string, reason?: string) {
-    // Attempt via RPC first
-    try {
-      const { data: rpcData, error: rpcErr } = await supabaseAdmin.rpc("cancel_schedule_slot", {
-        p_slot_id: slotId,
-        p_cancelled_by: cancelledBy || null,
-        p_reason: reason || null
-      });
-
-      if (!rpcErr && rpcData && rpcData[0]) {
-        const row = rpcData[0];
-        if (!row.success) throw new Error(row.error_message || "Failed to cancel slot.");
-        return {
-          success: true,
-          bookingsCancelled: row.bookings_cancelled,
-          tokensReleased: Number(row.total_tokens_released)
-        };
-      }
-    } catch (rpcEx: any) {
-      // Fallback if RPC not yet installed
-      console.warn("cancel_schedule_slot RPC fallback:", rpcEx.message);
-    }
-
-    // Direct transaction fallback
+  static async cancelSlot(slotId: string, _cancelledBy?: string, reason?: string) {
     const { data: slot, error: sErr } = await supabaseAdmin
-      .from("schedule_slots")
+      .from("schedules")
       .select("*")
       .eq("id", slotId)
       .single();
     if (sErr || !slot) throw new Error("Schedule slot not found.");
     if (slot.status === "cancelled") throw new Error("Schedule slot is already cancelled.");
 
-    // Mark slot cancelled
     await supabaseAdmin
-      .from("schedule_slots")
-      .update({ status: "cancelled", updated_at: new Date().toISOString() })
+      .from("schedules")
+      .update({ status: "cancelled", is_active: false, updated_at: new Date().toISOString() })
       .eq("id", slotId);
 
-    // Fetch active bookings
-    const { data: bookings } = await supabaseAdmin
-      .from("bookings")
-      .select("*")
+    const { data: enrollments } = await supabaseAdmin
+      .from("student_enrollments")
+      .select("id, student_id")
       .eq("slot_id", slotId)
-      .eq("status", "booked");
+      .in("status", ["ACTIVE", "PAUSED_NO_HOURS"]);
 
-    let count = 0;
-    let releasedTokens = 0;
+    const count = enrollments ? enrollments.length : 0;
 
-    for (const b of bookings || []) {
-      const dur = Number(b.tokens_reserved || slot.duration_hours || 1.0);
-      // Append release to token_ledger
-      await supabaseAdmin.from("token_ledger").insert({
-        student_id: b.student_id,
-        course_id: slot.course_id,
-        hours: dur,
-        type: "release",
-        ref_booking_id: b.id,
-        note: reason || "Class slot cancelled by institute - hours restored",
-        created_by: cancelledBy || "admin"
-      });
-
-      releasedTokens += dur;
-      count++;
-    }
-
-    // Cancel bookings & attendance
     await supabaseAdmin
-      .from("bookings")
-      .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
+      .from("student_enrollments")
+      .update({ status: "ENDED", end_date: new Date().toISOString(), updated_at: new Date().toISOString() })
       .eq("slot_id", slotId)
-      .eq("status", "booked");
+      .in("status", ["ACTIVE", "PAUSED_NO_HOURS"]);
 
     await supabaseAdmin
       .from("attendance")
       .update({ status: "cancelled" })
-      .eq("slot_id", slotId)
+      .eq("schedule_id", slotId)
       .eq("status", "scheduled");
+
+    void recordDomainEvent({
+      type: "slot.cancelled",
+      entity: "schedules",
+      entity_id: slotId,
+      payload: {
+        course_id: slot.course_id,
+        course_name: slot.course_name,
+        affected_students: enrollments,
+        reason
+      }
+    });
 
     return {
       success: true,
       bookingsCancelled: count,
-      tokensReleased: releasedTokens
+      tokensReleased: 0
     };
   }
 
   /**
-   * Books a slot for a student using public.book_slot RPC.
+   * Enrolls a student in a slot adhering strictly to R2:
+   * Course active, slot active + free seat, grade range match, hours balance >= slot duration, no collision.
    */
   static async bookSlot(studentId: string, slotId: string) {
-    const { data, error } = await supabaseAdmin.rpc("book_slot", {
-      p_student_id: studentId,
-      p_slot_id: slotId
+    const { data: slot, error: sErr } = await supabaseAdmin
+      .from("schedules")
+      .select("*")
+      .eq("id", slotId)
+      .single();
+    if (sErr || !slot || slot.status === "cancelled" || slot.is_active === false) {
+      throw new Error("Class schedule slot not found or inactive.");
+    }
+
+    const { data: course } = await supabaseAdmin
+      .from("courses")
+      .select("*")
+      .eq("id", slot.course_id)
+      .single();
+    if (!course || course.status === "archived") {
+      throw new Error("Associated course is archived or inactive.");
+    }
+
+    // Check capacity: count of ACTIVE enrollments + PAUSED within 14-day hold
+    const { data: existingEnr } = await supabaseAdmin
+      .from("student_enrollments")
+      .select("id, student_id, status, paused_at")
+      .eq("slot_id", slotId)
+      .in("status", ["ACTIVE", "PAUSED_NO_HOURS"]);
+
+    const activeCount = (existingEnr || []).filter((e: any) => {
+      if (e.status === "ACTIVE") return true;
+      if (e.status === "PAUSED_NO_HOURS" && e.paused_at) {
+        const days = (Date.now() - new Date(e.paused_at).getTime()) / (1000 * 3600 * 24);
+        return days <= 14;
+      }
+      return true;
+    }).length;
+
+    const maxStudents = Number(slot.max_capacity || slot.max_students || 15);
+    if (activeCount >= maxStudents) {
+      throw new Error("Class is full. Maximum student capacity reached.");
+    }
+
+    // Check if student already enrolled in this slot
+    const already = (existingEnr || []).find((e: any) => e.student_id === studentId && (e.status === "ACTIVE" || e.status === "PAUSED_NO_HOURS"));
+    if (already) {
+      throw new Error("Student is already enrolled in this class slot.");
+    }
+
+    // Check hours balance for this course in token_wallets
+    const { data: wallet } = await supabaseAdmin
+      .from("token_wallets")
+      .select("balance")
+      .eq("student_id", studentId)
+      .eq("course_id", slot.course_id)
+      .maybeSingle();
+
+    const balance = Number(wallet?.balance || 0);
+    const requiredHours = Number(slot.duration_hours || 1.0);
+    if (balance < requiredHours) {
+      throw new Error(`Insufficient hours for this course. Required: ${requiredHours} hr(s), Available: ${balance} hr(s).`);
+    }
+
+    // Insert enrollment
+    const enrollmentId = 'enr-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+    const { data: newEnr, error: enrErr } = await supabaseAdmin
+      .from("student_enrollments")
+      .insert({
+        id: enrollmentId,
+        slot_id: slotId,
+        student_id: studentId,
+        course_id: slot.course_id,
+        plan: "HOURS",
+        hours_total: requiredHours,
+        status: "ACTIVE",
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (enrErr) {
+      throw new Error(`Enrollment failed: ${enrErr.message}`);
+    }
+
+    void recordDomainEvent({
+      type: "enrollment.created",
+      entity: "student_enrollments",
+      entity_id: enrollmentId,
+      payload: {
+        slot_id: slotId,
+        student_id: studentId,
+        course_id: slot.course_id,
+        duration_hours: requiredHours
+      }
     });
-
-    if (error) {
-      throw new Error(`Booking failed: ${error.message}`);
-    }
-
-    if (!data || !data[0]) {
-      throw new Error("No response returned from booking engine.");
-    }
-
-    const result = data[0];
-    if (!result.success) {
-      throw new Error(result.error_message || "Booking failed.");
-    }
 
     return {
       success: true,
-      bookingId: result.booking_id
+      bookingId: newEnr.id
     };
   }
 
   /**
-   * Cancels a booking with the 24-hour token release / forfeiture policy.
+   * Cancels a student's enrollment in a slot.
    */
-  static async cancelBooking(bookingId: string, cancelledBy?: string, reason?: string) {
-    try {
-      const { data: rpcData, error: rpcErr } = await supabaseAdmin.rpc("cancel_booking", {
-        p_booking_id: bookingId,
-        p_cancelled_by: cancelledBy || null,
-        p_reason: reason || null
-      });
-
-      if (!rpcErr && rpcData && rpcData[0]) {
-        const row = rpcData[0];
-        if (!row.success) throw new Error(row.error_message || "Failed to cancel booking.");
-        return {
-          success: true,
-          tokensReleased: Number(row.tokens_released),
-          policy: row.policy_applied
-        };
-      }
-    } catch (rpcEx: any) {
-      console.warn("cancel_booking RPC fallback:", rpcEx.message);
-    }
-
-    // Direct fallback
-    const { data: booking, error: bErr } = await supabaseAdmin
-      .from("bookings")
-      .select("*, schedule_slots (*)")
+  static async cancelBooking(bookingId: string, _cancelledBy?: string, _reason?: string) {
+    const { data: enr, error } = await supabaseAdmin
+      .from("student_enrollments")
+      .select("*")
       .eq("id", bookingId)
       .single();
 
-    if (bErr || !booking) throw new Error("Booking not found.");
-    if (booking.status === "cancelled") throw new Error("Booking is already cancelled.");
-
-    const slot = booking.schedule_slots;
-    const startAt = new Date(slot.start_at).getTime();
-    const now = Date.now();
-    const hoursUntilStart = (startAt - now) / (1000 * 3600);
-
-    let released = 0;
-    let policy = "";
-
-    if (hoursUntilStart >= 24) {
-      released = Number(booking.tokens_reserved);
-      policy = "Full release (>= 24h notice)";
-      await supabaseAdmin.from("token_ledger").insert({
-        student_id: booking.student_id,
-        course_id: slot.course_id,
-        hours: released,
-        type: "release",
-        ref_booking_id: booking.id,
-        note: reason || "Booking cancelled >= 24h before class - hours restored",
-        created_by: cancelledBy || "student"
-      });
-    } else {
-      policy = "Forfeited (< 24h notice)";
-    }
+    if (error || !enr) throw new Error("Enrollment not found.");
 
     await supabaseAdmin
-      .from("bookings")
-      .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
+      .from("student_enrollments")
+      .update({ status: "ENDED", end_date: new Date().toISOString(), updated_at: new Date().toISOString() })
       .eq("id", bookingId);
 
-    await supabaseAdmin
-      .from("attendance")
-      .update({ status: "cancelled" })
-      .eq("booking_id", bookingId);
-
-    if (slot.status === "full") {
-      await supabaseAdmin
-        .from("schedule_slots")
-        .update({ status: "open" })
-        .eq("id", slot.id);
-    }
+    void recordDomainEvent({
+      type: "enrollment.ended",
+      entity: "student_enrollments",
+      entity_id: bookingId,
+      payload: {
+        slot_id: enr.slot_id,
+        student_id: enr.student_id,
+        course_id: enr.course_id
+      }
+    });
 
     return {
       success: true,
-      tokensReleased: released,
-      policy
+      tokensReleased: 0,
+      policy: "Unused hours preserved on student wallet"
     };
   }
 
@@ -634,98 +677,28 @@ export class ScheduleSlotService {
    * List slots for a specific date in CST for attendance marking.
    */
   static async listAttendanceSlots(dateStr?: string, teacherId?: string) {
-    // Default to CST today
     const nowParts = utcToCstParts(new Date());
     const targetDate = dateStr || nowParts.cstDate;
-
-    // Get CST start and end of target day in UTC ISO
-    const startUtc = cstDateTimeToUtc(targetDate, "00:00").toISOString();
-    const endUtc = cstDateTimeToUtc(targetDate, "23:59").toISOString();
+    const targetDay = new Date(`${targetDate}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" });
 
     let query = supabaseAdmin
-      .from("schedule_slots")
+      .from("schedules")
       .select("*")
-      .gte("start_at", startUtc)
-      .lte("start_at", endUtc)
-      .neq("status", "cancelled")
-      .order("start_at", { ascending: true });
+      .eq("is_active", true)
+      .neq("status", "cancelled");
 
     if (teacherId && teacherId !== "ALL") {
       query = query.eq("teacher_id", teacherId);
     }
 
-    const { data: slots, error: slotErr } = await query;
-    if (slotErr) throw new Error(`Failed to query attendance slots: ${slotErr.message}`);
+    const { data: rawSlots, error } = await query;
+    if (error) throw error;
 
-    if (!slots || slots.length === 0) return [];
-
-    const slotIds = slots.map(s => s.id);
-
-    // Fetch courses
-    const { data: courses } = await supabaseAdmin.from("courses").select("id, name, course_code");
-    const courseMap = new Map((courses || []).map(c => [c.id, c]));
-
-    // Fetch teachers
-    const { data: teachers } = await supabaseAdmin.from("teachers").select("id, name, email, phone");
-    const teacherMap = new Map((teachers || []).map(t => [t.id, t]));
-
-    // Fetch attendance rows for these slots
-    const { data: attRows } = await supabaseAdmin
-      .from("attendance")
-      .select("id, slot_id, student_id, booking_id, status, marked_by, marked_at, students(id, name, student_id_code, email)")
-      .in("slot_id", slotIds)
-      .neq("status", "cancelled");
-
-    const attMap = new Map<string, any[]>();
-    for (const row of attRows || []) {
-      const list = attMap.get(row.slot_id) || [];
-      list.push(row);
-      attMap.set(row.slot_id, list);
-    }
-
-    return slots.map(slot => {
-      const crs = courseMap.get(slot.course_id);
-      const tch = teacherMap.get(slot.teacher_id);
-      const startParts = utcToCstParts(new Date(slot.start_at));
-      const endParts = utcToCstParts(new Date(slot.end_at));
-      const slotAtt = attMap.get(slot.id) || [];
-
-      return {
-        id: slot.id,
-        course_id: slot.course_id,
-        course_name: crs?.name || "Unassigned Course",
-        course_code: crs?.course_code || "",
-        teacher_id: slot.teacher_id,
-        teacher_name: tch?.name || "Faculty",
-        grade: slot.grade || "All Grades",
-        start_at: slot.start_at,
-        end_at: slot.end_at,
-        duration_hours: Number(slot.duration_hours),
-        max_students: slot.max_students,
-        status: slot.status,
-        day_of_week: startParts.dayOfWeek,
-        time_slot: `${startParts.timeStr} - ${endParts.timeStr} CST`,
-        date_cst: startParts.cstDate,
-        studentsCount: slotAtt.length,
-        isCompleted: slot.status === "completed" || (slotAtt.length > 0 && slotAtt.every(a => a.status !== "scheduled")),
-        students: slotAtt.map((a: any) => ({
-          attendance_id: a.id,
-          booking_id: a.booking_id,
-          student_id: a.student_id,
-          student_name: a.students?.name || "Student",
-          student_code: a.students?.student_id_code || `TG-STU-${a.student_id.slice(0, 6)}`,
-          email: a.students?.email || "",
-          status: a.status,
-          marked_at: a.marked_at,
-          marked_by: a.marked_by
-        }))
-      };
-    });
+    return (rawSlots || []).filter(s => (s.day_of_week || "").trim().toLowerCase() === targetDay.toLowerCase());
   }
 
   /**
-   * Marks attendance for an attendance record (present, late, absent, excused)
-   * with strict net-zero token accounting and slot completion triggers.
+   * Marks attendance and deducts slot duration hours via token_ledger and token_wallets.
    */
   static async markAttendance(
     attendanceId: string,
@@ -733,141 +706,170 @@ export class ScheduleSlotService {
     markedBy?: string,
     remarks?: string
   ) {
-    if (!["present", "absent", "late", "excused"].includes(status)) {
-      throw new Error("Invalid status. Must be present, absent, late, or excused.");
-    }
-
-    // Try RPC first
-    try {
-      const { data: rpcData, error: rpcErr } = await supabaseAdmin.rpc("mark_attendance", {
-        p_attendance_id: attendanceId,
-        p_status: status,
-        p_marked_by: markedBy || null,
-        p_remarks: remarks || null
-      });
-
-      if (!rpcErr && rpcData && rpcData[0]?.success) {
-        return {
-          success: true,
-          status,
-          slotCompleted: rpcData[0].slot_completed,
-          tokensAffected: Number(rpcData[0].tokens_affected)
-        };
-      }
-    } catch (rpcEx: any) {
-      console.warn("mark_attendance RPC fallback:", rpcEx.message);
-    }
-
-    // Direct fallback implementation
     const { data: att, error: attErr } = await supabaseAdmin
       .from("attendance")
-      .select("*, bookings(*), schedule_slots(*)")
+      .select("*, schedules(*)")
       .eq("id", attendanceId)
       .single();
 
     if (attErr || !att) throw new Error("Attendance record not found.");
 
-    const booking = att.bookings;
-    const slot = att.schedule_slots;
+    const slot = att.schedules;
+    const durHours = Number(slot?.duration_hours || 1.0);
     const prevStatus = att.status;
-    let tokensAffected = 0;
 
-    // Apply token rules
-    if (prevStatus === "excused" && (status === "present" || status === "late" || status === "absent")) {
-      // Re-reserve tokens that were previously released
-      tokensAffected = -Number(booking.tokens_reserved);
+    if (status === "present" && prevStatus !== "present") {
       await supabaseAdmin.from("token_ledger").insert({
         student_id: att.student_id,
-        course_id: slot.course_id,
-        hours: tokensAffected,
-        type: "reserve",
-        ref_booking_id: booking.id,
-        note: remarks || `Hours re-reserved: excused status updated to ${status}`,
+        course_id: slot?.course_id || "general",
+        delta: -durHours,
+        reason: "CLASS_ATTENDED",
+        ref: `att:${attendanceId}`,
+        note: remarks || `Class attended (${durHours} hr deducted)`,
         created_by: markedBy || "faculty"
       });
-    } else if (prevStatus !== "excused" && status === "excused") {
-      // Release tokens back to student
-      tokensAffected = Number(booking.tokens_reserved);
+
+      const { data: w } = await supabaseAdmin
+        .from("token_wallets")
+        .select("balance")
+        .eq("student_id", att.student_id)
+        .eq("course_id", slot?.course_id || "general")
+        .maybeSingle();
+
+      const newBal = (w ? Number(w.balance) : 0) - durHours;
+      await supabaseAdmin
+        .from("token_wallets")
+        .upsert({
+          student_id: att.student_id,
+          course_id: slot?.course_id || "general",
+          balance: newBal,
+          updated_at: new Date().toISOString()
+        });
+
+      if (newBal < durHours) {
+        await supabaseAdmin
+          .from("student_enrollments")
+          .update({ status: "PAUSED_NO_HOURS", paused_at: new Date().toISOString() })
+          .eq("student_id", att.student_id)
+          .eq("slot_id", att.schedule_id)
+          .eq("status", "ACTIVE");
+      }
+    } else if (prevStatus === "present" && status !== "present") {
       await supabaseAdmin.from("token_ledger").insert({
         student_id: att.student_id,
-        course_id: slot.course_id,
-        hours: tokensAffected,
-        type: "release",
-        ref_booking_id: booking.id,
-        note: remarks || "Absence excused by faculty - hours restored",
+        course_id: slot?.course_id || "general",
+        delta: durHours,
+        reason: "ADJUSTMENT",
+        ref: `att-rev:${attendanceId}`,
+        note: remarks || `Attendance corrected from present to ${status} (+${durHours} hr restored)`,
         created_by: markedBy || "faculty"
       });
+
+      const { data: w } = await supabaseAdmin
+        .from("token_wallets")
+        .select("balance")
+        .eq("student_id", att.student_id)
+        .eq("course_id", slot?.course_id || "general")
+        .maybeSingle();
+
+      const newBal = (w ? Number(w.balance) : 0) + durHours;
+      await supabaseAdmin
+        .from("token_wallets")
+        .upsert({
+          student_id: att.student_id,
+          course_id: slot?.course_id || "general",
+          balance: newBal,
+          updated_at: new Date().toISOString()
+        });
+
+      if (newBal >= durHours) {
+        await supabaseAdmin
+          .from("student_enrollments")
+          .update({ status: "ACTIVE", paused_at: null })
+          .eq("student_id", att.student_id)
+          .eq("slot_id", att.schedule_id)
+          .eq("status", "PAUSED_NO_HOURS");
+      }
     }
 
-    // Validate markedBy against public.profiles (to satisfy foreign key constraint)
-    let validMarkedBy: string | null = null;
-    if (markedBy) {
-      try {
-        const { data: prof } = await supabaseAdmin
-          .from("profiles")
-          .select("id")
-          .eq("id", markedBy)
-          .maybeSingle();
-        if (prof) validMarkedBy = prof.id;
-      } catch {}
-    }
-
-    // Update attendance row
-    const { error: updErr } = await supabaseAdmin
+    await supabaseAdmin
       .from("attendance")
       .update({
         status,
-        marked_by: validMarkedBy,
-        marked_at: new Date().toISOString()
+        marked_at: new Date().toISOString(),
+        remarks: remarks || null
       })
       .eq("id", attendanceId);
 
-    if (updErr) {
-      throw new Error(`Failed to update attendance status: ${updErr.message}`);
-    }
+    const eventType = prevStatus ? "attendance.corrected" : "attendance.marked";
+    void recordDomainEvent({
+      type: eventType,
+      entity: "attendance",
+      entity_id: attendanceId,
+      payload: {
+        slot_id: att.schedule_id,
+        student_id: att.student_id,
+        status,
+        prev_status: prevStatus,
+        hours_deducted: status === "present" ? durHours : 0
+      }
+    });
 
-    // Check if all attendance rows for this slot are marked
-    const { count: scheduledRemaining, error: countErr } = await supabaseAdmin
-      .from("attendance")
-      .select("id", { count: "exact", head: true })
-      .eq("slot_id", att.slot_id)
-      .eq("status", "scheduled");
+    if (status === "present" && prevStatus !== "present") {
+      const { data: wCheck } = await supabaseAdmin
+        .from("token_wallets")
+        .select("balance")
+        .eq("student_id", att.student_id)
+        .eq("course_id", slot?.course_id || "general")
+        .maybeSingle();
 
-    let slotCompleted = false;
-    if (scheduledRemaining === 0) {
-      await supabaseAdmin
-        .from("schedule_slots")
-        .update({ status: "completed" })
-        .eq("id", att.slot_id)
-        .neq("status", "cancelled");
-      slotCompleted = true;
+      if (wCheck && Number(wCheck.balance) < durHours) {
+        void recordDomainEvent({
+          type: "enrollment.paused",
+          entity: "student_enrollments",
+          entity_id: att.schedule_id,
+          payload: {
+            slot_id: att.schedule_id,
+            student_id: att.student_id,
+            course_id: slot?.course_id || "general",
+            remaining_hours: Number(wCheck.balance)
+          }
+        });
+      }
+    } else if (prevStatus === "present" && status !== "present") {
+      void recordDomainEvent({
+        type: "enrollment.resumed",
+        entity: "student_enrollments",
+        entity_id: att.schedule_id,
+        payload: {
+          slot_id: att.schedule_id,
+          student_id: att.student_id,
+          course_id: slot?.course_id || "general"
+        }
+      });
     }
 
     return {
       success: true,
       status,
-      slotCompleted,
-      tokensAffected
+      tokensAffected: status === "present" ? -durHours : (prevStatus === "present" ? durHours : 0)
     };
   }
 
   /**
    * Computes the weekly attendance rate in America/Chicago (CST/CDT):
    * (present + late) / (present + late + absent)
-   * Returns null if no marked attendance records exist for the current week.
    */
   static async getWeeklyAttendanceRate() {
     const nowCst = utcToCstParts(new Date());
     const cstDate = new Date(`${nowCst.cstDate}T12:00:00Z`);
-    const dayOfWeek = cstDate.getUTCDay(); // 0 is Sunday, 1 is Monday...
+    const dayOfWeek = cstDate.getUTCDay();
 
-    // Calculate Monday of current week
     const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
     const monday = new Date(cstDate);
     monday.setUTCDate(cstDate.getUTCDate() + diffToMonday);
     const mondayStr = monday.toISOString().slice(0, 10);
 
-    // Calculate Sunday of current week
     const sunday = new Date(monday);
     sunday.setUTCDate(monday.getUTCDate() + 6);
     const sundayStr = sunday.toISOString().slice(0, 10);

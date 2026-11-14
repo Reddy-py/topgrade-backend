@@ -110,8 +110,7 @@ export async function removeDemoFamily() {
     console.log(`✓ Deleted ${enrCount || 0} demo student enrollment(s).`);
   }
 
-  // 5. Delete schedule students & schedule slot
-  await supabase.from("schedule_students").delete().eq("schedule_id", demoScheduleId);
+  // 5. Delete demo schedule slot
   const { count: schedCount } = await supabase
     .from("schedules")
     .delete({ count: "exact" })

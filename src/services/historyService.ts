@@ -446,7 +446,7 @@ export class HistoryService {
       walletMap.set(w.student_id, (walletMap.get(w.student_id) || 0) + Number(w.balance || 0));
     });
 
-    // 5. Fetch email_logs for recent re-enrollment invites (rate limit: 1 per week)
+    // 5. Fetch email_log for recent re-enrollment invites (rate limit: 1 per week)
     const { data: recentInvites } = await supabaseAdmin
       .from("email_log")
       .select("id, subject_key, recipients, kind, created_at")

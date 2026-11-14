@@ -311,7 +311,7 @@ export async function getTeacherPerformance(teacherIdOrCodeOrName: string): Prom
   // 2. Query schedules taught by this teacher
   let teacherSchedules: any[] = [];
   try {
-    const { data: scheds } = await supabaseAdmin.from("schedules").select("*, schedule_students(*)");
+    const { data: scheds } = await supabaseAdmin.from("schedules").select("*, student_enrollments(*)");
     if (scheds) {
       teacherSchedules = scheds.filter(
         (s: any) =>

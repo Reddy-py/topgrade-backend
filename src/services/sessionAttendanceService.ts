@@ -403,7 +403,7 @@ export class SessionAttendanceService {
           ...(actor?.id ? { markedByUserId: actor.id } : {})
         });
 
-        // Also sync directly to unified public.attendance table & schedule_slots completion
+        // Also sync directly to unified public.attendance table & schedules completion
         try {
           const { data: attRow } = await supabaseAdmin
             .from("attendance")

@@ -80,21 +80,10 @@ router.get("/dashboard-metrics", async (req: Request, res: Response): Promise<an
 
     let classesToday = 0;
     try {
-      const { count: slotCount, error: slotErr } = await supabaseAdmin
-        .from("schedule_slots")
-        .select("id", { count: "exact", head: true })
-        .gte("start_at", startOfTodayUtc)
-        .lte("start_at", endOfTodayUtc)
-        .neq("status", "cancelled");
-
-      if (!slotErr && slotCount !== null) {
-        classesToday = slotCount;
-      } else {
-        const allSchedules = await ScheduleDataService.listSchedules();
-        classesToday = allSchedules.filter(
-          s => (s.day_of_week || "").trim().toLowerCase() === todayWeekday && s.is_active !== false
-        ).length;
-      }
+      const allSchedules = await ScheduleDataService.listSchedules();
+      classesToday = allSchedules.filter(
+        s => (s.day_of_week || "").trim().toLowerCase() === todayWeekday && s.is_active !== false
+      ).length;
     } catch (e) {
       classesToday = 0;
     }
@@ -123,21 +112,21 @@ router.get("/dashboard-metrics", async (req: Request, res: Response): Promise<an
     const studentMap = new Map(studentList.map(s => [s.id, s]));
 
     try {
-      // Find students who have an active or paused enrollment
+      // Find students who have an active or paused enrollment from canonical student_enrollments table
       let enrolledStudentIds: string[] = [];
 
       try {
-        const { data: bData } = await supabaseAdmin
-          .from("bookings")
-          .select("student_id, slot_id, status")
-          .in("status", ["booked", "ACTIVE", "PAUSED_NO_HOURS", "paused"]);
+        const { data: eData } = await supabaseAdmin
+          .from("student_enrollments")
+          .select("student_id, status")
+          .in("status", ["ACTIVE", "PAUSED_NO_HOURS"]);
 
-        if (bData && bData.length > 0) {
-          enrolledStudentIds = Array.from(new Set(bData.map((b: any) => b.student_id)));
+        if (eData && eData.length > 0) {
+          enrolledStudentIds = Array.from(new Set(eData.map((e: any) => e.student_id)));
         }
       } catch {}
 
-      // Fallback: check in-memory schedules or schedule_students
+      // Fallback: check schedules
       if (enrolledStudentIds.length === 0) {
         try {
           const allSched = await ScheduleDataService.listSchedules();
@@ -162,7 +151,7 @@ router.get("/dashboard-metrics", async (req: Request, res: Response): Promise<an
         const courseMap = new Map((courses || []).map(c => [c.id, c.name]));
 
         // Fetch slots for duration checks
-        const { data: slots } = await supabaseAdmin.from("schedule_slots").select("id, course_id, duration_hours");
+        const { data: slots } = await supabaseAdmin.from("schedules").select("id, course_id, duration_hours");
         const slotDurByCourse = new Map<string, number>();
         for (const sl of slots || []) {
           slotDurByCourse.set(sl.course_id, Number(sl.duration_hours || 1.0));

@@ -12,15 +12,13 @@ import path from "path";
  *     2. Exports a JSON backup to ../private-exports/backup_learning_data_<timestamp>.json
  *     3. Deletes ONLY learning and attendance data:
  *        - attendance
- *        - bookings
  *        - student_enrollments
  *        - token_ledger
  *        - token_wallets (if exists)
  *        - token_orders (if exists)
- *        - slot-student links
  *        - session overrides
  *        - learning/attendance/hours events in student_history
- *     4. Resets schedule_slots booked count / status to 'open' where needed.
+ *     4. Resets schedules enrolled count / status to 'active' where needed.
  *     5. KEEPS all: students, parents, teachers, courses, locations, settings, and auth logins.
  *     6. Leaves every student with 0 hours, 0 enrollments.
  */
@@ -77,12 +75,10 @@ export async function runResetLearningData(isApply: boolean = false, confirmHost
 
   // 1. Gather counts of learning and attendance records
   const attendanceCount = await countTableRows("attendance");
-  const bookingsCount = await countTableRows("bookings");
   const enrollmentsCount = await countTableRows("student_enrollments");
   const tokenLedgerCount = await countTableRows("token_ledger");
   const tokenWalletsCount = await countTableRows("token_wallets");
   const tokenOrdersCount = await countTableRows("token_orders");
-  const scheduleStudentsCount = await countTableRows("schedule_students");
   const studentHistoryCount = await countTableRows("student_history", {
     column: "action",
     value: ["ATTENDANCE_MARKED", "ENROLLED", "DE_ENROLLED", "TOKEN_GRANT", "TOKEN_CONSUME", "HOURS_DEDUCTED", "HOURS_ADDED", "SESSION_OVERRIDE"],
@@ -91,12 +87,10 @@ export async function runResetLearningData(isApply: boolean = false, confirmHost
 
   console.log("\n[CURRENT LEARNING & ATTENDANCE RECORD COUNTS]:");
   console.log(` - attendance:             ${attendanceCount} rows`);
-  console.log(` - bookings:               ${bookingsCount} rows`);
   console.log(` - student_enrollments:   ${enrollmentsCount} rows`);
   console.log(` - token_ledger:          ${tokenLedgerCount} rows`);
   console.log(` - token_wallets:         ${tokenWalletsCount} rows`);
   console.log(` - token_orders:          ${tokenOrdersCount} rows`);
-  console.log(` - schedule_students:      ${scheduleStudentsCount} rows`);
   console.log(` - student_history events: ${studentHistoryCount} rows`);
 
   // Count preserved entities
@@ -125,12 +119,10 @@ export async function runResetLearningData(isApply: boolean = false, confirmHost
       mode: "dry-run",
       counts: {
         attendance: attendanceCount,
-        bookings: bookingsCount,
         student_enrollments: enrollmentsCount,
         token_ledger: tokenLedgerCount,
         token_wallets: tokenWalletsCount,
         token_orders: tokenOrdersCount,
-        schedule_students: scheduleStudentsCount,
         student_history: studentHistoryCount
       }
     };
@@ -159,12 +151,10 @@ export async function runResetLearningData(isApply: boolean = false, confirmHost
     host: dbHost,
     data: {
       attendance: await fetchTableData("attendance"),
-      bookings: await fetchTableData("bookings"),
       student_enrollments: await fetchTableData("student_enrollments"),
       token_ledger: await fetchTableData("token_ledger"),
       token_wallets: await fetchTableData("token_wallets"),
-      token_orders: await fetchTableData("token_orders"),
-      schedule_students: await fetchTableData("schedule_students")
+      token_orders: await fetchTableData("token_orders")
     }
   };
 
@@ -176,17 +166,14 @@ export async function runResetLearningData(isApply: boolean = false, confirmHost
   // Deletion in foreign key safe order:
   // 1. Attendance records
   await supabaseAdmin.from("attendance").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-  
-  // 2. Bookings
-  await supabaseAdmin.from("bookings").delete().neq("id", "00000000-0000-0000-0000-000000000000");
 
-  // 3. Student enrollments
+  // 2. Student enrollments
   await supabaseAdmin.from("student_enrollments").delete().neq("id", "__non_existent__");
 
-  // 4. Token ledger
+  // 3. Token ledger
   await supabaseAdmin.from("token_ledger").delete().neq("id", "00000000-0000-0000-0000-000000000000");
 
-  // 5. Token wallets and orders if they exist
+  // 4. Token wallets and orders if they exist
   try {
     await supabaseAdmin.from("token_wallets").delete().neq("id", "__non_existent__");
   } catch {}
@@ -194,12 +181,7 @@ export async function runResetLearningData(isApply: boolean = false, confirmHost
     await supabaseAdmin.from("token_orders").delete().neq("id", "__non_existent__");
   } catch {}
 
-  // 6. Schedule students mapping
-  try {
-    await supabaseAdmin.from("schedule_students").delete().neq("id", "__non_existent__");
-  } catch {}
-
-  // 7. Student history learning events
+  // 5. Student history learning events
   try {
     await supabaseAdmin
       .from("student_history")
@@ -207,11 +189,11 @@ export async function runResetLearningData(isApply: boolean = false, confirmHost
       .in("action", ["ATTENDANCE_MARKED", "ENROLLED", "DE_ENROLLED", "TOKEN_GRANT", "TOKEN_CONSUME", "HOURS_DEDUCTED", "HOURS_ADDED", "SESSION_OVERRIDE"]);
   } catch {}
 
-  // 8. Reset schedule slots to open with 0 booked count
+  // 6. Reset schedules to active with 0 enrolled count
   try {
     await supabaseAdmin
-      .from("schedule_slots")
-      .update({ status: "open", updated_at: new Date().toISOString() })
+      .from("schedules")
+      .update({ status: "active", updated_at: new Date().toISOString() })
       .neq("status", "cancelled");
   } catch {}
 

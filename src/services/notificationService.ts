@@ -29,11 +29,33 @@ export interface NotificationPayload {
   smsMessage?: string;
   eventType: "ADMISSION_INQUIRY" | "ADMISSION_APPROVED" | "PAYMENT_COMPLETED" | "DE_ENROLLMENT_REQUESTED" | "DE_ENROLLMENT_APPROVED" | "ATTENDANCE_ALERT" | "TEACHER_ASSIGNMENT" | "PASSWORD_CHANGE_ALERT" | "PASSWORD_RESET_REQUEST";
   actionUrl?: string;
+  unsubLink?: string;
   attachments?: Array<{
     filename: string;
     content: Buffer | string;
     contentType?: string;
   }> | undefined;
+}
+
+export function htmlToPlainText(html: string): string {
+  return html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<br\s*[\/]?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<\/div>/gi, "\n")
+    .replace(/<\/h[1-6]>/gi, "\n\n")
+    .replace(/<li>/gi, "• ")
+    .replace(/<\/li>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 function getTransporter(): { transporter: any; gmailUser: string } {
@@ -186,12 +208,21 @@ export async function dispatchMultiChannelNotification(payload: NotificationPayl
           }
         }
 
+        const mailHeaders: Record<string, string> = {};
+        if (payload.unsubLink) {
+          mailHeaders["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click";
+          mailHeaders["List-Unsubscribe"] = `<${payload.unsubLink}>`;
+        }
+
         await transporter.sendMail({
           from: `"${escapeHtml(getCachedInstituteSettings().institute_name || "Top Grade Learning")}" <${senderAddress}>`,
+          replyTo: getCachedInstituteSettings().support_email || senderAddress,
           to: emailTarget,
           subject: payload.subject,
+          text: htmlToPlainText(htmlContent),
           html: htmlContent,
-          attachments: payload.attachments
+          attachments: payload.attachments,
+          headers: Object.keys(mailHeaders).length > 0 ? mailHeaders : undefined
         });
 
         sent++;

@@ -66,10 +66,10 @@ export async function markAttendance(p: RecordInput): Promise<{ record: Attendan
         if (student && course) {
           try {
             await supabaseAdmin
-              .from("bookings")
-              .update({ status: "PAUSED_NO_HOURS" })
+              .from("student_enrollments")
+              .update({ status: "PAUSED_NO_HOURS", paused_at: new Date().toISOString() })
               .eq("student_id", student.id)
-              .eq("status", "booked");
+              .eq("status", "ACTIVE");
           } catch {}
 
           const targetEmail = isRealEmail(student.email) ? student.email : (student.parentEmails || []).find((e: string) => isRealEmail(e));
@@ -99,8 +99,8 @@ export async function markAttendance(p: RecordInput): Promise<{ record: Attendan
         if (student) {
           try {
             await supabaseAdmin
-              .from("bookings")
-              .update({ status: "booked" })
+              .from("student_enrollments")
+              .update({ status: "ACTIVE", paused_at: null })
               .eq("student_id", student.id)
               .eq("status", "PAUSED_NO_HOURS");
           } catch {}

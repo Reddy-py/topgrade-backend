@@ -121,7 +121,7 @@ export class TimedEmailScheduler {
 
     const { data: slots } = await supabaseAdmin
       .from("schedules")
-      .select("*, schedule_students(*)")
+      .select("*, student_enrollments(*)")
       .eq("is_active", true)
       .eq("day_of_week", tomorrowDayOfWeek);
 
@@ -129,7 +129,7 @@ export class TimedEmailScheduler {
     let sentCount = 0;
 
     for (const slot of slots as any[]) {
-      const studentsList = (slot.schedule_students || []) as any[];
+      const studentsList = ((slot.student_enrollments || []) as any[]).filter(e => e.status === "ACTIVE");
       for (const ss of studentsList) {
         const { data: stRow } = await supabaseAdmin.from("students").select("*").eq("id", ss.student_id).maybeSingle();
         if (!stRow) continue;
@@ -198,7 +198,7 @@ export class TimedEmailScheduler {
 
       const { data: teacherSlots } = await supabaseAdmin
         .from("schedules")
-        .select("*, schedule_students(*)")
+        .select("*, student_enrollments(*)")
         .eq("is_active", true)
         .eq("day_of_week", todayDayOfWeek)
         .or(`teacher_id.eq.${t.id},teacher_id.eq.${t.teacher_id_code || "none"}`);
@@ -215,7 +215,7 @@ export class TimedEmailScheduler {
             ${teacherSlots.map((s: any) => `
               <li>
                 <strong>${escapeHtml(s.course_name)}</strong> &bull; ${escapeHtml(s.time_slot)}<br>
-                <span style="font-size:12px;color:#64748b;">Location: ${escapeHtml(s.location || "Center")} (${escapeHtml(s.room || "Room 101")}) &bull; Enrolled: ${s.schedule_students?.length || 0} students</span>
+                <span style="font-size:12px;color:#64748b;">Location: ${escapeHtml(s.location || "Center")} (${escapeHtml(s.room || "Room 101")}) &bull; Enrolled: ${s.student_enrollments?.length || 0} students</span>
               </li>
             `).join("")}
           </ol>

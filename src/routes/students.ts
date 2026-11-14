@@ -324,10 +324,14 @@ export const deleteStudentHandler = async (req: AuthenticatedRequest, res: expre
       return;
     }
 
-    await deleteStudentService(studentId);
+    const confirmation = req.body?.confirmation || (req.query?.confirmation as string);
+    const requesterRole = req.user?.role || "ADMIN";
+
+    const result = await deleteStudentService(studentId, confirmation, requesterRole);
     res.status(200).json({
       success: true,
-      message: `Student record deleted successfully.`
+      archived: result.archived,
+      message: result.message
     });
   } catch (error: any) {
     res.status(400).json({ success: false, message: error.message || "Failed to delete student record." });

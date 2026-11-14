@@ -54,7 +54,6 @@ async function getTableCounts() {
     { count: courseCount },
     { count: studentCount },
     { count: schedCount },
-    { count: schedStudentsCount },
     { count: enrollmentCount },
     { count: emailLogCount },
     { count: profileCount }
@@ -63,7 +62,6 @@ async function getTableCounts() {
     supabaseAdmin.from("courses").select("*", { count: "exact", head: true }),
     supabaseAdmin.from("students").select("*", { count: "exact", head: true }),
     supabaseAdmin.from("schedules").select("*", { count: "exact", head: true }),
-    supabaseAdmin.from("schedule_students").select("*", { count: "exact", head: true }),
     supabaseAdmin.from("student_enrollments").select("*", { count: "exact", head: true }),
     supabaseAdmin.from("email_log").select("*", { count: "exact", head: true }),
     supabaseAdmin.from("profiles").select("*", { count: "exact", head: true }),
@@ -73,7 +71,6 @@ async function getTableCounts() {
     courses: courseCount || 0,
     students: studentCount || 0,
     schedules: schedCount || 0,
-    schedule_students: schedStudentsCount || 0,
     student_enrollments: enrollmentCount || 0,
     email_log: emailLogCount || 0,
     profiles: profileCount || 0
@@ -508,7 +505,6 @@ async function runTask4Verification() {
   if (slotId) {
     await ScheduleDataService.deleteSchedule(slotId);
     await supabaseAdmin.from("attendance_records").delete().eq("schedule_id", slotId);
-    await supabaseAdmin.from("schedule_students").delete().eq("schedule_id", slotId);
   }
 
   if (studentId) {

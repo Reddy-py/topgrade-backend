@@ -4,6 +4,7 @@ import type { AuthenticatedRequest } from "../middleware/auth.js";
 import { broadcastAnnouncement, type BroadcastAnnouncementInput } from "../services/eventEmailService.js";
 import { supabaseAdmin } from "../supabase.js";
 import { isRealEmail } from "../constants/domains.js";
+import { recordDomainEvent } from "../services/domainEventService.js";
 
 const router = Router();
 
@@ -182,7 +183,19 @@ router.post("/", async (req: Request, res: Response): Promise<any> => {
         .select("id")
         .single();
 
-      if (annData) announcementId = annData.id;
+      if (annData) {
+        announcementId = annData.id;
+        void recordDomainEvent({
+          type: "announcement.created",
+          entity: "announcements",
+          entity_id: announcementId || "announcement",
+          payload: {
+            title: title.trim(),
+            audience_type: audType,
+            recipient_count: recipients.length
+          }
+        });
+      }
     } catch (annErr) {
       console.warn("Notice: Failed to insert public.announcements record:", annErr);
     }

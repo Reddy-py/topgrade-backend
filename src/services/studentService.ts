@@ -4,6 +4,7 @@ import { ensureLogin, deleteLogin, emailSetPasswordLink, normEmail, isValidEmail
 import { sendStudentAddedEmail, sendStudentUpdatedEmail } from "./studentNotices.js";
 import { sendExamGoodLuckWishes, sendBirthdayGreetings } from "./automatedEmailService.js";
 import { supabaseAdmin } from "../supabase.js";
+import { recordDomainEvent } from "./domainEventService.js";
 
 export interface CourseAllocation {
   courseName: string;
@@ -202,193 +203,171 @@ export async function getStudentsService(params: StudentFilterParams) {
   const gradeFilter = (params.grade || "ALL");
   const user = params.currentUser;
 
-  if (params.refresh || Date.now() - lastSupabaseStudentFetch > 60000 || inMemoryStudentStore.length === 0) {
-    try {
-      const { data, error } = await supabaseAdmin.from("students").select("*").order("name", { ascending: true });
-      const dossierById = new Map<string, any>();
-      if (!error && data) {
-        const { data: dossierRows, error: dossierErr } = await supabaseAdmin.from("student_dossiers").select("student_id, dossier");
-        if (dossierErr) console.warn("Notice reading student_dossiers (run the 20261011 migration):", dossierErr.message);
-        for (const d of (dossierRows || []) as any[]) dossierById.set(d.student_id, d.dossier);
-      }
-      if (!error && data) {
-        lastSupabaseStudentFetch = Date.now();
-        const existingMemory = [...inMemoryStudentStore];
-        const dbList = data.map((s: any) => {
-          const existing = existingMemory.find(ex => ex.id === s.id || ex.studentCode === s.student_id_code);
-          const rawSchool = s.school || (s.address && s.address.includes("School: ") ? s.address.split("School: ")[1]?.trim() : (s.address && s.address.startsWith("School: ") ? s.address.replace("School: ", "").trim() : (existing?.school || "")));
-          const rawGrade = s.grade || (s.nationality && s.nationality.startsWith("Grade: ") ? s.nationality.replace("Grade: ", "").trim() : (s.nationality || (s.age ? `Grade ${s.age > 12 ? 12 : s.age}` : (existing?.grade || "Grade 10"))));
-          const cleanAddress = s.address ? s.address.split(" | School: ")[0]?.replace(/^School:.*$/, "").trim() : (existing?.residentialAddress || "");
-          const studentAddress = s.student_address || s.alternate_address || existing?.studentAddress || "";
-          const examDate = s.exam_date || (s.medical_notes && s.medical_notes.startsWith("EXAM_DATE:") ? s.medical_notes.replace("EXAM_DATE:", "") : (existing?.examDate || ""));
-          const rawProgramType = (s.program_type || (s.program && s.program.toUpperCase().includes("AFTERSCHOOL") ? "AFTERSCHOOL" : (s.program ? s.program.toUpperCase() : "TUTORING"))).toUpperCase();
-          const notes = s.notes || (s.medical_notes && !s.medical_notes.startsWith("EXAM_DATE:") ? s.medical_notes : (existing?.notes || ""));
-
-          const mapped: any = {
-            id: s.id,
-            studentCode: s.student_id_code || s.studentCode || existing?.studentCode || `TG-STU-${s.id?.slice(0, 4)}`,
-            fullName: s.name || s.full_name || s.fullName || existing?.fullName || "Student",
-            firstName: (s.name || "").split(" ")[0] || existing?.firstName || "Student",
-            lastName: (s.name || "").split(" ").slice(1).join(" ") || existing?.lastName || "",
-            email: s.email || existing?.email || "",
-            dob: s.dob || existing?.dob || "2005-01-01",
-            age: s.age || existing?.age || 18,
-            school: rawSchool || "Top Grade Academy",
-            grade: rawGrade || "Grade 10",
-            status: (s.status || existing?.status || "ACTIVE").toUpperCase(),
-            program_type: rawProgramType,
-            notes: notes,
-            primaryMobile: s.phone || existing?.primaryMobile || "",
-            studentPhones: s.student_phones || existing?.studentPhones || (s.phone ? [s.phone] : []),
-            parentPhones: s.parent_phones || existing?.parentPhones || (s.father_phone ? [s.father_phone] : (s.phone ? [s.phone] : [])),
-            studentWhatsapp: s.student_whatsapp || existing?.studentWhatsapp || s.phone || "",
-            parentWhatsapp: s.parent_whatsapp || existing?.parentWhatsapp || (s.father_phone ? [s.father_phone] : []),
-            studentEmails: s.student_emails || existing?.studentEmails || (s.email ? [s.email] : []),
-            parentEmails: (s.parent_emails && (Array.isArray(s.parent_emails) ? s.parent_emails.length > 0 : String(s.parent_emails).trim() !== ""))
-              ? (Array.isArray(s.parent_emails) ? s.parent_emails : String(s.parent_emails).split(",").map((e: string) => e.trim()).filter(Boolean))
-              : (existing?.parentEmails && existing.parentEmails.length > 0 ? existing.parentEmails : []),
-            fatherName: s.father_name || existing?.fatherName || "",
-            motherName: s.mother_name || existing?.motherName || "",
-            guardianName: s.guardian || existing?.guardianName || "",
-            program: s.program || existing?.program || "",
-            teacher: s.teacher || existing?.teacher || "",
-            residentialAddress: cleanAddress,
-            studentAddress: studentAddress,
-            alternateAddress: studentAddress,
-            examDate: examDate,
-            photoUrl: s.govt_id_url || s.photo_url || s.avatar_url || existing?.photoUrl || existing?.profileImageUrl || "",
-            profileImageUrl: s.govt_id_url || s.photo_url || s.avatar_url || existing?.profileImageUrl || existing?.photoUrl || "",
-            purchasedHours: 0,
-            hoursLeft: 0,
-            daysLeft: 0,
-            feePlan: s.fee_plan || existing?.feePlan || "Package",
-            paymentMethod: s.payment_method || existing?.paymentMethod || "Zelle",
-            allocatedCourses: (s.allocated_courses && s.allocated_courses.length > 0) ? s.allocated_courses : (existing?.allocatedCourses && existing.allocatedCourses.length > 0 ? existing.allocatedCourses : (s.program ? [{ courseName: s.program, duration: "3 Months" }] : []))
-          };
-          const stored = dossierById.get(s.id) || {};
-          return {
-            ...mapped,
-            ...stored,
-            id: s.id,
-            studentCode: mapped.studentCode,
-            fullName: mapped.fullName,
-            email: mapped.email,
-            dob: mapped.dob,
-            status: mapped.status,
-            parentEmails: mapped.parentEmails,
-            program_type: stored.program_type || mapped.program_type,
-            notes: stored.notes !== undefined ? stored.notes : mapped.notes,
-            feePlan: stored.feePlan || mapped.feePlan,
-            paymentMethod: stored.paymentMethod || mapped.paymentMethod,
-            password: undefined,
-          };
-        });
-        const dbIdSet = new Set(data.map((d: any) => d.id));
-        const memoryOnly = existingMemory.filter(item => item.id && !dbIdSet.has(item.id));
-        inMemoryStudentStore = [...dbList, ...memoryOnly];
-      }
-    } catch (err) {
-      console.warn("Notice syncing students from Supabase:", err);
+  try {
+    const { data, error } = await supabaseAdmin.from("students").select("*").order("name", { ascending: true });
+    const dossierById = new Map<string, any>();
+    if (!error && data) {
+      const { data: dossierRows, error: dossierErr } = await supabaseAdmin.from("student_dossiers").select("student_id, dossier");
+      if (dossierErr) console.warn("Notice reading student_dossiers:", dossierErr.message);
+      for (const d of (dossierRows || []) as any[]) dossierById.set(d.student_id, d.dossier);
     }
+    if (!error && data) {
+      lastSupabaseStudentFetch = Date.now();
+      const existingMemory = [...inMemoryStudentStore];
+      const dbList = data.map((s: any) => {
+        const existing = existingMemory.find(ex => ex.id === s.id || ex.studentCode === s.student_id_code);
+        const rawSchool = s.school || (s.address && s.address.includes("School: ") ? s.address.split("School: ")[1]?.trim() : (s.address && s.address.startsWith("School: ") ? s.address.replace("School: ", "").trim() : (existing?.school || "")));
+        const rawGrade = s.grade || (s.nationality && s.nationality.startsWith("Grade: ") ? s.nationality.replace("Grade: ", "").trim() : (s.nationality || (s.age ? `Grade ${s.age > 12 ? 12 : s.age}` : (existing?.grade || "Grade 10"))));
+        const cleanAddress = s.address ? s.address.split(" | School: ")[0]?.replace(/^School:.*$/, "").trim() : (existing?.residentialAddress || "");
+        const studentAddress = s.student_address || s.alternate_address || existing?.studentAddress || "";
+        const examDate = s.exam_date || (s.medical_notes && s.medical_notes.startsWith("EXAM_DATE:") ? s.medical_notes.replace("EXAM_DATE:", "") : (existing?.examDate || ""));
+        const rawProgramType = (s.program_type || (s.program && s.program.toUpperCase().includes("AFTERSCHOOL") ? "AFTERSCHOOL" : (s.program ? s.program.toUpperCase() : "TUTORING"))).toUpperCase();
+        const notes = s.notes || (s.medical_notes && !s.medical_notes.startsWith("EXAM_DATE:") ? s.medical_notes : (existing?.notes || ""));
+
+        const mapped: any = {
+          id: s.id,
+          studentCode: s.student_id_code || s.studentCode || existing?.studentCode || `TG-STU-${s.id?.slice(0, 4)}`,
+          fullName: s.name || s.full_name || s.fullName || existing?.fullName || "Student",
+          firstName: (s.name || "").split(" ")[0] || existing?.firstName || "Student",
+          lastName: (s.name || "").split(" ").slice(1).join(" ") || existing?.lastName || "",
+          email: s.email || existing?.email || "",
+          dob: s.dob || existing?.dob || "2005-01-01",
+          age: s.age || existing?.age || 18,
+          school: rawSchool || "Top Grade Academy",
+          grade: rawGrade || "Grade 10",
+          status: (s.status || existing?.status || "ACTIVE").toUpperCase(),
+          program_type: rawProgramType,
+          notes: notes,
+          primaryMobile: s.phone || existing?.primaryMobile || "",
+          studentPhones: s.student_phones || existing?.studentPhones || (s.phone ? [s.phone] : []),
+          parentPhones: s.parent_phones || existing?.parentPhones || (s.father_phone ? [s.father_phone] : (s.phone ? [s.phone] : [])),
+          studentWhatsapp: s.student_whatsapp || existing?.studentWhatsapp || s.phone || "",
+          parentWhatsapp: s.parent_whatsapp || existing?.parentWhatsapp || (s.father_phone ? [s.father_phone] : []),
+          studentEmails: s.student_emails || existing?.studentEmails || (s.email ? [s.email] : []),
+          parentEmails: (s.parent_emails && (Array.isArray(s.parent_emails) ? s.parent_emails.length > 0 : String(s.parent_emails).trim() !== ""))
+            ? (Array.isArray(s.parent_emails) ? s.parent_emails : String(s.parent_emails).split(",").map((e: string) => e.trim()).filter(Boolean))
+            : (existing?.parentEmails && existing.parentEmails.length > 0 ? existing.parentEmails : []),
+          fatherName: s.father_name || existing?.fatherName || "",
+          motherName: s.mother_name || existing?.motherName || "",
+          guardianName: s.guardian || existing?.guardianName || "",
+          program: s.program || existing?.program || "",
+          teacher: s.teacher || existing?.teacher || "",
+          residentialAddress: cleanAddress,
+          studentAddress: studentAddress,
+          alternateAddress: studentAddress,
+          examDate: examDate,
+          photoUrl: s.govt_id_url || s.photo_url || s.avatar_url || existing?.photoUrl || existing?.profileImageUrl || "",
+          profileImageUrl: s.govt_id_url || s.photo_url || s.avatar_url || existing?.profileImageUrl || existing?.photoUrl || "",
+          purchasedHours: 0,
+          hoursLeft: 0,
+          daysLeft: 0,
+          feePlan: s.fee_plan || existing?.feePlan || "Package",
+          paymentMethod: s.payment_method || existing?.paymentMethod || "Zelle",
+          allocatedCourses: (s.allocated_courses && s.allocated_courses.length > 0) ? s.allocated_courses : (existing?.allocatedCourses && existing.allocatedCourses.length > 0 ? existing.allocatedCourses : (s.program ? [{ courseName: s.program, duration: "3 Months" }] : []))
+        };
+        const stored = dossierById.get(s.id) || {};
+        return {
+          ...mapped,
+          ...stored,
+          id: s.id,
+          studentCode: mapped.studentCode,
+          fullName: mapped.fullName,
+          email: mapped.email,
+          dob: mapped.dob,
+          status: mapped.status,
+          parentEmails: mapped.parentEmails,
+          program_type: stored.program_type || mapped.program_type,
+          notes: stored.notes !== undefined ? stored.notes : mapped.notes,
+          feePlan: stored.feePlan || mapped.feePlan,
+          paymentMethod: stored.paymentMethod || mapped.paymentMethod,
+          password: undefined,
+        };
+      });
+      const dbIdSet = new Set(data.map((d: any) => d.id));
+      const memoryOnly = existingMemory.filter(item => item.id && !dbIdSet.has(item.id));
+      inMemoryStudentStore = [...dbList, ...memoryOnly];
+    }
+  } catch (err) {
+    console.warn("Notice syncing students from Supabase:", err);
   }
 
-  // Pre-load schedules, enrollments, wallets, attendance, and courses in parallel (cached with 30s TTL)
-  if (params.refresh || Date.now() - lastAuxFetch > 30000 || cachedStudentScheduleInfo.size === 0) {
-    try {
-      const [schedulesRes, scheduleStudentsRes, enrollmentsRes, walletsRes, attendanceRes, coursesRes, locationsRes] = await Promise.all([
-        supabaseAdmin.from("schedules").select("id, course_id, course_name, teacher_id, teacher_name, day_of_week, is_active"),
-        supabaseAdmin.from("schedule_students").select("schedule_id, student_id"),
-        supabaseAdmin.from("student_enrollments").select("student_id, course_id, course_name, status"),
-        supabaseAdmin.from("token_wallets").select("student_id, balance"),
-        supabaseAdmin.from("attendance").select("student_id, status"),
-        supabaseAdmin.from("courses").select("id, name, category"),
-        supabaseAdmin.from("locations").select("id, name")
-      ]);
+  // Pre-load schedules, enrollments, wallets, attendance, and courses live from Supabase
+  try {
+    const [schedulesRes, enrollmentsRes, walletsRes, attendanceRes, coursesRes, locationsRes] = await Promise.all([
+      supabaseAdmin.from("schedules").select("id, course_id, course_name, teacher_id, teacher_name, day_of_week, is_active"),
+      supabaseAdmin.from("student_enrollments").select("slot_id, student_id, course_id, course_name, status"),
+      supabaseAdmin.from("token_wallets").select("student_id, balance"),
+      supabaseAdmin.from("attendance").select("student_id, status"),
+      supabaseAdmin.from("courses").select("id, name, category"),
+      supabaseAdmin.from("locations").select("id, name")
+    ]);
 
-      const schedMap = new Map<string, any>();
-      (schedulesRes.data || []).forEach((sc: any) => schedMap.set(sc.id, sc));
+    const schedMap = new Map<string, any>();
+    (schedulesRes.data || []).forEach((sc: any) => schedMap.set(sc.id, sc));
 
-      const newCourseCategoryMap = new Map<string, string>();
-      (coursesRes.data || []).forEach((c: any) => {
-        if (c.name && c.category) newCourseCategoryMap.set(c.name.trim().toLowerCase(), c.category);
-      });
+    const newCourseCategoryMap = new Map<string, string>();
+    (coursesRes.data || []).forEach((c: any) => {
+      if (c.name && c.category) newCourseCategoryMap.set(c.name.trim().toLowerCase(), c.category);
+    });
 
-      const newStudentScheduleInfo = new Map<string, {
-        courses: Set<string>;
-        categories: Set<string>;
-        teacherNames: Set<string>;
-        teacherIds: Set<string>;
-        weekdays: Set<string>;
-      }>();
+    const newStudentScheduleInfo = new Map<string, {
+      courses: Set<string>;
+      categories: Set<string>;
+      teacherNames: Set<string>;
+      teacherIds: Set<string>;
+      weekdays: Set<string>;
+    }>();
 
-      (scheduleStudentsRes.data || []).forEach((ss: any) => {
-        const sid = String(ss.student_id || "").toLowerCase();
-        const sched = schedMap.get(ss.schedule_id);
-        if (!sched) return;
-        if (!newStudentScheduleInfo.has(sid)) {
-          newStudentScheduleInfo.set(sid, {
-            courses: new Set(),
-            categories: new Set(),
-            teacherNames: new Set(),
-            teacherIds: new Set(),
-            weekdays: new Set()
-          });
-        }
-        const entry = newStudentScheduleInfo.get(sid)!;
-        if (sched.course_name) {
-          entry.courses.add(sched.course_name);
-          const cat = newCourseCategoryMap.get(sched.course_name.trim().toLowerCase());
-          if (cat) entry.categories.add(cat);
-        }
-        if (sched.teacher_name) entry.teacherNames.add(sched.teacher_name);
-        if (sched.teacher_id) entry.teacherIds.add(sched.teacher_id);
-        if (sched.day_of_week) entry.weekdays.add(sched.day_of_week);
-      });
+    (enrollmentsRes.data || []).forEach((enr: any) => {
+      if (enr.status && String(enr.status).toUpperCase() !== "ACTIVE") return;
+      const sid = String(enr.student_id || "").toLowerCase();
+      const sched = enr.slot_id ? schedMap.get(enr.slot_id) : null;
 
-      (enrollmentsRes.data || []).forEach((enr: any) => {
-        if (enr.status && String(enr.status).toUpperCase() !== "ACTIVE") return;
-        const sid = String(enr.student_id || "").toLowerCase();
-        if (!newStudentScheduleInfo.has(sid)) {
-          newStudentScheduleInfo.set(sid, {
-            courses: new Set(),
-            categories: new Set(),
-            teacherNames: new Set(),
-            teacherIds: new Set(),
-            weekdays: new Set()
-          });
-        }
-        const entry = newStudentScheduleInfo.get(sid)!;
-        if (enr.course_name) {
-          entry.courses.add(enr.course_name);
-          const cat = newCourseCategoryMap.get(enr.course_name.trim().toLowerCase());
-          if (cat) entry.categories.add(cat);
-        }
-      });
+      if (!newStudentScheduleInfo.has(sid)) {
+        newStudentScheduleInfo.set(sid, {
+          courses: new Set(),
+          categories: new Set(),
+          teacherNames: new Set(),
+          teacherIds: new Set(),
+          weekdays: new Set()
+        });
+      }
+      const entry = newStudentScheduleInfo.get(sid)!;
 
-      const newWalletMap = new Map<string, number>();
-      (walletsRes.data || []).forEach((w: any) => {
-        const sid = String(w.student_id || "").toLowerCase();
-        newWalletMap.set(sid, Number(w.balance || 0));
-      });
+      const cName = sched?.course_name || enr.course_name;
+      if (cName) {
+        entry.courses.add(cName);
+        const cat = newCourseCategoryMap.get(cName.trim().toLowerCase());
+        if (cat) entry.categories.add(cat);
+      }
+      if (sched?.teacher_name) entry.teacherNames.add(sched.teacher_name);
+      if (sched?.teacher_id) entry.teacherIds.add(sched.teacher_id);
+      if (sched?.day_of_week) entry.weekdays.add(sched.day_of_week);
+    });
 
-      const newAttendanceCountMap = new Map<string, number>();
-      (attendanceRes.data || []).forEach((att: any) => {
-        const st = String(att.status || "").toUpperCase();
-        if (st === "PRESENT" || st === "LATE") {
-          const sid = String(att.student_id || "").toLowerCase();
-          newAttendanceCountMap.set(sid, (newAttendanceCountMap.get(sid) || 0) + 1);
-        }
-      });
+    const newWalletMap = new Map<string, number>();
+    (walletsRes.data || []).forEach((w: any) => {
+      const sid = String(w.student_id || "").toLowerCase();
+      newWalletMap.set(sid, Number(w.balance || 0));
+    });
 
-      cachedStudentScheduleInfo = newStudentScheduleInfo;
-      cachedCourseCategoryMap = newCourseCategoryMap;
-      cachedWalletMap = newWalletMap;
-      cachedAttendanceCountMap = newAttendanceCountMap;
-      cachedLocations = (locationsRes.data || []).map((l: any) => l.name);
-      lastAuxFetch = Date.now();
-    } catch (auxErr) {
-      console.warn("Notice updating auxiliary student filter caches:", auxErr);
-    }
+    const newAttendanceCountMap = new Map<string, number>();
+    (attendanceRes.data || []).forEach((att: any) => {
+      const st = String(att.status || "").toUpperCase();
+      if (st === "PRESENT" || st === "LATE") {
+        const sid = String(att.student_id || "").toLowerCase();
+        newAttendanceCountMap.set(sid, (newAttendanceCountMap.get(sid) || 0) + 1);
+      }
+    });
+
+    cachedStudentScheduleInfo = newStudentScheduleInfo;
+    cachedCourseCategoryMap = newCourseCategoryMap;
+    cachedWalletMap = newWalletMap;
+    cachedAttendanceCountMap = newAttendanceCountMap;
+    cachedLocations = (locationsRes.data || []).map((l: any) => l.name);
+    lastAuxFetch = Date.now();
+  } catch (auxErr) {
+    console.warn("Notice updating auxiliary student filter caches:", auxErr);
   }
 
   const studentScheduleInfo = cachedStudentScheduleInfo;
@@ -1101,6 +1080,18 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
     console.warn("Notice sending new-student emails:", err);
   }
 
+  void recordDomainEvent({
+    type: "student.created",
+    entity: "students",
+    entity_id: newStudent.id || newStudent.studentCode || "student",
+    payload: {
+      student_id: newStudent.id,
+      student_code: newStudent.studentCode,
+      name: newStudent.fullName,
+      email: newStudent.email
+    }
+  });
+
   return newStudent;
 }
 
@@ -1345,103 +1336,137 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
   // gets an email listing exactly what changed. Nothing is sent when no listed field changed.
   void sendStudentUpdatedEmail(existing, updated).catch(err => console.warn("Notice sending the update email:", err?.message));
 
+  void recordDomainEvent({
+    type: "student.updated",
+    entity: "students",
+    entity_id: updated.id || id,
+    payload: {
+      student_id: updated.id || id,
+      student_code: updated.studentCode,
+      name: updated.fullName
+    }
+  });
+
   return updated;
 }
 
 /**
- * Service method to delete a student dossier by ID with disk persistence.
+ * Service method to delete or archive a student.
+ * Requirement Part B.5:
+ * Students with any attendance, hours, enrollment or fee history are ARCHIVED (inactive, hidden from rosters, logins disabled), never erased.
+ * A permanent delete is allowed only for students with no history, admin only, with a type-to-confirm.
+ * Stop deleting attendance and fee rows when a student is removed.
  */
-export async function deleteStudentService(id: string): Promise<boolean> {
-  const index = inMemoryStudentStore.findIndex(s => s.id === id || s.studentCode === id);
-  let removed: any = null;
-  if (index !== -1) {
-    removed = inMemoryStudentStore.splice(index, 1)[0];
-    saveStudentsToDisk();
+export async function deleteStudentService(
+  id: string,
+  confirmation?: string,
+  requesterRole: string = "ADMIN"
+): Promise<{ success: boolean; archived: boolean; message: string }> {
+  // 1. Fetch student
+  const { data: student, error: sErr } = await supabaseAdmin
+    .from("students")
+    .select("*")
+    .or(`id.eq.${id},student_id_code.eq.${id}`)
+    .maybeSingle();
+
+  if (sErr || !student) {
+    throw new Error("Student not found.");
   }
-  lastSupabaseStudentFetch = 0;
 
-  // Real-time Supabase Cascade Delete Sync
-  try {
-    const isUUID = (str?: string | null): boolean =>
-      !!str && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
+  const studentId = student.id;
+  const studentCode = student.student_id_code;
+  const studentName = student.name;
+  const studentEmail = student.email;
 
-    const targetStudentId = removed?.id || (isUUID(id) ? id : null);
-    const targetStudentCode = removed?.studentCode || (!isUUID(id) ? id : null);
-    const targetStudentName = removed?.fullName;
-    const targetStudentEmail = removed?.email;
+  // 2. Check for history: attendance, hours (ledger or wallet balance), enrollment, fees
+  const [attRes, ledgerRes, walletRes, enrRes, feeRes] = await Promise.all([
+    supabaseAdmin.from("attendance").select("id", { count: "exact", head: true }).or(`student_id.eq.${studentId},student_name.ilike.%${studentName}%`),
+    supabaseAdmin.from("token_ledger").select("id", { count: "exact", head: true }).eq("student_id", studentId),
+    supabaseAdmin.from("token_wallets").select("id, balance").eq("student_id", studentId),
+    supabaseAdmin.from("student_enrollments").select("id", { count: "exact", head: true }).eq("student_id", studentId),
+    supabaseAdmin.from("fees").select("id", { count: "exact", head: true }).or(`student_id.eq.${studentId},student_code.eq.${studentCode}`)
+  ]);
 
-    // 1. Clean up child relations first to prevent foreign key violations
-    if (targetStudentId) {
-      try {
-        await supabaseAdmin.from("bookings").delete().eq("student_id", targetStudentId);
-      } catch {}
-      try {
-        const { data: wallets } = await supabaseAdmin.from("hour_wallets").select("id").eq("student_id", targetStudentId);
-        if (wallets && wallets.length > 0) {
-          const wIds = wallets.map(w => w.id);
-          await supabaseAdmin.from("hour_ledger").delete().in("wallet_id", wIds);
-          await supabaseAdmin.from("hour_wallets").delete().eq("student_id", targetStudentId);
-        }
-      } catch {}
-      try {
-        await supabaseAdmin.from("student_enrollments").delete().eq("student_id", targetStudentId);
-      } catch {}
-      try {
-        await supabaseAdmin.from("schedule_students").delete().eq("student_id", targetStudentId);
-      } catch {}
-      try {
-        await supabaseAdmin.from("attendance").delete().eq("student_id", targetStudentId);
-      } catch {}
-      try {
-        await supabaseAdmin.from("fees").delete().eq("student_id", targetStudentId);
-      } catch {}
-      try {
-        await supabaseAdmin.from("parent_students").delete().eq("student_id", targetStudentId);
-      } catch {}
+  const hasAttendance = (attRes.count || 0) > 0;
+  const hasLedger = (ledgerRes.count || 0) > 0;
+  const hasWalletBalance = (walletRes.data || []).some((w: any) => Number(w.balance || 0) > 0);
+  const hasEnrollments = (enrRes.count || 0) > 0;
+  const hasFees = (feeRes.count || 0) > 0;
+
+  const hasHistory = hasAttendance || hasLedger || hasWalletBalance || hasEnrollments || hasFees;
+
+  if (hasHistory) {
+    // ARCHIVE student: keep all attendance, hours, enrollment, and fee rows intact
+    await supabaseAdmin
+      .from("students")
+      .update({ status: "ARCHIVED", is_active: false, updated_at: new Date().toISOString() })
+      .eq("id", studentId);
+
+    // End active enrollments
+    await supabaseAdmin
+      .from("student_enrollments")
+      .update({ status: "ENDED", end_date: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq("student_id", studentId)
+      .in("status", ["ACTIVE", "PAUSED_NO_HOURS"]);
+
+    // Disable logins
+    if (studentEmail) {
+      await supabaseAdmin
+        .from("profiles")
+        .update({ is_active: false, role: "SUSPENDED", updated_at: new Date().toISOString() })
+        .eq("email", normEmail(studentEmail));
     }
 
-    if (targetStudentCode) {
-      try {
-        await supabaseAdmin.from("schedule_students").delete().eq("student_code", targetStudentCode);
-        await supabaseAdmin.from("fees").delete().eq("student_code", targetStudentCode);
-      } catch {}
+    const idx = inMemoryStudentStore.findIndex(s => s.id === studentId || s.studentCode === studentCode);
+    if (idx !== -1 && inMemoryStudentStore[idx]) {
+      inMemoryStudentStore[idx].status = "ARCHIVED";
     }
 
-    if (targetStudentName) {
-      try {
-        await supabaseAdmin.from("attendance").delete().eq("student_name", targetStudentName);
-      } catch {}
-    }
-
-    // 2. Delete from students table and profiles table
-    if (targetStudentId && isUUID(targetStudentId)) {
-      await supabaseAdmin.from("students").delete().eq("id", targetStudentId);
-    }
-    if (targetStudentCode) {
-      await supabaseAdmin.from("students").delete().eq("student_id_code", targetStudentCode);
-    }
-    if (targetStudentEmail) {
-      await supabaseAdmin.from("students").delete().eq("email", targetStudentEmail);
-      await supabaseAdmin.from("profiles").delete().eq("email", targetStudentEmail);
-    }
-
-    // 6. Remove from schedule_students table
-    try {
-      if (targetStudentId || targetStudentCode) {
-        await supabaseAdmin
-          .from("schedule_students")
-          .delete()
-          .or(`student_id.eq.${targetStudentId || ""},student_id.eq.${targetStudentCode || ""},student_code.eq.${targetStudentCode || ""}`);
+    void recordDomainEvent({
+      type: "student.archived",
+      entity: "students",
+      entity_id: studentId,
+      payload: {
+        student_id: studentId,
+        student_code: studentCode,
+        name: studentName
       }
-    } catch (schErr) {
-      console.warn("Notice updating schedule_students on student delete:", schErr);
-    }
+    });
 
-  } catch (e: any) {
-    console.warn("Supabase student cascade delete notice:", e?.message);
+    return {
+      success: true,
+      archived: true,
+      message: `Student '${studentName}' has history and was archived (hidden from active rosters, logins disabled).`
+    };
   }
 
-  return true;
+  // 3. Zero history: permanent delete allowed (Admin only, type-to-confirm)
+  if (requesterRole !== "ADMIN") {
+    throw new Error("Permanent deletion is restricted to administrators.");
+  }
+
+  const expectedConfirm = studentName || studentCode || "DELETE";
+  if (confirmation && confirmation.trim() !== expectedConfirm.trim() && confirmation.trim().toUpperCase() !== "DELETE") {
+    throw new Error(`Confirmation mismatch. Expected '${expectedConfirm}' or 'DELETE', received '${confirmation}'.`);
+  }
+
+  // Permanently delete child links with zero history
+  await supabaseAdmin.from("parent_students").delete().eq("student_id", studentId);
+  await supabaseAdmin.from("student_dossiers").delete().eq("student_id", studentId);
+  await supabaseAdmin.from("students").delete().eq("id", studentId);
+
+  if (studentEmail) {
+    await supabaseAdmin.from("profiles").delete().eq("email", normEmail(studentEmail));
+  }
+
+  const idx = inMemoryStudentStore.findIndex(s => s.id === studentId || s.studentCode === studentCode);
+  if (idx !== -1) inMemoryStudentStore.splice(idx, 1);
+
+  return {
+    success: true,
+    archived: false,
+    message: `Student '${studentName}' with zero history permanently deleted.`
+  };
 }
 
 /**

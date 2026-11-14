@@ -523,6 +523,7 @@ export async function broadcastAnnouncement(input: BroadcastAnnouncementInput): 
         eventType: "ADMISSION_INQUIRY",
         subject: tpl.subject,
         message: tpl.htmlBody,
+        unsubLink,
         recipients: [{ role: "PARENT", email, name: "Community Member" }]
       });
 

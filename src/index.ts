@@ -71,6 +71,7 @@ import {
   getCorsOptions,
   databaseHealthHandler,
   adminSystemHealthHandler,
+  adminReconcileLedgerHandler,
   adminEnvironmentCheckHandler,
   centralizedErrorHandler,
   registerGracefulShutdown
@@ -415,14 +416,39 @@ app.get("/api/health", databaseHealthHandler);
 // Admin-only detailed diagnostics endpoint: latency, uptime, memory, database connection
 app.get("/api/admin/system-health", authenticateJwt, authorizePermission("dashboard.view"), adminSystemHealthHandler);
 
+// Admin-only ledger reconciliation endpoint
+app.get("/api/admin/reconcile-ledger", authenticateJwt, authorizePermission("settings.view"), adminReconcileLedgerHandler);
+
 // Admin-only environment & migration check endpoint
 app.get("/api/admin/environment-check", authenticateJwt, authorizePermission("settings.view"), adminEnvironmentCheckHandler);
+
+// Protected internal tick endpoint for external cron & outbox worker processing
+app.post("/api/internal/tick", async (req, res) => {
+  const secret = (req.headers["x-internal-tick-secret"] as string) || (req.headers["authorization"]?.replace(/^Bearer\s+/i, ""));
+  const expected = process.env.INTERNAL_TICK_SECRET || "topgrade-internal-tick-secret";
+  if (!secret || secret !== expected) {
+    return res.status(401).json({ success: false, message: "Unauthorized internal tick request." });
+  }
+
+  try {
+    const result = await processDomainEvents();
+    res.status(200).json({
+      success: true,
+      processedCount: result.processedCount,
+      failedCount: result.failedCount,
+      timestamp: new Date().toISOString()
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message || "Failed processing tick." });
+  }
+});
 
 // Centralized error reporting hook
 app.use(centralizedErrorHandler);
 
 import { runDailyPackageExpiryJob } from "./services/enrollmentExpiryService.js";
 import { startInstituteSettingsBackgroundRefresh } from "./services/instituteSettingsService.js";
+import { processDomainEvents } from "./services/domainEventService.js";
 
 // Start listening
 if (process.env.NODE_ENV !== "test") {
@@ -433,6 +459,10 @@ if (process.env.NODE_ENV !== "test") {
     initializeAutomatedEmailScheduler();
     TimedEmailScheduler.startScheduler();
     runDailyPackageExpiryJob("startup-claim").catch(e => console.warn("Initial daily expiry job notice:", e?.message));
+    // Domain outbox worker timer: runs every 60s
+    setInterval(() => {
+      processDomainEvents().catch(e => console.warn("Periodic outbox worker notice:", e?.message));
+    }, 60000);
     // Check every hour; atomic claim ensures it only runs once per calendar day
     setInterval(() => {
       runDailyPackageExpiryJob("hourly-check").catch(e => console.warn("Periodic daily expiry job notice:", e?.message));

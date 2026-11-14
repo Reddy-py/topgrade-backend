@@ -50,7 +50,7 @@ export async function computeUpsellSuggestions(targetStudentId?: string): Promis
   // 2. Fetch Active Schedules and Course Catalogs
   let schedules: any[] = [];
   try {
-    const { data: schedData } = await supabaseAdmin.from("schedules").select("*, schedule_students(*)");
+    const { data: schedData } = await supabaseAdmin.from("schedules").select("*, student_enrollments(*)");
     if (schedData) schedules = schedData;
   } catch (err: any) {
     console.warn("Notice querying schedules for upsell:", err?.message);
@@ -109,8 +109,8 @@ export async function computeUpsellSuggestions(targetStudentId?: string): Promis
     // Afterschool offers up to 5 days/week; Tutoring standard multi-day tracks offer 2-3 days/week.
     const studentSchedules = schedules.filter(sch => {
       const matchInSched = sch.student_id === stu.id;
-      const matchInJoin = Array.isArray(sch.schedule_students) &&
-        sch.schedule_students.some((ss: any) => ss.student_id === stu.id);
+      const matchInJoin = Array.isArray(sch.student_enrollments) &&
+        sch.student_enrollments.some((ss: any) => ss.student_id === stu.id && ss.status === "ACTIVE");
       return matchInSched || matchInJoin;
     });
 

@@ -191,16 +191,16 @@ async function runAudit() {
   // 4. SCHEDULE SLOTS AUDIT
   console.log("\n▶ [4/4] Auditing Schedule Slots CRUD...");
   try {
-    // Check if schedules table or schedule_slots table is accessible
-    const { data: slots, error: slotErr } = await supabaseAdmin.from("schedule_slots").select("*").limit(1);
+    // Check if schedules table is accessible
+    const { data: slots, error: slotErr } = await supabaseAdmin.from("schedules").select("*").limit(1);
     if (slotErr) {
-      console.log("  ⚠️ schedule_slots table not yet in PostgREST:", slotErr.message);
-      results.slots.notes = "Needs schedule_slots table creation in Supabase";
+      console.log("  ⚠️ schedules table error:", slotErr.message);
+      results.slots.notes = "schedules table query error";
     } else {
       results.slots.add = true;
       results.slots.edit = true;
       results.slots.archive = true;
-      console.log("  ✓ schedule_slots accessible");
+      console.log("  ✓ schedules accessible");
     }
   } catch (e: any) {
     console.log("  ❌ Slot audit exception:", e.message);

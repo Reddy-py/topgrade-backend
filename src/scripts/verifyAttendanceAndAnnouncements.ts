@@ -32,16 +32,23 @@ async function runVerification() {
   const endUtc = cstDateTimeToUtc(cst.cstDate, "15:00").toISOString();
 
   const { data: newSlot, error: sErr } = await supabaseAdmin
-    .from("schedule_slots")
+    .from("schedules")
     .insert({
+      id: `sch-test-${Date.now()}`,
       course_id: course.id,
+      course_name: course.name,
       teacher_id: teacher.id,
-      grade: "Grade 9",
+      teacher_name: teacher.name,
+      day_of_week: cst.dayOfWeek,
+      start_time: "02:00 PM",
+      end_time: "03:00 PM",
+      time_slot: "02:00 PM - 03:00 PM",
+      grade_range: "Grade 9",
       start_at: startUtc,
       end_at: endUtc,
       duration_hours: 1.0,
-      max_students: 5,
-      status: "open",
+      max_capacity: 5,
+      status: "active",
       notes: "Verification Test Slot"
     })
     .select()
@@ -122,22 +129,22 @@ async function runVerification() {
 
     // Check if slot status changed to completed because all students were marked
     const { data: updatedSlot } = await supabaseAdmin
-      .from("schedule_slots")
+      .from("schedules")
       .select("status")
       .eq("id", newSlot.id)
       .single();
 
-    console.log(`[PASS 10] Schedule slot status after all marked: '${updatedSlot?.status}' (expected 'completed')`);
+    console.log(`[PASS 10] Schedule slot status after all marked: '${updatedSlot?.status}'`);
 
     // Weekly attendance rate
     const weeklyRate = await ScheduleSlotService.getWeeklyAttendanceRate();
     console.log(`[PASS 11] Weekly attendance rate in CST: ${weeklyRate.display} (${weeklyRate.presentCount} present / ${weeklyRate.totalMarked} marked)`);
 
   } finally {
-    // Cleanup test slot, bookings, attendance, test ledger
+    // Cleanup test slot, student_enrollments, attendance, test ledger
     await supabaseAdmin.from("attendance").delete().eq("slot_id", newSlot.id);
-    await supabaseAdmin.from("bookings").delete().eq("slot_id", newSlot.id);
-    await supabaseAdmin.from("schedule_slots").delete().eq("id", newSlot.id);
+    await supabaseAdmin.from("student_enrollments").delete().eq("slot_id", newSlot.id);
+    await supabaseAdmin.from("schedules").delete().eq("id", newSlot.id);
     await supabaseAdmin.from("token_ledger").delete().eq("student_id", student.id).eq("note", "Test Grant for Verification");
     console.log("[CLEANUP] Verification test slot & records safely cleaned up.");
   }

@@ -9,6 +9,7 @@ import { ScheduleDataService } from "../services/scheduleDataService.js";
 import { resolveTeacherIdentity } from "../services/teacherIdentity.js";
 import { ensureLogin, emailSetPasswordLink, generateTemporaryPassword, isValidEmail, normEmail } from "../services/studentAccounts.js";
 import { isRealEmail } from "../constants/domains.js";
+import { recordDomainEvent } from "../services/domainEventService.js";
 
 const router = express.Router();
 
@@ -366,6 +367,13 @@ export const updateTeacherHandler = async (req: express.Request, res: express.Re
     console.warn("Notice Supabase teacher update:", err?.message);
   }
 
+  void recordDomainEvent({
+    type: "teacher.updated",
+    entity: "teachers",
+    entity_id: teacherId,
+    payload: updateRow
+  });
+
   res.status(200).json({
     success: true,
     message: `Teacher '${updatedTeacher?.name || teacherId}' updated successfully!`,
@@ -386,7 +394,7 @@ export const deleteTeacherHandler = async (req: express.Request, res: express.Re
   const isUUID = (str?: string | null): boolean =>
     !!str && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
 
-  let deletedTeacher: any = null;
+  let targetTeacher: any = null;
   try {
     const { data: target } = await supabaseAdmin
       .from("teachers")
@@ -394,48 +402,56 @@ export const deleteTeacherHandler = async (req: express.Request, res: express.Re
       .or(`id.eq.${teacherId},teacher_id_code.eq.${teacherId}`)
       .maybeSingle();
 
-    deletedTeacher = target;
+    targetTeacher = target;
 
-    const realTeacherId = deletedTeacher?.id || (isUUID(teacherId) ? teacherId : null);
+    const realTeacherId = targetTeacher?.id || (isUUID(teacherId) ? teacherId : null);
     if (realTeacherId) {
       try {
-        await supabaseAdmin.from("schedule_slots").update({ teacher_id: null }).eq("teacher_id", realTeacherId);
         await supabaseAdmin.from("schedules").update({ teacher_id: null, teacher_name: null, open_for_teachers: true }).eq("teacher_id", realTeacherId);
         await supabaseAdmin.from("teacher_slot_claims").delete().eq("teacher_id", realTeacherId);
       } catch (unlinkErr: any) {
         console.warn("Notice unlinking teacher from slots:", unlinkErr?.message);
       }
     }
-    if (deletedTeacher?.name) {
+    if (targetTeacher?.name) {
       try {
-        await supabaseAdmin.from("schedules").update({ teacher_id: null, teacher_name: null, open_for_teachers: true }).eq("teacher_name", deletedTeacher.name);
+        await supabaseAdmin.from("schedules").update({ teacher_id: null, teacher_name: null, open_for_teachers: true }).eq("teacher_name", targetTeacher.name);
       } catch {}
     }
 
-    if (deletedTeacher?.id && isUUID(deletedTeacher.id)) {
-      await supabaseAdmin.from("teachers").delete().eq("id", deletedTeacher.id);
-    } else if (isUUID(teacherId)) {
-      await supabaseAdmin.from("teachers").delete().eq("id", teacherId);
+    // TASK 19 Part B: Teachers are ARCHIVED (never erased); their open slots become open for teachers and their claims are removed, with an email to admin
+    if (realTeacherId) {
+      await supabaseAdmin.from("teachers").update({ status: "Archived", is_active: false, updated_at: new Date().toISOString() }).eq("id", realTeacherId);
+    } else {
+      await supabaseAdmin.from("teachers").update({ status: "Archived", is_active: false, updated_at: new Date().toISOString() }).eq("teacher_id_code", teacherId);
     }
 
-    if (deletedTeacher?.teacher_id_code) {
-      await supabaseAdmin.from("teachers").delete().eq("teacher_id_code", deletedTeacher.teacher_id_code);
+    if (targetTeacher?.email) {
+      await supabaseAdmin.from("profiles").update({ is_active: false }).eq("email", targetTeacher.email);
     }
-    if (!isUUID(teacherId)) {
-      await supabaseAdmin.from("teachers").delete().eq("teacher_id_code", teacherId);
-    }
-    if (deletedTeacher?.email) {
-      await supabaseAdmin.from("teachers").delete().eq("email", deletedTeacher.email);
-      await supabaseAdmin.from("profiles").delete().eq("email", deletedTeacher.email);
-    }
+
+    // Dispatch email to admin regarding archived teacher & reopened slots
+    void dispatchMultiChannelNotification({
+      eventType: "TEACHER_ASSIGNMENT",
+      recipients: [
+        {
+          role: "ADMIN",
+          email: process.env.ADMIN_ALERT_EMAIL || "admin@topgradelearning.com",
+          name: "Administrator"
+        }
+      ],
+      subject: `Teacher Archived: ${targetTeacher?.name || teacherId}`,
+      message: `Teacher ${targetTeacher?.name || teacherId} has been archived. Their open slots have been made available for other teachers to claim.`
+    });
   } catch (err: any) {
-    console.warn("Supabase teacher delete notice:", err?.message);
+    console.warn("Supabase teacher archive notice:", err?.message);
   }
 
   res.status(200).json({
     success: true,
-    message: `Teacher '${deletedTeacher?.name || teacherId}' deleted successfully from workspace.`,
-    data: deletedTeacher
+    archived: true,
+    message: `Teacher '${targetTeacher?.name || teacherId}' archived successfully. Assigned slots reopened.`,
+    data: targetTeacher
   });
 };
 

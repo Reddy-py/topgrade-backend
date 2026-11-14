@@ -118,7 +118,7 @@ async function runCompleteTask3Verification() {
     implementation: (x: string) => (x ? x.trim() : "")
   });
 
-  // Setup pre-requisite tables: courses, students, schedules, schedule_students
+  // Setup pre-requisite tables: courses, students, schedules, student_enrollments
   db.public.none(`
     CREATE TABLE courses (
       id TEXT PRIMARY KEY,
@@ -155,7 +155,7 @@ async function runCompleteTask3Verification() {
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
 
-    CREATE TABLE schedule_students (
+    CREATE TABLE student_enrollments_legacy (
       id TEXT PRIMARY KEY,
       schedule_id TEXT REFERENCES schedules(id) ON DELETE CASCADE,
       student_id TEXT NOT NULL,
@@ -178,7 +178,7 @@ async function runCompleteTask3Verification() {
     INSERT INTO schedules (id, course_id, course_name, teacher_id, teacher_name, day_of_week, start_time, end_time, time_slot) VALUES
     ('sch-1', 'crs-1', 'Robotics Fundamentals', 'tch-1', 'John Doe', 'Monday', '10:00 AM', '11:00 AM', '10:00 AM - 11:00 AM');
 
-    INSERT INTO schedule_students (id, schedule_id, student_id, student_name, student_code) VALUES
+    INSERT INTO student_enrollments_legacy (id, schedule_id, student_id, student_name, student_code) VALUES
     ('ss-1', 'sch-1', 'std-1', 'Alice Johnson', 'ST-001');
   `);
 

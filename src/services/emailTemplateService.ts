@@ -1,6 +1,6 @@
 import { supabaseAdmin } from "../supabase.js";
 import { escapeHtml, dispatchMultiChannelNotification } from "./notificationService.js";
-import { getCachedInstituteSettings } from "./instituteSettingsService.js";
+import { getCachedInstituteSettings, instituteAddress } from "./instituteSettingsService.js";
 
 export interface EmailTemplateRow {
   key: string;
@@ -405,10 +405,11 @@ export async function refreshTemplatesCache(): Promise<Map<string, EmailTemplate
       for (const row of data as EmailTemplateRow[]) {
         cachedTemplates.set(row.key, row);
       }
-      lastCacheRefresh = Date.now();
     }
   } catch (err: any) {
     console.warn("Notice loading email_templates cache:", err?.message);
+  } finally {
+    lastCacheRefresh = Date.now();
   }
   return cachedTemplates;
 }
@@ -508,6 +509,8 @@ export async function renderTemplate(
   const settings = getCachedInstituteSettings();
   const globalVars = {
     institute_name: settings.institute_name || "Top Grade Learning",
+    institute_address: instituteAddress(),
+    institute_timezone: settings.timezone || "America/Chicago",
     support_email: settings.support_email || "support@topgradelearning.com",
     phone: settings.phone || "",
     current_year: new Date().getFullYear(),

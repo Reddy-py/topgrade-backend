@@ -7,6 +7,7 @@ import { getNextDayOfWeekDateStr } from "../services/instituteTime.js";
 import { authenticateJwt, type AuthenticatedRequest } from "../middleware/auth.js";
 import { getAccessScope, allowsCourse } from "../services/accessScope.js";
 import { getInstituteSettings, updateInstituteSettings } from "../services/instituteSettingsService.js";
+import { recordDomainEvent } from "../services/domainEventService.js";
 import { inMemoryStudentStore } from "../services/studentService.js";
 
 const router = express.Router();
@@ -878,6 +879,13 @@ export const editCourseHandler = async (req: express.Request, res: express.Respo
 
   const updatedCourse = mapSupabaseCourseToCourseData(updatedData);
 
+  void recordDomainEvent({
+    type: "course.updated",
+    entity: "courses",
+    entity_id: existingCourse.id,
+    payload: updateRow
+  });
+
   res.status(200).json({
     success: true,
     message: `Course '${updatedCourse.name}' updated successfully in real time!`,
@@ -1083,10 +1091,11 @@ export const deleteCourseHandler = async (req: express.Request, res: express.Res
 
   // Check R7: A course with active slots cannot be deleted; offer Archive
   const { count: slotCount } = await supabaseAdmin
-    .from("schedule_slots")
+    .from("schedules")
     .select("id", { count: "exact", head: true })
-    .eq("course_id", courseRow.id)
-    .neq("status", "cancelled");
+    .or(`course_id.eq.${courseRow.id},course_name.eq.${courseRow.name}`)
+    .neq("status", "cancelled")
+    .eq("is_active", true);
 
   if (slotCount && slotCount > 0) {
     return res.status(400).json({
@@ -1095,19 +1104,6 @@ export const deleteCourseHandler = async (req: express.Request, res: express.Res
       canArchive: true
     });
   }
-
-  // Also check legacy schedules
-  try {
-    const allSchedules = await ScheduleDataService.listSchedules();
-    const activeLegacy = allSchedules.filter(s => (s.course_id === courseRow.id || s.course_name?.toLowerCase() === courseRow.name?.toLowerCase()) && s.is_active !== false);
-    if (activeLegacy.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: `Course '${courseRow.name}' cannot be deleted because it has active schedule slots. Please archive the course instead.`,
-        canArchive: true
-      });
-    }
-  } catch {}
 
   // Archive endpoint or status set
   await supabaseAdmin.from("courses").delete().eq("id", courseRow.id);

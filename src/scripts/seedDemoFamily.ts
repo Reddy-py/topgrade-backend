@@ -296,16 +296,18 @@ export async function seedDemoFamily() {
     is_active: true
   });
 
-  // Map Demo Alice into the schedule
-  await supabase.from("schedule_students").delete().eq("schedule_id", demoScheduleId);
-  await supabase.from("schedule_students").insert([
+  // Map Demo Alice into the schedule via canonical student_enrollments
+  await supabase.from("student_enrollments").upsert([
     {
-      schedule_id: demoScheduleId,
+      id: `enr-demo-${aliceId}`,
+      slot_id: demoScheduleId,
       student_id: aliceId,
-      student_name: "Demo Alice",
-      student_code: "TG-DEMO-001"
+      course_id: demoCourseId,
+      plan: "HOURS",
+      hours_total: 2,
+      status: "ACTIVE"
     }
-  ]);
+  ], { onConflict: "id" });
 
   // 8. Three Days of Attendance Records
   console.log("  8. Setting up Three Days of Attendance...");

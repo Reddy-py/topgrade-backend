@@ -1,6 +1,6 @@
 import { supabaseAdmin } from "../supabase.js";
 import { getLocationById } from "./locationService.js";
-import { ScheduleSlotService } from "./scheduleSlotService.js";
+import { ScheduleSlotService, cstDateTimeToUtc } from "./scheduleSlotService.js";
 import { getNextDayOfWeekDateStr } from "./instituteTime.js";
 
 export interface ScheduleStudent {
@@ -304,66 +304,54 @@ export class ScheduleDataService {
   }
 
   /**
-   * List all schedule slots strictly from Supabase public.schedule_slots
+   * List all schedule slots strictly from Supabase public.schedules
    */
   static async listSchedules(): Promise<ScheduleSlot[]> {
-    let slotsList: ScheduleSlot[] = [];
-
     try {
       const dbSlots = await ScheduleSlotService.listSlots();
       if (dbSlots && dbSlots.length > 0) {
-        slotsList = dbSlots
-          .filter(s => s.status !== "cancelled")
+        return dbSlots
+          .filter(s => s.status !== "cancelled" && s.status !== "archived")
           .map(s => ({
-          id: s.id,
-          course_id: s.course_id,
-          course_name: s.course_name,
-          teacher_id: s.teacher_id,
-          teacher_name: s.teacher_name,
-          day_of_week: s.day_of_week,
-          start_time: s.start_time,
-          end_time: s.end_time,
-          start_minute: parseTimeToMinutes(s.start_time),
-          end_minute: parseTimeToMinutes(s.end_time),
-          duration_hours: s.duration_hours,
-          time_slot: s.time_slot,
-          room: s.notes || "Room 101",
-          location: "Main Academic Center",
-          max_capacity: s.max_students,
-          is_active: s.status !== "cancelled",
-          open_for_teachers: !s.teacher_id,
-          claimed_by_teacher: Boolean(s.teacher_id),
-          program: "TUTORING",
-          program_type: "TUTORING",
-          students: (s.students || []).map(st => ({
-            id: st.booking_id,
-            schedule_id: s.id,
-            student_id: st.student_id,
-            student_name: st.student_name,
-            student_code: st.student_code
-          })),
-          created_at: s.created_at,
-          updated_at: s.updated_at
-        }));
-
-        return slotsList.sort((a, b) =>
-          (a.course_name || "").localeCompare(b.course_name || "", undefined, { sensitivity: "base" })
-        );
+            id: s.id,
+            course_id: s.course_id,
+            course_name: s.course_name,
+            teacher_id: s.teacher_id,
+            teacher_name: s.teacher_name,
+            day_of_week: s.day_of_week,
+            start_time: s.start_time,
+            end_time: s.end_time,
+            start_minute: parseTimeToMinutes(s.start_time),
+            end_minute: parseTimeToMinutes(s.end_time),
+            duration_hours: s.duration_hours,
+            time_slot: s.time_slot,
+            room: s.notes || "Room 101",
+            location: "Main Academic Center",
+            max_capacity: s.max_students,
+            is_active: s.status !== "cancelled" && s.status !== "archived",
+            open_for_teachers: !s.teacher_id,
+            claimed_by_teacher: Boolean(s.teacher_id),
+            program: "TUTORING",
+            program_type: "TUTORING",
+            students: (s.students || []).map(st => ({
+              id: st.booking_id,
+              schedule_id: s.id,
+              student_id: st.student_id,
+              student_name: st.student_name,
+              student_code: st.student_code
+            })),
+            created_at: s.created_at,
+            updated_at: s.updated_at
+          }))
+          .sort((a, b) =>
+            (a.course_name || "").localeCompare(b.course_name || "", undefined, { sensitivity: "base" })
+          );
       }
     } catch (err: any) {
       console.warn("ScheduleSlotService.listSlots notice:", err?.message);
     }
 
-    // Merge in-memory slots that are not present in slotsList
-    for (const [id, memSlot] of inMemorySchedules.entries()) {
-      if (!slotsList.some(s => s.id === id)) {
-        slotsList.push(memSlot);
-      }
-    }
-
-    return slotsList.sort((a, b) =>
-      (a.course_name || "").localeCompare(b.course_name || "", undefined, { sensitivity: "base" })
-    );
+    return [];
   }
 
   /**
@@ -390,7 +378,7 @@ export class ScheduleDataService {
   }
 
   /**
-   * Create a schedule slot in Supabase public.schedule_slots
+   * Create a schedule slot in Supabase public.schedules
    */
   static async createSchedule(payload: {
     id?: string;
@@ -583,42 +571,24 @@ export class ScheduleDataService {
     const startUtc = cstDateTimeToUtc(dateCst, updatedStart);
     const endUtc = new Date(startUtc.getTime() + durHours * 3600 * 1000);
 
-    // 1. Update public.schedule_slots (single source of truth for slot management)
-    try {
-      const slotUpdates: any = {
-        start_at: startUtc.toISOString(),
-        end_at: endUtc.toISOString(),
-        duration_hours: durHours,
-        max_students: payload.max_capacity !== undefined ? payload.max_capacity : (existing.max_capacity || 15),
-        notes: payload.room || existing.room || "Room 101",
-        updated_at: nowIso
-      };
-      if (payload.course_id) slotUpdates.course_id = payload.course_id;
-      if (payload.grade) slotUpdates.grade = payload.grade;
-      if (payload.teacher_id) {
-        slotUpdates.teacher_id = payload.teacher_id;
-      } else if (payload.open_for_teachers === true) {
-        slotUpdates.teacher_id = null;
-      }
-      const { error: slotErr } = await supabaseAdmin.from("schedule_slots").update(slotUpdates).eq("id", id);
-      if (slotErr) {
-        console.warn("Supabase schedule_slots update note:", slotErr.message);
-      }
-    } catch (sErr: any) {
-      console.warn("Notice updating schedule_slots in updateSchedule:", sErr?.message);
-    }
-
-    // 2. Update legacy public.schedules for backward compatibility
+    // Update public.schedules (canonical single source of truth for schedule slots)
     const updateFields: any = {
       updated_at: nowIso,
       time_slot: timeSlot,
       start_time: updatedStart,
       end_time: updatedEnd,
-      day_of_week: updatedDay
+      day_of_week: updatedDay,
+      duration_hours: durHours,
+      start_at: startUtc.toISOString(),
+      end_at: endUtc.toISOString()
     };
 
     if (payload.course_id !== undefined) updateFields.course_id = payload.course_id;
     if (payload.course_name !== undefined) updateFields.course_name = payload.course_name;
+    if (payload.room !== undefined) {
+      updateFields.room = payload.room;
+      updateFields.notes = payload.room;
+    }
     if (payload.location !== undefined || payload.location_id !== undefined || payload.location_address !== undefined) {
       let locName = payload.location || existing.location;
       let locAddr = payload.location_address !== undefined ? payload.location_address : (existing.location_address || "");
@@ -682,78 +652,59 @@ export class ScheduleDataService {
     }
 
     if (updErr) {
-      console.warn("Supabase schedule update note, persisting to inMemorySchedules fallback:", updErr.message);
+      throw new Error(`Failed to update schedule slot: ${updErr.message}`);
     }
 
-    // Update mapped students if provided
-    if (payload.students) {
-      try {
-        await supabaseAdmin.from("schedule_students").delete().eq("schedule_id", id);
-        if (payload.students.length > 0) {
-          const studentRows = payload.students.map(st => ({
-            schedule_id: id,
-            student_id: st.student_id,
-            student_name: st.student_name,
-            student_code: st.student_code || null,
-            created_at: nowIso
-          }));
-          await supabaseAdmin.from("schedule_students").insert(studentRows);
-        }
-      } catch (stErr: any) {
-        console.warn("Supabase schedule_students update note:", stErr?.message);
-      }
-    }
-
-    const updatedSlot: ScheduleSlot = {
+    const refreshed = (await this.listSchedules()).find(s => s.id === id);
+    return refreshed || {
       ...existing,
       ...updateFields,
       start_time: updatedStart,
       end_time: updatedEnd,
       day_of_week: updatedDay,
-      duration_hours: durHours,
-      students: payload.students ? payload.students.map((st, idx) => ({
-        id: `st-map-${id}-${idx}`,
-        schedule_id: id,
-        student_id: st.student_id,
-        student_name: st.student_name,
-        student_code: st.student_code
-      })) : existing.students
+      duration_hours: durHours
     };
-    inMemorySchedules.set(id, updatedSlot);
-
-    const refreshed = (await this.listSchedules()).find(s => s.id === id);
-    return refreshed || updatedSlot;
   }
 
   /**
    * Delete or cancel a schedule slot in Supabase
+   * R4 & Part B.4: A slot with active enrollments cannot be deleted (must archive it or end enrollments).
+   * Deleting never refunds or creates hours.
    */
   static async deleteSchedule(id: string): Promise<boolean> {
     inMemorySchedules.delete(id);
-    // 1. Cancel via ScheduleSlotService (releases tokens, marks bookings cancelled)
-    try {
-      await ScheduleSlotService.cancelSlot(id, undefined, "Slot cancelled by administrator");
-    } catch (e: any) {
-      console.warn("Notice cancelling slot in ScheduleSlotService:", e?.message);
+
+    // 1. Check for active enrollments
+    const { data: activeEnrollments } = await supabaseAdmin
+      .from("student_enrollments")
+      .select("id, student_id")
+      .eq("slot_id", id)
+      .in("status", ["ACTIVE", "PAUSED_NO_HOURS"]);
+
+    if (activeEnrollments && activeEnrollments.length > 0) {
+      throw new Error(`Cannot delete schedule slot: it has ${activeEnrollments.length} active student enrollment(s). Archive the slot or end enrollments first.`);
     }
 
-    // 2. Delete or mark schedule_slots cancelled
-    try {
-      await supabaseAdmin.from("schedule_slots").update({ status: "cancelled", updated_at: new Date().toISOString() }).eq("id", id);
-      const { data: bList } = await supabaseAdmin.from("bookings").select("id").eq("slot_id", id);
-      if (!bList || bList.length === 0) {
-        await supabaseAdmin.from("schedule_slots").delete().eq("id", id);
-      }
-    } catch (e: any) {
-      console.warn("Notice deleting from schedule_slots table:", e?.message);
+    // 2. Check if slot has past attendance history
+    const { count: attendanceCount } = await supabaseAdmin
+      .from("attendance")
+      .select("id", { count: "exact", head: true })
+      .eq("schedule_id", id);
+
+    if (attendanceCount && attendanceCount > 0) {
+      // Archive the slot with history: do not hard-delete
+      await supabaseAdmin
+        .from("schedules")
+        .update({ status: "archived", is_active: false, updated_at: new Date().toISOString() })
+        .eq("id", id);
+      return true;
     }
 
-    // 3. Delete from legacy schedules and student links
-    try {
-      await supabaseAdmin.from("schedules").delete().eq("id", id);
-      await supabaseAdmin.from("schedule_students").delete().eq("schedule_id", id);
-    } catch (e: any) {
-      console.warn("Notice deleting from schedules table:", e?.message);
+    // 3. Zero history: permanent delete allowed
+    await supabaseAdmin.from("teacher_slot_claims").delete().eq("slot_id", id);
+    const { error: delErr } = await supabaseAdmin.from("schedules").delete().eq("id", id);
+    if (delErr) {
+      console.warn("Notice deleting schedule from database:", delErr.message);
     }
 
     return true;
@@ -958,19 +909,19 @@ export class ScheduleDataService {
     student_code?: string;
   }): Promise<ScheduleSlot | null> {
     try {
-      const { data: booking } = await supabaseAdmin
-        .from("bookings")
+      const { data: enr } = await supabaseAdmin
+        .from("student_enrollments")
         .select("id")
         .eq("slot_id", payload.schedule_id)
         .eq("student_id", payload.student_id)
-        .eq("status", "booked")
+        .in("status", ["ACTIVE", "PAUSED_NO_HOURS"])
         .maybeSingle();
 
-      if (booking?.id) {
-        await ScheduleSlotService.cancelBooking(booking.id, undefined, "Unassigned by administrator");
+      if (enr?.id) {
+        await ScheduleSlotService.cancelBooking(enr.id, undefined, "Unassigned by administrator");
       }
     } catch (e: any) {
-      console.warn("Notice cancelling booking on unassign:", e?.message);
+      console.warn("Notice cancelling enrollment on unassign:", e?.message);
     }
 
     const refreshed = (await this.listSchedules()).find(s => s.id === payload.schedule_id);

@@ -5,8 +5,8 @@ async function testTables() {
     "profiles", "roles", "role_permissions", "students", "teachers", "courses",
     "attendance", "fees", "parent_students", "admission_requests", "de_enrollment_requests",
     "token_wallets", "token_ledger", "token_orders", "teacher_slot_claims",
-    "attendance_records", "student_dossiers", "email_logs",
-    "schedules", "schedule_students", "teacher_availability", "student_history",
+    "attendance_records", "student_dossiers", "email_log",
+    "schedules", "teacher_availability", "student_history",
     "leads", "enrollments", "lead_interactions", "campaigns", "alert_logs",
     "tutoring_past_records", "afterschool_past_records",
     "locations", "institute_settings", "student_enrollments"

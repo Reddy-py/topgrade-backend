@@ -1,7 +1,7 @@
 import { supabaseAdmin } from "../supabase.js";
 
 async function test() {
-  const tables = ["schedule_slots", "bookings", "course_packages", "announcements", "announcement_deliveries", "institute_settings"];
+  const tables = ["schedules", "student_enrollments", "course_packages", "announcements", "announcement_deliveries", "institute_settings"];
   for (const t of tables) {
     const { data, error } = await supabaseAdmin.from(t).select("*").limit(1);
     console.log(`${t}:`, error ? `❌ ${error.message}` : `✅ exists (${data?.length} rows)`);
