@@ -426,8 +426,7 @@ export const updateCourseFeeStructureHandler = async (req: express.Request, res:
     package_price: newValues.package_price,
     duration_months: newValues.duration_months,
     duration: newValues.duration,
-    course_material: JSON.stringify(materialObj),
-    updated_at: new Date().toISOString()
+    course_material: JSON.stringify(materialObj)
   };
 
   let { error: updateErr } = await supabaseAdmin
@@ -815,9 +814,7 @@ export const editCourseHandler = async (req: express.Request, res: express.Respo
     }
   }
 
-  const updateRow: any = {
-    updated_at: new Date().toISOString()
-  };
+  const updateRow: any = {};
 
   if (materialObj.class_length) {
     updateRow.class_length = materialObj.class_length;
@@ -912,20 +909,21 @@ export const editCourseHandler = async (req: express.Request, res: express.Respo
     .select()
     .single();
 
-  if (updErr && (updErr.message.includes("duration_months") || updErr.message.includes("package_hours") || updErr.message.includes("package_price") || updErr.message.includes("hourly_rate") || updErr.message.includes("class_length"))) {
-    delete updateRow.duration_months;
-    delete updateRow.package_hours;
-    delete updateRow.package_price;
-    delete updateRow.hourly_rate;
-    delete updateRow.class_length;
-    const retry = await supabaseAdmin
-      .from("courses")
-      .update(updateRow)
-      .eq("id", existingCourse.id)
-      .select()
-      .single();
-    updatedData = retry.data;
-    updErr = retry.error;
+  while (updErr && updErr.message.includes("column of 'courses' in the schema cache")) {
+    const match = updErr.message.match(/Could not find the '([^']+)' column/);
+    if (match && match[1] && match[1] in updateRow) {
+      delete updateRow[match[1]];
+      const retry = await supabaseAdmin
+        .from("courses")
+        .update(updateRow)
+        .eq("id", existingCourse.id)
+        .select()
+        .maybeSingle();
+      updatedData = retry.data;
+      updErr = retry.error;
+    } else {
+      break;
+    }
   }
 
   if (updErr || !updatedData) {
@@ -1016,7 +1014,7 @@ export const updateCourseScheduleHandler = async (req: express.Request, res: exp
 
   const { data: updatedRow } = await supabaseAdmin
     .from("courses")
-    .update({ course_material: JSON.stringify(materialObj), updated_at: new Date().toISOString() })
+    .update({ course_material: JSON.stringify(materialObj) })
     .eq("id", courseRow.id)
     .select()
     .single();
@@ -1075,7 +1073,7 @@ export const mapTeacherHandler = async (req: express.Request, res: express.Respo
 
   const { data: updatedRow } = await supabaseAdmin
     .from("courses")
-    .update({ course_material: JSON.stringify(materialObj), updated_at: new Date().toISOString() })
+    .update({ course_material: JSON.stringify(materialObj) })
     .eq("id", courseRow.id)
     .select()
     .single();
@@ -1143,7 +1141,7 @@ export const mapStudentHandler = async (req: express.Request, res: express.Respo
 
   const { data: updatedRow } = await supabaseAdmin
     .from("courses")
-    .update({ course_material: JSON.stringify(materialObj), updated_at: new Date().toISOString() })
+    .update({ course_material: JSON.stringify(materialObj) })
     .eq("id", courseRow.id)
     .select()
     .single();
@@ -1205,12 +1203,15 @@ export const deleteCourseHandler = async (req: express.Request, res: express.Res
 // POST /archive: Archive course (Safe R7 preservation)
 export const archiveCourseHandler = async (req: express.Request, res: express.Response): Promise<any> => {
   const courseId = String(req.params.id);
-  const { data: updated, error } = await supabaseAdmin
-    .from("courses")
-    .update({ status: "Archived", updated_at: new Date().toISOString() })
-    .or(`id.eq.${courseId},course_code.eq.${courseId}`)
-    .select()
-    .maybeSingle();
+  const isUUID = (str?: any): boolean =>
+    typeof str === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
+  let q = supabaseAdmin.from("courses").update({ status: "Archived" });
+  if (isUUID(courseId)) {
+    q = q.eq("id", courseId);
+  } else {
+    q = q.or(`course_code.eq.${courseId},name.ilike.${courseId}`);
+  }
+  const { data: updated, error } = await q.select().maybeSingle();
 
   if (error || !updated) {
     return res.status(500).json({ success: false, message: error?.message || "Failed to archive course." });
