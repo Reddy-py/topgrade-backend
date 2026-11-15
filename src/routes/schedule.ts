@@ -226,7 +226,15 @@ const createScheduleSlotHandler = async (req: Request, res: Response): Promise<a
       ? req.body.days_of_week
       : (Array.isArray(day_of_week) ? day_of_week : (day_of_week ? [day_of_week] : []));
 
-    if (!course_name || (!openForTeachers && !teacher_name) || daysList.length === 0 || !effectiveStartTime || !effectiveEndTime) {
+    let resolvedTeacherName = teacher_name;
+    if (!openForTeachers && !resolvedTeacherName && teacher_id) {
+      try {
+        const { data: tData } = await supabaseAdmin.from("teachers").select("name").eq("id", teacher_id).maybeSingle();
+        if (tData?.name) resolvedTeacherName = tData.name;
+      } catch {}
+    }
+
+    if (!course_name || (!openForTeachers && !resolvedTeacherName && !teacher_id) || daysList.length === 0 || !effectiveStartTime || !effectiveEndTime) {
       return res.status(400).json({
         success: false,
         error: "Missing mandatory schedule fields (course_name, teacher_name, day_of_week / days_of_week, start_time, end_time)."
@@ -265,7 +273,7 @@ const createScheduleSlotHandler = async (req: Request, res: Response): Promise<a
         course_id: course_id || `crs-${Date.now()}`,
         course_name,
         teacher_id: openForTeachers ? "" : (teacher_id || "tchr-1"),
-        teacher_name: openForTeachers ? "" : teacher_name,
+        teacher_name: openForTeachers ? "" : (resolvedTeacherName || teacher_name || "Unassigned Faculty"),
         open_for_teachers: openForTeachers,
         days_of_week: daysList,
         start_time: effectiveStartTime,
@@ -293,7 +301,7 @@ const createScheduleSlotHandler = async (req: Request, res: Response): Promise<a
       course_id: course_id || `crs-${Date.now()}`,
       course_name,
       teacher_id: openForTeachers ? "" : (teacher_id || "tchr-1"),
-      teacher_name: openForTeachers ? "" : teacher_name,
+      teacher_name: openForTeachers ? "" : (resolvedTeacherName || teacher_name || "Unassigned Faculty"),
       open_for_teachers: openForTeachers,
       day_of_week: daysList[0],
       start_time: effectiveStartTime,

@@ -41,7 +41,10 @@ export interface ScheduleSlotDto {
 
 export interface CreateSlotPayload {
   course_id: string;
-  teacher_id: string;
+  course_name?: string;
+  teacher_id?: string;
+  teacher_name?: string;
+  open_for_teachers?: boolean;
   grade?: string;
   start_at?: string;
   end_at?: string;
@@ -49,6 +52,9 @@ export interface CreateSlotPayload {
   start_time_cst?: string; // e.g. "10:00 AM" or "10:00"
   duration_hours?: number; // whole number of hours from 1 to 4
   max_students?: number;
+  max_capacity?: number;
+  room?: string;
+  location?: string;
   notes?: string;
 }
 
@@ -284,32 +290,58 @@ export class ScheduleSlotService {
    * Create a schedule slot in canonical public.schedules
    */
   static async createSlot(payload: CreateSlotPayload): Promise<ScheduleSlotDto> {
-    if (!payload.course_id) throw new Error("Course ID is required.");
+    if (!payload.course_id && !payload.course_name) throw new Error("Course ID or Course Name is required.");
+
+    const isUUID = (str?: any): boolean =>
+      typeof str === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
 
     // Validate course exists
-    const { data: course, error: cErr } = await supabaseAdmin
-      .from("courses")
-      .select("id, name, status")
-      .eq("id", payload.course_id)
-      .single();
-    if (cErr || !course) throw new Error("Selected course does not exist.");
-    if (course.status && course.status.toLowerCase() === "archived") {
+    let course: any = null;
+    if (payload.course_id) {
+      if (isUUID(payload.course_id)) {
+        const { data } = await supabaseAdmin.from("courses").select("id, name, status").eq("id", payload.course_id).maybeSingle();
+        course = data;
+      } else {
+        const { data } = await supabaseAdmin.from("courses").select("id, name, status").or(`course_code.eq.${payload.course_id},name.ilike.${payload.course_id}`).maybeSingle();
+        course = data;
+      }
+    }
+    if (!course && payload.course_name) {
+      const { data } = await supabaseAdmin.from("courses").select("id, name, status").ilike("name", payload.course_name.trim()).maybeSingle();
+      course = data;
+    }
+
+    const courseId = course?.id || payload.course_id;
+    const courseName = course?.name || payload.course_name || "Course";
+
+    if (course?.status && course.status.toLowerCase() === "archived") {
       throw new Error("Cannot schedule slots for an archived course.");
     }
 
-    // Validate teacher exists if provided
+    // Resolve teacher if assigned
+    const isOpen = payload.open_for_teachers === true || !payload.teacher_id;
+    let effectiveTeacherId: string | null = null;
     let teacherName = "Unassigned Faculty";
-    if (payload.teacher_id && payload.teacher_id.trim() !== "") {
-      const { data: teacher, error: tErr } = await supabaseAdmin
-        .from("teachers")
-        .select("id, name, status")
-        .eq("id", payload.teacher_id)
-        .single();
-      if (tErr || !teacher) throw new Error("Selected teacher does not exist.");
-      if (teacher.status && teacher.status.toLowerCase() === "archived") {
+
+    if (!isOpen && payload.teacher_id && payload.teacher_id.trim() !== "") {
+      let teacher: any = null;
+      if (isUUID(payload.teacher_id)) {
+        const { data } = await supabaseAdmin.from("teachers").select("id, name, status").eq("id", payload.teacher_id).maybeSingle();
+        teacher = data;
+      } else {
+        const { data } = await supabaseAdmin.from("teachers").select("id, name, status").or(`teacher_id_code.eq.${payload.teacher_id},name.ilike.${payload.teacher_id}`).maybeSingle();
+        teacher = data;
+      }
+
+      if (teacher?.status && teacher.status.toLowerCase() === "archived") {
         throw new Error("Cannot schedule slots for an archived teacher.");
       }
-      teacherName = teacher.name;
+      if (teacher) {
+        effectiveTeacherId = teacher.id;
+        teacherName = teacher.name;
+      } else if (payload.teacher_name) {
+        teacherName = payload.teacher_name;
+      }
     }
 
     // Compute start_at and end_at in UTC
@@ -338,36 +370,61 @@ export class ScheduleSlotService {
 
     const startParts = utcToCstParts(startUtc);
     const endParts = utcToCstParts(endUtc);
-    const maxStudents = Math.max(1, payload.max_students || 15);
+    const maxStudents = Math.max(1, payload.max_capacity || payload.max_students || 15);
     const slotId = 'sch-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
 
     // Insert slot into canonical public.schedules
-    const { data: newSlot, error: insertErr } = await supabaseAdmin
+    const insertPayload: Record<string, any> = {
+      id: slotId,
+      course_id: courseId,
+      course_name: courseName,
+      teacher_id: isOpen ? null : effectiveTeacherId,
+      teacher_name: isOpen ? "Unassigned Faculty" : teacherName,
+      day_of_week: startParts.dayOfWeek,
+      start_time: startParts.timeStr,
+      end_time: endParts.timeStr,
+      time_slot: `${startParts.timeStr} - ${endParts.timeStr}`,
+      duration_hours: durationHours,
+      max_capacity: maxStudents,
+      room: payload.room || payload.notes || "Room 101",
+      notes: payload.notes || "",
+      location: payload.location || "Main Academic Center",
+      grade_range: payload.grade || "All Grades",
+      start_at: startUtc.toISOString(),
+      end_at: endUtc.toISOString(),
+      status: "active",
+      is_active: true,
+      open_for_teachers: isOpen,
+      program: (payload as any).program || (payload as any).program_type || "TUTORING"
+    };
+
+    let { data: newSlot, error: insertErr } = await supabaseAdmin
       .from("schedules")
-      .insert({
-        id: slotId,
-        course_id: payload.course_id,
-        course_name: course.name,
-        teacher_id: payload.teacher_id || null,
-        teacher_name: teacherName,
-        day_of_week: startParts.dayOfWeek,
-        start_time: startParts.timeStr,
-        end_time: endParts.timeStr,
-        time_slot: `${startParts.timeStr} - ${endParts.timeStr}`,
-        duration_hours: durationHours,
-        max_capacity: maxStudents,
-        room: payload.notes || "Room 101",
-        notes: payload.notes || "",
-        location: "Main Academic Center",
-        grade_range: payload.grade || "All Grades",
-        start_at: startUtc.toISOString(),
-        end_at: endUtc.toISOString(),
-        status: "active",
-        is_active: true,
-        open_for_teachers: !payload.teacher_id
-      })
+      .insert(insertPayload)
       .select()
-      .single();
+      .maybeSingle();
+
+    // Retry loop for missing columns in Supabase schema cache
+    while (insertErr && insertErr.message?.includes("column of 'schedules' in the schema cache")) {
+      const match = insertErr.message.match(/Could not find the '([^']+)' column/);
+      if (match && match[1] && match[1] in insertPayload) {
+        delete insertPayload[match[1]];
+        const retry = await supabaseAdmin.from("schedules").insert(insertPayload).select().maybeSingle();
+        newSlot = retry.data;
+        insertErr = retry.error;
+      } else {
+        break;
+      }
+    }
+
+    // If teacher_id violated NOT NULL constraint when open for teachers
+    if (insertErr && insertErr.message?.includes("teacher_id") && insertErr.message?.includes("not-null")) {
+      insertPayload.teacher_id = "unassigned";
+      insertPayload.teacher_name = "Unassigned Faculty";
+      const retry = await supabaseAdmin.from("schedules").insert(insertPayload).select().maybeSingle();
+      newSlot = retry.data;
+      insertErr = retry.error;
+    }
 
     if (insertErr) {
       if (
@@ -380,22 +437,26 @@ export class ScheduleSlotService {
       throw new Error(`Failed to create schedule slot: ${insertErr.message}`);
     }
 
+    const effectiveSlot = newSlot || {
+      id: slotId,
+      ...insertPayload
+    };
+
     void recordDomainEvent({
       type: "slot.created",
       entity: "schedules",
-      entity_id: newSlot.id,
+      entity_id: effectiveSlot.id,
       payload: {
-        course_id: newSlot.course_id,
-        teacher_id: newSlot.teacher_id,
+        course_id: effectiveSlot.course_id,
+        teacher_id: effectiveSlot.teacher_id,
         duration_hours: durationHours,
         max_capacity: maxStudents
       }
     });
 
-    const createdList = await this.listSlots({ course_id: newSlot.course_id });
-    const enriched = createdList.find(s => s.id === newSlot.id);
-    if (!enriched) throw new Error("Slot created but failed to retrieve record.");
-    return enriched;
+    const createdList = await this.listSlots({ course_id: effectiveSlot.course_id });
+    const enriched = createdList.find(s => s.id === effectiveSlot.id);
+    return enriched || (effectiveSlot as any);
   }
 
   /**

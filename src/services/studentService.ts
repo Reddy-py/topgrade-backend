@@ -1140,59 +1140,61 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
     !!str && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
 
   let index = inMemoryStudentStore.findIndex(s => s.id === id || s.studentCode === id);
-  if (index === -1) {
-    // If not found in memory, try looking up in Supabase
-    try {
-      let sbQuery = supabaseAdmin.from("students").select("*");
-      if (isUUID(id)) {
-        sbQuery = sbQuery.eq("id", id);
-      } else {
-        sbQuery = sbQuery.eq("student_id_code", id);
-      }
-      const { data: sbRow } = await sbQuery.maybeSingle();
+  // Always fetch latest state from Supabase to ensure accurate field diffing
+  try {
+    let sbQuery = supabaseAdmin.from("students").select("*");
+    if (isUUID(id)) {
+      sbQuery = sbQuery.eq("id", id);
+    } else {
+      sbQuery = sbQuery.eq("student_id_code", id);
+    }
+    const { data: sbRow } = await sbQuery.maybeSingle();
 
-      if (sbRow) {
-        const rawSchool = sbRow.school || (sbRow.address && sbRow.address.includes("School: ") ? sbRow.address.split("School: ")[1]?.trim() : (sbRow.address && sbRow.address.startsWith("School: ") ? sbRow.address.replace("School: ", "").trim() : ""));
-        const rawGrade = sbRow.grade || (sbRow.nationality && sbRow.nationality.startsWith("Grade: ") ? sbRow.nationality.replace("Grade: ", "").trim() : (sbRow.nationality || (sbRow.age ? `Grade ${sbRow.age > 12 ? 12 : sbRow.age}` : "Grade 10")));
-        const cleanAddress = sbRow.address ? sbRow.address.split(" | School: ")[0]?.replace(/^School:.*$/, "").trim() : "";
-        const examDate = sbRow.exam_date || (sbRow.medical_notes && sbRow.medical_notes.startsWith("EXAM_DATE:") ? sbRow.medical_notes.replace("EXAM_DATE:", "") : "");
+    if (sbRow) {
+      const rawSchool = sbRow.school || (sbRow.address && sbRow.address.includes("School: ") ? sbRow.address.split("School: ")[1]?.trim() : (sbRow.address && sbRow.address.startsWith("School: ") ? sbRow.address.replace("School: ", "").trim() : ""));
+      const rawGrade = sbRow.grade || (sbRow.nationality && sbRow.nationality.startsWith("Grade: ") ? sbRow.nationality.replace("Grade: ", "").trim() : (sbRow.nationality || (sbRow.age ? `Grade ${sbRow.age > 12 ? 12 : sbRow.age}` : "Grade 10")));
+      const cleanAddress = sbRow.address ? sbRow.address.split(" | School: ")[0]?.replace(/^School:.*$/, "").trim() : "";
+      const examDate = sbRow.exam_date || (sbRow.medical_notes && sbRow.medical_notes.startsWith("EXAM_DATE:") ? sbRow.medical_notes.replace("EXAM_DATE:", "") : "");
 
-        const restored: StudentDossier = {
-          id: sbRow.id,
-          studentCode: sbRow.student_id_code || `TG-STU-${sbRow.id?.slice(0, 4)}`,
-          fullName: sbRow.name || "Student",
-          firstName: (sbRow.name || "").split(" ")[0] || "Student",
-          lastName: (sbRow.name || "").split(" ").slice(1).join(" ") || "",
-          email: sbRow.email,
-          dob: sbRow.dob || "2005-01-01",
-          age: sbRow.age || 18,
-          school: rawSchool || "Top Grade Academy",
-          grade: rawGrade || "Grade 10",
-          status: (sbRow.status || "ACTIVE").toUpperCase(),
-          primaryMobile: sbRow.phone || "",
-          studentPhones: sbRow.phone ? [sbRow.phone] : [],
-          parentPhones: sbRow.father_phone ? [sbRow.father_phone] : [],
-          studentEmails: sbRow.email ? [sbRow.email] : [],
-          parentEmails: Array.isArray(sbRow.parent_emails) ? sbRow.parent_emails : [],
-          fatherName: sbRow.father_name || "",
-          motherName: sbRow.mother_name || "",
-          guardianName: sbRow.guardian || "",
-          program: sbRow.program || "",
-          teacher: sbRow.teacher || "",
-          residentialAddress: cleanAddress,
-          studentAddress: sbRow.alternate_address || "",
-          alternateAddress: sbRow.alternate_address || "",
-          examDate: examDate,
-          purchasedHours: Number(sbRow.purchased_hours) || 20,
-          feePlan: sbRow.fee_plan || "Standard Plan",
-          allocatedCourses: sbRow.program ? [{ courseName: sbRow.program, duration: "3 Months" }] : []
-        };
+      const restored: StudentDossier = {
+        id: sbRow.id,
+        studentCode: sbRow.student_id_code || `TG-STU-${sbRow.id?.slice(0, 4)}`,
+        fullName: sbRow.name || "Student",
+        firstName: (sbRow.name || "").split(" ")[0] || "Student",
+        lastName: (sbRow.name || "").split(" ").slice(1).join(" ") || "",
+        email: sbRow.email,
+        dob: sbRow.dob || "2005-01-01",
+        age: sbRow.age || 18,
+        school: rawSchool || "Top Grade Academy",
+        grade: rawGrade || "Grade 10",
+        status: (sbRow.status || "ACTIVE").toUpperCase(),
+        primaryMobile: sbRow.phone || "",
+        studentPhones: sbRow.phone ? [sbRow.phone] : [],
+        parentPhones: sbRow.father_phone ? [sbRow.father_phone] : [],
+        studentEmails: sbRow.email ? [sbRow.email] : [],
+        parentEmails: Array.isArray(sbRow.parent_emails) ? sbRow.parent_emails : [],
+        fatherName: sbRow.father_name || "",
+        motherName: sbRow.mother_name || "",
+        guardianName: sbRow.guardian || "",
+        program: sbRow.program || "",
+        teacher: sbRow.teacher || "",
+        residentialAddress: cleanAddress,
+        studentAddress: sbRow.alternate_address || "",
+        alternateAddress: sbRow.alternate_address || "",
+        examDate: examDate,
+        purchasedHours: Number(sbRow.purchased_hours) || 20,
+        feePlan: sbRow.fee_plan || "Standard Plan",
+        allocatedCourses: sbRow.program ? [{ courseName: sbRow.program, duration: "3 Months" }] : []
+      };
+      if (index === -1) {
         inMemoryStudentStore.push(restored);
         index = inMemoryStudentStore.length - 1;
+      } else {
+        inMemoryStudentStore[index] = { ...inMemoryStudentStore[index], ...restored };
       }
-    } catch (findErr: any) {
-      console.warn("Supabase student find notice:", findErr?.message);
     }
+  } catch (findErr: any) {
+    console.warn("Supabase student find notice:", findErr?.message);
   }
 
   const existing = inMemoryStudentStore[index];

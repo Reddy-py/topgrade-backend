@@ -451,14 +451,14 @@ export async function broadcastAnnouncement(input: BroadcastAnnouncementInput): 
     }
   }
   if (aud === "ALL_TEACHERS" || aud === "TEACHERS" || aud === "EVERYONE") {
-    const { data: teachers } = await supabaseAdmin.from("teachers").select("email").eq("status", "Active");
+    const { data: teachers } = await supabaseAdmin.from("teachers").select("email").in("status", ["Active", "ACTIVE", "active"]);
     for (const t of (teachers || []) as any[]) {
       if (t.email && !t.email.endsWith("@topgrade.edu")) recipientSet.add(normEmail(t.email));
     }
   }
 
   if (aud === "ALL_PARENTS" || aud === "PARENTS" || aud === "ALL_STUDENTS" || aud === "STUDENTS" || aud === "EVERYONE" || aud === "COURSE" || aud === "PROGRAM") {
-    let q = supabaseAdmin.from("students").select("id, email, parent_emails, program, status").eq("status", "ACTIVE");
+    let q = supabaseAdmin.from("students").select("id, email, parent_emails, program, status").in("status", ["ACTIVE", "Active", "active", "enrolled", "Enrolled"]);
     if (aud === "PROGRAM" && input.targetFilter) {
       q = q.ilike("program", `%${input.targetFilter}%`);
     }

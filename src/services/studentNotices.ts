@@ -24,6 +24,16 @@ export function studentContactEmails(student: Pick<StudentDossier, "email" | "st
   return Array.from(new Set((student.parentEmails || []).map(realEmail).filter((e): e is string => !!e)));
 }
 
+/**
+ * Returns all real emails for a student dossier: the student's own email(s) AND parent email(s).
+ * Used when a profile update must notify both the client/student and all linked parents.
+ */
+export function allStudentAndParentEmails(student: Pick<StudentDossier, "email" | "studentEmails" | "parentEmails">): string[] {
+  const own = studentOwnEmails(student);
+  const parents = (student.parentEmails || []).map(realEmail).filter((e): e is string => !!e);
+  return Array.from(new Set([...own, ...parents]));
+}
+
 const join = (v?: string[]): string => (v || []).map(x => String(x ?? "").trim()).filter(Boolean).join(", ");
 
 const FIELDS: Array<{ label: string; get: (s: StudentDossier) => string }> = [
@@ -131,7 +141,7 @@ export async function sendStudentUpdatedEmail(before: StudentDossier, after: Stu
 
   const key = after.id || after.studentCode || "";
   const { dateStr } = instituteNow();
-  const to = studentContactEmails(after);
+  const to = allStudentAndParentEmails(after);
   const oldOwn = realEmail(before.email);
   const newOwn = realEmail(after.email);
   const oldEmailNotice = oldOwn && newOwn && oldOwn !== newOwn ? oldOwn : null;

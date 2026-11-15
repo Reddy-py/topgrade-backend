@@ -405,27 +405,24 @@ export class ScheduleDataService {
     // Resolve date in CST for the target day of week
     const dateCst = getNextDayOfWeekDateStr(payload.day_of_week);
 
-    // If teacher_id is empty, pick first active teacher from teachers table
-    let effectiveTeacherId = payload.teacher_id;
-    if (!effectiveTeacherId || effectiveTeacherId.trim() === "") {
-      const { data: firstTeacher } = await supabaseAdmin
-        .from("teachers")
-        .select("id, name")
-        .eq("status", "Active")
-        .limit(1)
-        .maybeSingle();
-      if (firstTeacher) {
-        effectiveTeacherId = firstTeacher.id;
-      }
-    }
+    // If open for teachers, leave teacher empty; otherwise resolve teacher
+    const isOpen = payload.open_for_teachers === true || !payload.teacher_id;
+    let effectiveTeacherId = isOpen ? "" : payload.teacher_id;
 
     const slotDto = await ScheduleSlotService.createSlot({
       course_id: payload.course_id,
+      course_name: payload.course_name,
       teacher_id: effectiveTeacherId,
+      teacher_name: payload.teacher_name,
+      open_for_teachers: isOpen,
       date_cst: dateCst,
       start_time_cst: payload.start_time,
       duration_hours: durHours,
       max_students: payload.max_capacity || 15,
+      max_capacity: payload.max_capacity || 15,
+      room: payload.room || "Room 101",
+      location: payload.location || "Main Academic Center",
+      grade: (payload as any).grade || "All Grades",
       notes: payload.room || payload.location || "Room 101"
     });
 

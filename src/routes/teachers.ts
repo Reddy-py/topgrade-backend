@@ -10,6 +10,8 @@ import { resolveTeacherIdentity } from "../services/teacherIdentity.js";
 import { ensureLogin, emailSetPasswordLink, generateTemporaryPassword, isValidEmail, normEmail } from "../services/studentAccounts.js";
 import { isRealEmail } from "../constants/domains.js";
 import { recordDomainEvent } from "../services/domainEventService.js";
+import { logEmail, statusFromDispatch } from "../services/emailLog.js";
+import { instituteToday } from "../services/instituteTime.js";
 
 const router = express.Router();
 
@@ -373,6 +375,68 @@ export const updateTeacherHandler = async (req: express.Request, res: express.Re
     entity_id: teacherId,
     payload: updateRow
   });
+
+  // Requirement 3: Every time a teacher is updated, send email to Teacher and Admin with details of what changed
+  const teacherFields: Array<{ label: string; key: string }> = [
+    { label: "Full Name", key: "name" },
+    { label: "Email Address", key: "email" },
+    { label: "Phone", key: "phone" },
+    { label: "Date of Birth", key: "dob" },
+    { label: "Qualification", key: "qualification" },
+    { label: "Specialization", key: "specialization" },
+    { label: "Experience", key: "experience" },
+    { label: "Joining Date", key: "joining_date" },
+    { label: "Status", key: "status" },
+    { label: "Working Days", key: "working_days_count" },
+  ];
+
+  const changes: Array<{ label: string; before: string; after: string }> = [];
+  for (const f of teacherFields) {
+    const b = String(currentTeacher?.[f.key] ?? "").trim();
+    const a = String(updatedTeacher?.[f.key] ?? "").trim();
+    if (b.toLowerCase() !== a.toLowerCase() && (b || a)) {
+      changes.push({ label: f.label, before: b || "(empty)", after: a || "(empty)" });
+    }
+  }
+
+  if (changes.length > 0) {
+    const today = instituteToday();
+    const adminEmail = process.env.ADMIN_EMAIL || "tglbiz101@gmail.com";
+    const teacherName = updatedTeacher.name || currentTeacher?.name || "Faculty Member";
+    const teacherEmail = updatedTeacher.email || currentTeacher?.email;
+
+    const listHtml = `
+      <ul style="margin:8px 0;padding-left:20px;line-height:1.6;">
+        ${changes.map(c => `<li><strong>${c.label}:</strong> <span style="text-decoration:line-through;color:#94a3b8;">${c.before}</span> &rarr; <span style="color:#004ac6;font-weight:600;">${c.after}</span></li>`).join("")}
+      </ul>
+    `;
+    const message = `Faculty profile for <strong>${teacherName}</strong> was updated on ${today}.<br><br><strong>Changes recorded:</strong><br>${listHtml}<br>If you did not request or expect these changes, please review the faculty directory in the portal.`;
+    const subject = `Faculty Profile Updated: ${teacherName}`;
+
+    // 1. Dispatch to Teacher
+    if (teacherEmail && isRealEmail(teacherEmail)) {
+      void dispatchMultiChannelNotification({
+        eventType: "TEACHER_ASSIGNMENT",
+        subject,
+        message,
+        recipients: [{ role: "TEACHER", email: teacherEmail, name: teacherName, phone: updatedTeacher.phone || "" }]
+      }).then(res => {
+        void logEmail("TEACHER_UPDATED", teacherId, today, [teacherEmail], subject, statusFromDispatch(res), res.failures.join("; ") || undefined, message);
+      }).catch(err => console.warn("Notice dispatching teacher update email:", err?.message));
+    }
+
+    // 2. Dispatch to Admin
+    if (adminEmail && isRealEmail(adminEmail)) {
+      void dispatchMultiChannelNotification({
+        eventType: "TEACHER_ASSIGNMENT",
+        subject: `[ADMIN ALERT] ${subject}`,
+        message: `Administrator Copy:<br><br>${message}`,
+        recipients: [{ role: "ADMIN", email: adminEmail, name: "Administrator", phone: "" }]
+      }).then(res => {
+        void logEmail("TEACHER_UPDATED", teacherId, today, [adminEmail], `[ADMIN ALERT] ${subject}`, statusFromDispatch(res), res.failures.join("; ") || undefined, message);
+      }).catch(err => console.warn("Notice dispatching admin teacher update email:", err?.message));
+    }
+  }
 
   res.status(200).json({
     success: true,

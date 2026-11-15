@@ -361,11 +361,28 @@ export const updateCourseFeeStructureHandler = async (req: express.Request, res:
     return res.status(400).json({ success: false, message: "Duration (Months) must be a positive whole number." });
   }
 
-  const { data: existingCourse, error: fetchErr } = await supabaseAdmin
-    .from("courses")
-    .select("*")
-    .or(`id.eq.${courseId},course_code.eq.${courseId}`)
-    .maybeSingle();
+  let existingCourse: any = null;
+  let fetchErr: any = null;
+  const isUUID = (str?: any): boolean =>
+    typeof str === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
+
+  if (isUUID(courseId)) {
+    const res = await supabaseAdmin
+      .from("courses")
+      .select("*")
+      .eq("id", courseId)
+      .maybeSingle();
+    existingCourse = res.data;
+    fetchErr = res.error;
+  } else {
+    const res = await supabaseAdmin
+      .from("courses")
+      .select("*")
+      .or(`course_code.eq.${courseId},name.ilike.${courseId}`)
+      .maybeSingle();
+    existingCourse = res.data;
+    fetchErr = res.error;
+  }
 
   if (fetchErr || !existingCourse) {
     return res.status(404).json({ success: false, message: `Course '${courseId}' not found.` });
@@ -739,11 +756,33 @@ export const editCourseHandler = async (req: express.Request, res: express.Respo
     return res.status(400).json({ success: false, message: "Course ID is required for editing." });
   }
 
-  const { data: existingCourse, error: fetchErr } = await supabaseAdmin
-    .from("courses")
-    .select("*")
-    .or(`id.eq.${courseId},course_code.eq.${courseId}`)
-    .maybeSingle();
+  const isUUID = (str?: any): boolean =>
+    typeof str === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
+
+  let existingCourse: any = null;
+  let fetchErr: any = null;
+
+  try {
+    if (isUUID(courseId)) {
+      const { data, error } = await supabaseAdmin
+        .from("courses")
+        .select("*")
+        .eq("id", courseId)
+        .maybeSingle();
+      existingCourse = data;
+      fetchErr = error;
+    } else {
+      const { data, error } = await supabaseAdmin
+        .from("courses")
+        .select("*")
+        .or(`course_code.eq.${courseId},name.ilike.${courseId}`)
+        .maybeSingle();
+      existingCourse = data;
+      fetchErr = error;
+    }
+  } catch (qErr: any) {
+    fetchErr = qErr;
+  }
 
   if (fetchErr || !existingCourse) {
     return res.status(404).json({ success: false, message: `Course '${courseId}' not found.` });
@@ -866,15 +905,63 @@ export const editCourseHandler = async (req: express.Request, res: express.Respo
   if (c.category !== undefined) updateRow.required_teacher_skills = c.category;
   if (c.status !== undefined) updateRow.status = c.status;
 
-  const { data: updatedData, error: updErr } = await supabaseAdmin
+  let { data: updatedData, error: updErr } = await supabaseAdmin
     .from("courses")
     .update(updateRow)
     .eq("id", existingCourse.id)
     .select()
     .single();
 
+  if (updErr && (updErr.message.includes("duration_months") || updErr.message.includes("package_hours") || updErr.message.includes("package_price") || updErr.message.includes("hourly_rate") || updErr.message.includes("class_length"))) {
+    delete updateRow.duration_months;
+    delete updateRow.package_hours;
+    delete updateRow.package_price;
+    delete updateRow.hourly_rate;
+    delete updateRow.class_length;
+    const retry = await supabaseAdmin
+      .from("courses")
+      .update(updateRow)
+      .eq("id", existingCourse.id)
+      .select()
+      .single();
+    updatedData = retry.data;
+    updErr = retry.error;
+  }
+
   if (updErr || !updatedData) {
     return res.status(500).json({ success: false, message: updErr?.message || "Failed to update course." });
+  }
+
+  // Sync course package if package_hours or package_price changed
+  if (existingCourse?.id && (c.package_hours !== undefined || c.package_price !== undefined || c.packageHours !== undefined || c.packagePrice !== undefined)) {
+    try {
+      const pkgH = Number(materialObj.package_hours || c.package_hours || c.packageHours || 20);
+      const pkgP = Number(materialObj.package_price || c.package_price || c.packagePrice || 0);
+      const { data: existingPkg } = await supabaseAdmin
+        .from("course_packages")
+        .select("id")
+        .eq("course_id", existingCourse.id)
+        .limit(1)
+        .maybeSingle();
+
+      if (existingPkg) {
+        await supabaseAdmin.from("course_packages").update({
+          hours: pkgH,
+          price: pkgP,
+          name: `${pkgH} Hours Package`
+        }).eq("id", existingPkg.id);
+      } else if (pkgH > 0) {
+        await supabaseAdmin.from("course_packages").insert({
+          course_id: existingCourse.id,
+          name: `${pkgH} Hours Standard Package`,
+          hours: pkgH,
+          validity_days: (materialObj.duration_months ? materialObj.duration_months * 30 : 90),
+          price: pkgP
+        });
+      }
+    } catch (pErr: any) {
+      console.warn("Notice updating course package:", pErr?.message);
+    }
   }
 
   const updatedCourse = mapSupabaseCourseToCourseData(updatedData);

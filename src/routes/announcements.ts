@@ -43,7 +43,7 @@ async function resolveAudienceRecipients(
     const { data: teachers } = await supabaseAdmin
       .from("teachers")
       .select("email, name, status")
-      .eq("status", "Active");
+      .in("status", ["Active", "ACTIVE", "active"]);
 
     for (const t of teachers || []) {
       if (t.email) add(t.email, t.name || "Faculty Member", "TEACHER");
@@ -60,7 +60,7 @@ async function resolveAudienceRecipients(
     let q = supabaseAdmin
       .from("students")
       .select("id, name, email, parent_emails, status, program")
-      .eq("status", "ACTIVE");
+      .in("status", ["ACTIVE", "Active", "active", "enrolled", "Enrolled"]);
 
     if (aud === "PROGRAM" && targetFilter) {
       q = q.ilike("program", `%${targetFilter}%`);
