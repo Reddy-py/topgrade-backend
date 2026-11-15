@@ -58,25 +58,43 @@ export function htmlToPlainText(html: string): string {
     .trim();
 }
 
+let cachedTransporter: any = null;
+let lastTransporterCreds = "";
+
 function getTransporter(): { transporter: any; gmailUser: string } {
   if (process.env.SIMULATE_EMAILS === "true" || process.env.NODE_ENV === "test" || process.env.SIMULATE_MAILER === "true") {
     return { transporter: null, gmailUser: "simulated-mailer@topgrade.edu" };
   }
   dotenv.config({ path: backendEnvPath });
-  const gmailUser = process.env.GMAIL_USER || process.env.GMAIL_SENDER_EMAIL || "tglbiz101@gmail.com";
-  const gmailPass = process.env.GMAIL_APP_PASSWORD || "";
+  const gmailUser = (process.env.GMAIL_USER || process.env.GMAIL_SENDER_EMAIL || "tglbiz101@gmail.com").trim();
+  const gmailPass = (process.env.GMAIL_APP_PASSWORD || "").trim();
+  const cleanPass = gmailPass.replace(/\s+/g, "");
 
-  if (gmailUser && gmailPass) {
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: gmailUser,
-        pass: gmailPass,
-      },
-    });
-    return { transporter, gmailUser };
+  if (gmailUser && cleanPass) {
+    const credKey = `${gmailUser}:${cleanPass}`;
+    if (cachedTransporter && lastTransporterCreds === credKey) {
+      return { transporter: cachedTransporter, gmailUser };
+    }
+
+    try {
+      cachedTransporter = nodemailer.createTransport({
+        service: "gmail",
+        pool: true,
+        maxConnections: 3,
+        maxMessages: 100,
+        rateLimit: 5,
+        auth: {
+          user: gmailUser,
+          pass: cleanPass,
+        },
+      });
+      lastTransporterCreds = credKey;
+      return { transporter: cachedTransporter, gmailUser };
+    } catch (err: any) {
+      console.error("[NOTIFICATION] Failed to initialize pooled Gmail transporter:", err?.message);
+    }
   }
-  console.warn(`[NOTIFICATION] Transporter offline: user=${gmailUser}, pass=${gmailPass ? 'PRESENT' : 'MISSING'}`);
+  console.warn(`[NOTIFICATION] Transporter offline: user=${gmailUser}, pass=${cleanPass ? 'PRESENT' : 'MISSING'}`);
   return { transporter: null, gmailUser };
 }
 
