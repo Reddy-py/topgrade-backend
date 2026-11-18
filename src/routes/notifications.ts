@@ -44,6 +44,68 @@ router.get("/birthday-logs", async (_req, res): Promise<any> => {
 });
 
 /**
+ * POST /api/notifications/send-birthday-wish/:studentId & /api/notifications/send-birthday-wish
+ * Send immediate birthday greeting to a specific student
+ */
+router.post(["/send-birthday-wish/:studentId", "/send-birthday-wish"], async (req, res): Promise<any> => {
+  try {
+    const studentId = req.params.studentId || req.body?.studentId || req.body?.studentCode;
+    const body = req.body || {};
+
+    let student: any = inMemoryStudentStore.find(s => s.id === studentId || s.studentCode === studentId);
+    if (!student && studentId) {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(studentId);
+      const query = isUuid
+        ? supabaseAdmin.from("students").select("*").eq("id", studentId).maybeSingle()
+        : supabaseAdmin.from("students").select("*").ilike("student_id_code", studentId).maybeSingle();
+      const { data: sbRow } = await query;
+      if (sbRow) {
+        student = {
+          id: sbRow.id,
+          studentCode: sbRow.student_id_code,
+          fullName: sbRow.name || body.studentName || "Student",
+          email: sbRow.email || body.studentEmail || "",
+          studentEmails: sbRow.email ? [sbRow.email] : (body.studentEmail ? [body.studentEmail] : []),
+          parentEmails: Array.isArray(sbRow.parent_emails) ? sbRow.parent_emails : (body.parentEmail ? [body.parentEmail] : []),
+          school: sbRow.address?.split("School: ")?.[1] || "TopGrade",
+          dob: sbRow.dob || body.dob || "",
+          status: sbRow.status || "ACTIVE"
+        };
+      }
+    }
+
+    if (!student) {
+      if (body.studentEmail || body.parentEmail) {
+        student = {
+          id: studentId || "manual",
+          studentCode: studentId || "TG-MANUAL",
+          fullName: body.studentName || "Student",
+          email: body.studentEmail || "",
+          studentEmails: body.studentEmail ? [body.studentEmail] : [],
+          parentEmails: body.parentEmail ? [body.parentEmail] : [],
+          school: "TopGrade",
+          dob: body.dob || "",
+          status: "ACTIVE"
+        };
+      } else {
+        return res.status(404).json({ success: false, message: `Student '${studentId}' not found.` });
+      }
+    }
+
+    const sent = await sendBirthdayGreetings(student, { force: true });
+    return res.status(200).json({
+      success: true,
+      sent,
+      message: sent
+        ? `Birthday greeting email dispatched to ${student.fullName}!`
+        : `Birthday greeting processed for ${student.fullName}.`
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
  * POST /api/notifications/trigger-exam-wishes
  * Force scan and send good luck emails for upcoming exams
  */

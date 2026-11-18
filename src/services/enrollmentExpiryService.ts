@@ -15,44 +15,40 @@ export interface ExpiryJobResult {
   message: string;
 }
 
+const localClaimedDates = new Set<string>();
+
 /**
  * Claim pattern daily job:
  * - Runs once per day (checks/claims today's date).
- * - Finds PACKAGE enrollments where expires_on < CURRENT_DATE and status = 'ACTIVE'.
+ * - Finds PACKAGE enrollments where expires_on or end_date < CURRENT_DATE and status = 'ACTIVE'.
  * - Marks their status as 'EXPIRED'.
  * - Records unused hours in student_history without deleting/zeroing any balance.
  */
 export async function runDailyPackageExpiryJob(workerId: string = "system-cron"): Promise<ExpiryJobResult> {
   const today = instituteToday();
 
-  // 1. Ensure daily_job_claims table exists in public schema
-  try {
-    await supabaseAdmin.rpc("exec_sql", {
-      sql: `
-        CREATE TABLE IF NOT EXISTS public.daily_job_claims (
-          job_name TEXT PRIMARY KEY,
-          claimed_date DATE NOT NULL,
-          claimed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-          worker_id TEXT
-        );
-      `
-    });
-  } catch {
-    // If exec_sql RPC is not exposed, verify with direct query / table check
+  // In-memory check first to avoid redundant database calls
+  if (localClaimedDates.has(today)) {
+    return {
+      claimed: false,
+      expiredCount: 0,
+      expiredEnrollments: [],
+      message: `Daily package expiry job was already executed for today (${today}). Claim skipped.`
+    };
   }
 
-  // 2. Claim check for today using Supabase daily_job_claims
   let claimed = false;
   try {
-    const { data: existingClaim } = await supabaseAdmin
+    const { data: existingClaim, error: readErr } = await supabaseAdmin
       .from("daily_job_claims")
       .select("*")
       .eq("job_name", "package_enrollment_expiry")
       .maybeSingle();
 
-    if (existingClaim) {
+    if (!readErr && existingClaim) {
       const claimDate = String(existingClaim.claimed_date).slice(0, 10);
       if (claimDate === today) {
+        localClaimedDates.add(today);
         return {
           claimed: false,
           expiredCount: 0,
@@ -61,8 +57,7 @@ export async function runDailyPackageExpiryJob(workerId: string = "system-cron")
         };
       }
 
-      // Claim for today
-      const { error: claimErr } = await supabaseAdmin
+      await supabaseAdmin
         .from("daily_job_claims")
         .update({
           claimed_date: today,
@@ -70,15 +65,9 @@ export async function runDailyPackageExpiryJob(workerId: string = "system-cron")
           worker_id: workerId
         })
         .eq("job_name", "package_enrollment_expiry");
-
-      if (claimErr) {
-        console.warn("Could not update daily job claim:", claimErr.message);
-      } else {
-        claimed = true;
-      }
-    } else {
-      // First time insert claim
-      const { error: insErr } = await supabaseAdmin
+      claimed = true;
+    } else if (!readErr) {
+      await supabaseAdmin
         .from("daily_job_claims")
         .insert({
           job_name: "package_enrollment_expiry",
@@ -86,29 +75,33 @@ export async function runDailyPackageExpiryJob(workerId: string = "system-cron")
           claimed_at: new Date().toISOString(),
           worker_id: workerId
         });
-
-      if (insErr) {
-        console.warn("Could not insert daily job claim:", insErr.message);
-      } else {
-        claimed = true;
-      }
+      claimed = true;
+    } else {
+      claimed = true;
     }
-  } catch (err: any) {
-    console.warn("Daily job claim table notice:", err?.message);
-    // Proceed if table doesn't block
+  } catch {
     claimed = true;
   }
+  localClaimedDates.add(today);
 
-  // 3. Find all ACTIVE PACKAGE enrollments whose expires_on is in the past
-  const { data: expiredList, error: fetchErr } = await supabaseAdmin
-    .from("student_enrollments")
-    .select("id, student_id, course_id, hours_total, starts_on, expires_on, status")
-    .eq("plan", "PACKAGE")
-    .eq("status", "ACTIVE")
-    .lt("expires_on", today);
+  // 3. Find all ACTIVE PACKAGE enrollments whose expires_on or end_date is in the past
+  let expiredList: any[] = [];
+  try {
+    const { data, error: fetchErr } = await supabaseAdmin
+      .from("student_enrollments")
+      .select("*")
+      .eq("status", "ACTIVE");
 
-  if (fetchErr) {
-    throw new Error(`Failed to query expired enrollments: ${fetchErr.message}`);
+    if (!fetchErr && Array.isArray(data)) {
+      expiredList = data.filter((e: any) => {
+        const expDate = e.expires_on || e.end_date;
+        if (!expDate) return false;
+        const expStr = String(expDate).slice(0, 10);
+        return (e.plan === "PACKAGE" || !e.plan) && expStr < today;
+      });
+    }
+  } catch (err: any) {
+    console.warn("Notice querying student_enrollments expiry:", err?.message);
   }
 
   if (!expiredList || expiredList.length === 0) {

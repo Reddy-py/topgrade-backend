@@ -145,8 +145,9 @@ export async function sendStudentUpdatedEmail(before: StudentDossier, after: Stu
   const oldOwn = realEmail(before.email);
   const newOwn = realEmail(after.email);
   const oldEmailNotice = oldOwn && newOwn && oldOwn !== newOwn ? oldOwn : null;
+  const adminEmail = (process.env.ADMIN_EMAIL || "tglbiz101@gmail.com").trim();
   let subject = `Your details were updated: ${after.fullName}`;
-  if ((to.length === 0 && !oldEmailNotice) || !key) return;
+  if ((to.length === 0 && !oldEmailNotice && !adminEmail) || !key) return;
 
   try {
     const listHtml = `
@@ -170,13 +171,18 @@ export async function sendStudentUpdatedEmail(before: StudentDossier, after: Stu
       // Fallback
     }
 
-    const main = to.length > 0
+    const recipients = recipientsFor(after, to);
+    if (adminEmail && isRealEmail(adminEmail) && !recipients.some(r => r.email.toLowerCase() === adminEmail.toLowerCase())) {
+      recipients.push({ role: "ADMIN" as any, email: adminEmail, name: "Administrator", phone: "" });
+    }
+
+    const main = recipients.length > 0
       ? await dispatchMultiChannelNotification({
           eventType: "ADMISSION_APPROVED",
           subject,
           message,
           escapeMessage: false,
-          recipients: recipientsFor(after, to),
+          recipients,
         })
       : null;
 

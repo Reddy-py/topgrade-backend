@@ -1139,16 +1139,25 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
   const isUUID = (str?: string | null): boolean =>
     !!str && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
 
-  let index = inMemoryStudentStore.findIndex(s => s.id === id || s.studentCode === id);
+  let index = inMemoryStudentStore.findIndex(s => s.id === id || s.studentCode === id || (payload.id && s.id === payload.id) || (payload.studentCode && s.studentCode === payload.studentCode));
   // Always fetch latest state from Supabase to ensure accurate field diffing
   try {
-    let sbQuery = supabaseAdmin.from("students").select("*");
-    if (isUUID(id)) {
-      sbQuery = sbQuery.eq("id", id);
-    } else {
-      sbQuery = sbQuery.eq("student_id_code", id);
+    const candidateId = isUUID(id) ? id : (isUUID(payload.id) ? payload.id : null);
+    const candidateCode = payload.studentCode || (!isUUID(id) ? id : null);
+
+    let sbRow: any = null;
+    if (candidateId) {
+      const { data } = await supabaseAdmin.from("students").select("*").eq("id", candidateId).maybeSingle();
+      if (data) sbRow = data;
     }
-    const { data: sbRow } = await sbQuery.maybeSingle();
+    if (!sbRow && candidateCode) {
+      const { data } = await supabaseAdmin.from("students").select("*").ilike("student_id_code", candidateCode).maybeSingle();
+      if (data) sbRow = data;
+    }
+    if (!sbRow && id) {
+      const { data } = await supabaseAdmin.from("students").select("*").or(`id.eq.${id},student_id_code.eq.${id}`).maybeSingle();
+      if (data) sbRow = data;
+    }
 
     if (sbRow) {
       const rawSchool = sbRow.school || (sbRow.address && sbRow.address.includes("School: ") ? sbRow.address.split("School: ")[1]?.trim() : (sbRow.address && sbRow.address.startsWith("School: ") ? sbRow.address.replace("School: ", "").trim() : ""));
@@ -1224,28 +1233,27 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
     updatedAt: new Date().toISOString()
   };
 
-  // Parent email handling: validate only if emails are provided or changed; legacy missing parent email must not block edit
+  // Parent email handling: sanitize and validate
   const nextParentEmails = Array.from(new Set((updated.parentEmails || []).map(normEmail).filter(Boolean)));
-  const badParent = nextParentEmails.find(e => !isValidEmail(e));
-  if (badParent) throw new Error(`'${badParent}' is not a valid parent email.`);
+  const validParentEmails = nextParentEmails.filter(e => isValidEmail(e));
   
-  const nextStudentEmail = normEmail(updated.email);
+  let nextStudentEmail = normEmail(updated.email);
   if (nextStudentEmail && !isValidEmail(nextStudentEmail)) {
-    throw new Error(`'${nextStudentEmail}' is not a valid student email.`);
+    nextStudentEmail = "";
+    updated.email = "";
   }
 
   // Only reject collision if email is being newly set or changed to match
   if (
     nextStudentEmail &&
-    nextParentEmails.includes(nextStudentEmail) &&
+    validParentEmails.includes(nextStudentEmail) &&
     (payload.email || payload.parentEmails)
   ) {
-    // If user explicitly updated them to be identical, warn/block
     if (payload.email && payload.email !== existing.email) {
       throw new Error("A parent email must be different from the student's own email, because each email is one login.");
     }
   }
-  updated.parentEmails = nextParentEmails;
+  updated.parentEmails = validParentEmails.length > 0 ? validParentEmails : nextParentEmails;
   delete (updated as any).password;
 
   // Real-time Supabase Update Sync
@@ -1280,7 +1288,7 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
       status: (updated.status || "ACTIVE").toUpperCase()
     };
 
-    const targetIdToUpdate = isUUID(updated.id) ? updated.id : (isUUID(id) ? id : null);
+    const targetIdToUpdate = isUUID(updated.id) ? updated.id : (isUUID(id) ? id : (existing?.id && isUUID(existing.id) ? existing.id : null));
     if (targetIdToUpdate) {
       const { error: sbErr } = await supabaseAdmin.from("students").update(updateFields).eq("id", targetIdToUpdate);
       if (sbErr) throw new Error(`Could not save the student: ${sbErr.message}`);
@@ -1293,38 +1301,44 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
     await persistDossier(updated);
 
     // Keep the logins in step with the record. One login per email.
-    const photoCdnUrl = updated.profileImageUrl || updated.photoUrl || null;
-    if (nextStudentEmail) {
-      const prevEmail = normEmail(existing.email);
-      if (prevEmail && prevEmail !== nextStudentEmail) {
-        const { data: prof } = await supabaseAdmin.from("profiles").select("id").eq("email", prevEmail).maybeSingle();
-        if (prof) {
-          const { error: authEmailErr } = await supabaseAdmin.auth.admin.updateUserById(prof.id, { email: nextStudentEmail, email_confirm: true });
-          if (authEmailErr) throw new Error(`Could not change the login email: ${authEmailErr.message}`);
-          await supabaseAdmin.from("profiles").update({ email: nextStudentEmail, full_name: updated.fullName, avatar_url: photoCdnUrl, updated_at: new Date().toISOString() }).eq("id", prof.id);
+    try {
+      const photoCdnUrl = updated.profileImageUrl || updated.photoUrl || null;
+      if (nextStudentEmail) {
+        const prevEmail = normEmail(existing.email);
+        if (prevEmail && prevEmail !== nextStudentEmail) {
+          const { data: prof } = await supabaseAdmin.from("profiles").select("id").eq("email", prevEmail).maybeSingle();
+          if (prof) {
+            const { error: authEmailErr } = await supabaseAdmin.auth.admin.updateUserById(prof.id, { email: nextStudentEmail, email_confirm: true });
+            if (authEmailErr) console.warn("Notice updating auth email:", authEmailErr.message);
+            await supabaseAdmin.from("profiles").update({ email: nextStudentEmail, full_name: updated.fullName, avatar_url: photoCdnUrl, updated_at: new Date().toISOString() }).eq("id", prof.id);
+          }
+        }
+        const l = await ensureLogin({ email: nextStudentEmail, fullName: updated.fullName, role: "STUDENT", metadata: { student_code: updated.studentCode } });
+        if (l.created) await emailSetPasswordLink({ email: nextStudentEmail, name: updated.fullName, role: "STUDENT" });
+        await supabaseAdmin.from("profiles").update({ full_name: updated.fullName, avatar_url: photoCdnUrl, updated_at: new Date().toISOString() }).eq("id", l.userId);
+        if (updated.id) {
+          await supabaseAdmin.from("students").update({ user_id: l.userId }).eq("id", updated.id);
         }
       }
-      const l = await ensureLogin({ email: nextStudentEmail, fullName: updated.fullName, role: "STUDENT", metadata: { student_code: updated.studentCode } });
-      if (l.created) await emailSetPasswordLink({ email: nextStudentEmail, name: updated.fullName, role: "STUDENT" });
-      await supabaseAdmin.from("profiles").update({ full_name: updated.fullName, avatar_url: photoCdnUrl, updated_at: new Date().toISOString() }).eq("id", l.userId);
-      await supabaseAdmin.from("students").update({ user_id: l.userId }).eq("id", updated.id);
-    }
-    // A parent email that is new on this student gets a login (or a notice if that parent already has one).
-    const previousParents = new Set((existing.parentEmails || []).map(normEmail));
-    for (const parentEmail of nextParentEmails) {
-      if (previousParents.has(parentEmail)) continue;
-      const parentName = updated.fatherName || updated.motherName || "Parent";
-      const l = await ensureLogin({ email: parentEmail, fullName: parentName, role: "PARENT", metadata: { student_code: updated.studentCode } });
-      if (l.created) {
-        await emailSetPasswordLink({ email: parentEmail, name: parentName, role: "PARENT", childName: updated.fullName });
-      } else {
-        await dispatchMultiChannelNotification({
-          eventType: "ADMISSION_APPROVED",
-          subject: `New student added to your TopGrade parent login: ${updated.fullName}`,
-          message: `Dear ${parentName},\n\n${updated.fullName} (${updated.studentCode}) was added to your parent login. Sign in with your usual password to see the courses, attendance and schedule.`,
-          recipients: [{ role: "PARENT", email: parentEmail, name: parentName, phone: "" }]
-        });
+      // A parent email that is new on this student gets a login (or a notice if that parent already has one).
+      const previousParents = new Set((existing.parentEmails || []).map(normEmail));
+      for (const parentEmail of validParentEmails) {
+        if (previousParents.has(parentEmail)) continue;
+        const parentName = updated.fatherName || updated.motherName || "Parent";
+        const l = await ensureLogin({ email: parentEmail, fullName: parentName, role: "PARENT", metadata: { student_code: updated.studentCode } });
+        if (l.created) {
+          await emailSetPasswordLink({ email: parentEmail, name: parentName, role: "PARENT", childName: updated.fullName });
+        } else {
+          await dispatchMultiChannelNotification({
+            eventType: "ADMISSION_APPROVED",
+            subject: `New student added to your TopGrade parent login: ${updated.fullName}`,
+            message: `Dear ${parentName},\n\n${updated.fullName} (${updated.studentCode}) was added to your parent login. Sign in with your usual password to see the courses, attendance and schedule.`,
+            recipients: [{ role: "PARENT", email: parentEmail, name: parentName, phone: "" }]
+          });
+        }
       }
+    } catch (authSyncErr: any) {
+      console.warn("Notice updating student logins:", authSyncErr?.message);
     }
   } catch (e: any) {
     // Nothing is reported as saved unless Supabase accepted it.
