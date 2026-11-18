@@ -60,6 +60,7 @@ export function htmlToPlainText(html: string): string {
 
 let cachedTransporter: any = null;
 let lastTransporterCreds = "";
+let authRateLimitCooldownUntil = 0;
 
 function getTransporter(): { transporter: any; gmailUser: string } {
   if (process.env.SIMULATE_EMAILS === "true" || process.env.NODE_ENV === "test" || process.env.SIMULATE_MAILER === "true") {
@@ -69,6 +70,12 @@ function getTransporter(): { transporter: any; gmailUser: string } {
   const gmailUser = (process.env.GMAIL_USER || process.env.GMAIL_SENDER_EMAIL || "tglbiz101@gmail.com").trim();
   const gmailPass = (process.env.GMAIL_APP_PASSWORD || "").trim();
   const cleanPass = gmailPass.replace(/\s+/g, "");
+
+  if (authRateLimitCooldownUntil > Date.now()) {
+    const waitSec = Math.round((authRateLimitCooldownUntil - Date.now()) / 1000);
+    console.warn(`[NOTIFICATION] Google SMTP rate-limit cooldown active (${waitSec}s remaining). Pausing SMTP attempts so Google resets the lock.`);
+    return { transporter: null, gmailUser };
+  }
 
   if (gmailUser && cleanPass) {
     const credKey = `${gmailUser}:${cleanPass}`;
@@ -249,6 +256,10 @@ export async function dispatchMultiChannelNotification(payload: NotificationPayl
         dispatchedLogs.push(liveLog);
       } catch (err: any) {
         console.error(`❌ [GMAIL SMTP FAILURE] Could not send to ${emailTarget}:`, err.message);
+        if (err.message?.includes("454") || err.message?.includes("Too many login attempts")) {
+          authRateLimitCooldownUntil = Date.now() + 15 * 60 * 1000;
+          console.warn(`[NOTIFICATION] Triggered 15-minute cooldown to allow Google SMTP authentication rate-limit to clear.`);
+        }
         failed++;
         failures.push(`${emailTarget}: ${err.message}`);
         const fallbackLog = `⚠️ [GMAIL FAILED, NOT SENT] To: ${recipient.role} <${emailTarget}> | Subject: "${payload.subject}"`;
