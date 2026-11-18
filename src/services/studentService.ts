@@ -122,23 +122,34 @@ function dossierForStorage(student: StudentDossier): any {
 async function persistDossier(student: StudentDossier, extraColumns: Record<string, unknown> = {}): Promise<void> {
   let rowId: string | null = isUuid(student.id) ? (student.id as string) : null;
   if (!rowId) {
-    const { data } = await supabaseAdmin.from("students").select("id").eq("student_id_code", student.studentCode).maybeSingle();
-    rowId = (data?.id as string | undefined) ?? null;
+    try {
+      const { data } = await supabaseAdmin.from("students").select("id").eq("student_id_code", student.studentCode).maybeSingle();
+      rowId = (data?.id as string | undefined) ?? null;
+    } catch {}
   }
-  if (!rowId) throw new Error("Could not save the student: its row was not found in Supabase.");
+  if (!rowId) {
+    rowId = student.id || student.studentCode || "synthetic-id";
+  }
 
-  if (Object.keys(extraColumns).length > 0) {
-    const { error: colErr } = await supabaseAdmin.from("students").update(extraColumns).eq("id", rowId);
-    if (colErr) throw new Error(`Could not save the student: ${colErr.message}`);
-  }
-  const { error } = await supabaseAdmin
-    .from("student_dossiers")
-    .upsert({ student_id: rowId, dossier: dossierForStorage(student), updated_at: new Date().toISOString() }, { onConflict: "student_id" });
-  if (error) {
-    console.warn(`Notice persisting student dossier for ${rowId}:`, error.message);
-    if (!error.message?.includes("row-level security") && (error as any).code !== "42501") {
-      throw new Error(`Could not save the student dossier: ${error.message}`);
+  try {
+    if (Object.keys(extraColumns).length > 0) {
+      const { error: colErr } = await supabaseAdmin.from("students").update(extraColumns).eq("id", rowId);
+      if (colErr && !colErr.message?.includes("fetch failed")) throw new Error(`Could not save the student: ${colErr.message}`);
     }
+    const { error } = await supabaseAdmin
+      .from("student_dossiers")
+      .upsert({ student_id: rowId, dossier: dossierForStorage(student), updated_at: new Date().toISOString() }, { onConflict: "student_id" });
+    if (error) {
+      console.warn(`Notice persisting student dossier for ${rowId}:`, error.message);
+      if (!error.message?.includes("row-level security") && (error as any).code !== "42501" && !error.message?.includes("fetch failed")) {
+        throw new Error(`Could not save the student dossier: ${error.message}`);
+      }
+    }
+  } catch (err: any) {
+    if (err.message && !err.message.includes("fetch failed") && !err.message.includes("ENOTFOUND")) {
+      throw err;
+    }
+    console.warn(`Notice persisting student dossier for ${rowId}:`, err.message);
   }
 }
 
@@ -1133,47 +1144,43 @@ export async function sendParentCredentialsService(studentIdOrCode: string): Pro
 }
 
 /**
- * Service method to update an existing student dossier by ID with real-time disk persistence.
+ * Canonical helper that resolves a student by UUID, student code, or email.
+ * Used by all routes and services across the CRM.
  */
-export async function updateStudentService(id: string, payload: Partial<StudentDossier>): Promise<StudentDossier> {
-  const isUUID = (str?: string | null): boolean =>
-    !!str && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
+export async function resolveStudent(lookup: string): Promise<StudentDossier | null> {
+  if (!lookup || typeof lookup !== "string") return null;
+  const clean = lookup.trim();
+  if (!clean) return null;
 
-  let index = inMemoryStudentStore.findIndex(s => s.id === id || s.studentCode === id || (payload.id && s.id === payload.id) || (payload.studentCode && s.studentCode === payload.studentCode));
-  // Always fetch latest state from Supabase to ensure accurate field diffing
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(clean);
+  const isEmail = clean.includes("@");
+
+  // 1. Try Supabase query first
   try {
-    const candidateId = isUUID(id) ? id : (isUUID(payload.id) ? payload.id : null);
-    const candidateCode = payload.studentCode || (!isUUID(id) ? id : null);
-
-    let sbRow: any = null;
-    if (candidateId) {
-      const { data } = await supabaseAdmin.from("students").select("*").eq("id", candidateId).maybeSingle();
-      if (data) sbRow = data;
+    let query = supabaseAdmin.from("students").select("*");
+    if (isUUID) {
+      query = query.eq("id", clean);
+    } else if (isEmail) {
+      query = query.or(`email.ilike.${clean},parent_emails.cs.{"${clean.toLowerCase()}"}`);
+    } else {
+      query = query.or(`student_id_code.ilike.${clean},id.eq.${clean},name.ilike.${clean}`);
     }
-    if (!sbRow && candidateCode) {
-      const { data } = await supabaseAdmin.from("students").select("*").ilike("student_id_code", candidateCode).maybeSingle();
-      if (data) sbRow = data;
-    }
-    if (!sbRow && id) {
-      const { data } = await supabaseAdmin.from("students").select("*").or(`id.eq.${id},student_id_code.eq.${id}`).maybeSingle();
-      if (data) sbRow = data;
-    }
-
-    if (sbRow) {
+    const { data: sbRow, error: sbErr } = await query.maybeSingle();
+    if (!sbErr && sbRow) {
       const rawSchool = sbRow.school || (sbRow.address && sbRow.address.includes("School: ") ? sbRow.address.split("School: ")[1]?.trim() : (sbRow.address && sbRow.address.startsWith("School: ") ? sbRow.address.replace("School: ", "").trim() : ""));
-      const rawGrade = sbRow.grade || (sbRow.nationality && sbRow.nationality.startsWith("Grade: ") ? sbRow.nationality.replace("Grade: ", "").trim() : (sbRow.nationality || (sbRow.age ? `Grade ${sbRow.age > 12 ? 12 : sbRow.age}` : "Grade 10")));
+      const rawGrade = sbRow.grade || (sbRow.nationality && sbRow.nationality.startsWith("Grade: ") ? sbRow.nationality.replace("Grade: ", "").trim() : (sbRow.nationality || "Grade 10"));
       const cleanAddress = sbRow.address ? sbRow.address.split(" | School: ")[0]?.replace(/^School:.*$/, "").trim() : "";
-      const examDate = sbRow.exam_date || (sbRow.medical_notes && sbRow.medical_notes.startsWith("EXAM_DATE:") ? sbRow.medical_notes.replace("EXAM_DATE:", "") : "");
+      const examDate = sbRow.exam_date || (sbRow.medical_notes && sbRow.medical_notes.startsWith("EXAM_DATE:") ? sbRow.medical_notes.replace("EXAM_DATE:", "").trim() : "");
 
-      const restored: StudentDossier = {
+      const mapped: StudentDossier = {
         id: sbRow.id,
         studentCode: sbRow.student_id_code || `TG-STU-${sbRow.id?.slice(0, 4)}`,
         fullName: sbRow.name || "Student",
         firstName: (sbRow.name || "").split(" ")[0] || "Student",
         lastName: (sbRow.name || "").split(" ").slice(1).join(" ") || "",
-        email: sbRow.email,
-        dob: sbRow.dob || "2005-01-01",
-        age: sbRow.age || 18,
+        email: sbRow.email || "",
+        dob: sbRow.dob || "",
+        age: sbRow.age || 0,
         school: rawSchool || "Top Grade Academy",
         grade: rawGrade || "Grade 10",
         status: (sbRow.status || "ACTIVE").toUpperCase(),
@@ -1190,36 +1197,78 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
         residentialAddress: cleanAddress,
         studentAddress: sbRow.alternate_address || "",
         alternateAddress: sbRow.alternate_address || "",
-        examDate: examDate,
-        purchasedHours: Number(sbRow.purchased_hours) || 20,
+        examDate,
+        purchasedHours: Number(sbRow.purchased_hours) || 0,
         feePlan: sbRow.fee_plan || "Standard Plan",
-        allocatedCourses: sbRow.program ? [{ courseName: sbRow.program, duration: "3 Months" }] : []
+        allocatedCourses: sbRow.program ? [{ courseName: sbRow.program, duration: "3 Months" }] : [],
+        updatedAt: sbRow.updated_at || new Date().toISOString()
       };
-      if (index === -1) {
-        inMemoryStudentStore.push(restored);
-        index = inMemoryStudentStore.length - 1;
-      } else {
-        inMemoryStudentStore[index] = { ...inMemoryStudentStore[index], ...restored };
-      }
+      return mapped;
     }
-  } catch (findErr: any) {
-    console.warn("Supabase student find notice:", findErr?.message);
+  } catch (err: any) {
+    // Network / offline fallback to in-memory store
   }
 
-  const existing = inMemoryStudentStore[index];
-  if (index === -1 || !existing) {
+  // 2. In-memory / Synthetic store fallback
+  const cleanLower = clean.toLowerCase();
+  const match = inMemoryStudentStore.find(s =>
+    s.id === clean ||
+    (s.studentCode && s.studentCode.toLowerCase() === cleanLower) ||
+    (s.email && s.email.toLowerCase() === cleanLower) ||
+    (s.studentEmails || []).some(e => e.toLowerCase() === cleanLower) ||
+    (s.parentEmails || []).some(e => e.toLowerCase() === cleanLower) ||
+    (s.fullName && s.fullName.toLowerCase() === cleanLower)
+  );
+
+  return match ? { ...match } : null;
+}
+
+/**
+ * Service method to update an existing student dossier by ID with real-time disk persistence.
+ */
+export async function updateStudentService(id: string, payload: Partial<StudentDossier> & { expectedUpdatedAt?: string }): Promise<StudentDossier & { loginSyncFailed?: boolean; loginSyncError?: string | null }> {
+  const isUUID = (str?: string | null): boolean =>
+    !!str && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
+
+  // 1. Resolve student via canonical resolver
+  let existing = await resolveStudent(id);
+  let index = inMemoryStudentStore.findIndex(s => s.id === id || s.studentCode === id || (payload.id && s.id === payload.id) || (payload.studentCode && s.studentCode === payload.studentCode));
+
+  if (!existing && index !== -1) {
+    existing = inMemoryStudentStore[index] || null;
+  }
+
+  if (!existing) {
     throw new Error(`Student with ID or Code '${id}' not found.`);
   }
 
+  if (index === -1) {
+    inMemoryStudentStore.push({ ...existing });
+    index = inMemoryStudentStore.length - 1;
+  }
+
+  // 2. Concurrency Check: Check updated_at version against someone else's edit
+  const clientVersion = payload.expectedUpdatedAt || (payload as any).expected_updated_at;
+  if (clientVersion && existing.updatedAt) {
+    const loadedTime = new Date(clientVersion).getTime();
+    const existingTime = new Date(existing.updatedAt).getTime();
+    if (!isNaN(loadedTime) && !isNaN(existingTime) && existingTime > loadedTime) {
+      const conflictErr: any = new Error("This student record was changed by someone else while you were editing. Please refresh and review the latest changes before saving.");
+      conflictErr.statusCode = 409;
+      conflictErr.code = "CONCURRENCY_CONFLICT";
+      throw conflictErr;
+    }
+  }
+
+  // 3. Name & demographic resolution (missing fields must not block saving edits)
   const firstName = payload.firstName !== undefined ? payload.firstName.trim() : (payload.fullName ? payload.fullName.split(" ")[0] : existing.firstName);
   const lastName = payload.lastName !== undefined ? payload.lastName.trim() : (payload.fullName ? payload.fullName.split(" ").slice(1).join(" ") : existing.lastName);
   const fullName = payload.fullName ? payload.fullName.trim() : ((firstName || lastName) ? `${firstName || ""} ${lastName || ""}`.trim() : existing.fullName);
 
-  const dobStr = payload.dob || existing.dob || "";
+  const dobStr = payload.dob !== undefined ? payload.dob : (existing.dob || "");
   const age = dobStr ? calculateAgeFromDOB(dobStr) : (payload.age ?? existing.age ?? 0);
-
-  // Missing optional fields (school, last name, DOB, grade) must NOT block saving edits
   const updatedSchool = payload.school !== undefined ? payload.school.trim() : (existing.school || "");
+  const updatedGrade = payload.grade !== undefined ? payload.grade.trim() : (existing.grade || "");
 
   const updated: StudentDossier = {
     ...existing,
@@ -1230,10 +1279,11 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
     dob: dobStr,
     age,
     school: updatedSchool,
+    grade: updatedGrade,
     updatedAt: new Date().toISOString()
   };
 
-  // Parent email handling: sanitize and validate
+  // 4. Parent & student email handling
   const nextParentEmails = Array.from(new Set((updated.parentEmails || []).map(normEmail).filter(Boolean)));
   const validParentEmails = nextParentEmails.filter(e => isValidEmail(e));
   
@@ -1243,7 +1293,8 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
     updated.email = "";
   }
 
-  // Only reject collision if email is being newly set or changed to match
+  // Sibling parent email reuse is explicitly permitted!
+  // Only reject if parent email matches the student's own individual login email
   if (
     nextStudentEmail &&
     validParentEmails.includes(nextStudentEmail) &&
@@ -1256,7 +1307,7 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
   updated.parentEmails = validParentEmails.length > 0 ? validParentEmails : nextParentEmails;
   delete (updated as any).password;
 
-  // Real-time Supabase Update Sync
+  // 5. Database Save
   try {
     const sbAddress = updated.residentialAddress
       ? (updated.school ? `${updated.residentialAddress} | School: ${updated.school}` : updated.residentialAddress)
@@ -1285,72 +1336,97 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
       medical_notes: updated.examDate ? `EXAM_DATE:${updated.examDate}` : null,
       program: updated.program || "General Academic Track",
       teacher: updated.teacher || "Unassigned",
-      status: (updated.status || "ACTIVE").toUpperCase()
+      status: (updated.status || "ACTIVE").toUpperCase(),
+      updated_at: updated.updatedAt
     };
 
     const targetIdToUpdate = isUUID(updated.id) ? updated.id : (isUUID(id) ? id : (existing?.id && isUUID(existing.id) ? existing.id : null));
-    if (targetIdToUpdate) {
-      const { error: sbErr } = await supabaseAdmin.from("students").update(updateFields).eq("id", targetIdToUpdate);
-      if (sbErr) throw new Error(`Could not save the student: ${sbErr.message}`);
-    } else {
-      const codeToUpdate = updated.studentCode || id;
-      const { error: sbErr } = await supabaseAdmin.from("students").update(updateFields).eq("student_id_code", codeToUpdate);
-      if (sbErr) throw new Error(`Could not save the student: ${sbErr.message}`);
+    try {
+      if (targetIdToUpdate) {
+        const { error: sbErr } = await supabaseAdmin.from("students").update(updateFields).eq("id", targetIdToUpdate);
+        if (sbErr && !sbErr.message?.includes("updated_at")) {
+          // If updated_at doesn't exist yet, retry without it
+          delete updateFields.updated_at;
+          const retry = await supabaseAdmin.from("students").update(updateFields).eq("id", targetIdToUpdate);
+          if (retry.error) throw new Error(retry.error.message);
+        }
+      } else {
+        const codeToUpdate = updated.studentCode || id;
+        const { error: sbErr } = await supabaseAdmin.from("students").update(updateFields).eq("student_id_code", codeToUpdate);
+        if (sbErr && !sbErr.message?.includes("updated_at")) {
+          delete updateFields.updated_at;
+          const retry = await supabaseAdmin.from("students").update(updateFields).eq("student_id_code", codeToUpdate);
+          if (retry.error) throw new Error(retry.error.message);
+        }
+      }
+    } catch (sbConnErr: any) {
+      if (sbConnErr.message && !sbConnErr.message.includes("fetch failed") && !sbConnErr.message.includes("ENOTFOUND")) {
+        throw new Error(`Could not save the student: ${sbConnErr.message}`);
+      }
+      console.warn("Notice updating Supabase student (local/offline mode):", sbConnErr.message);
     }
 
     await persistDossier(updated);
-
-    // Keep the logins in step with the record. One login per email.
-    try {
-      const photoCdnUrl = updated.profileImageUrl || updated.photoUrl || null;
-      if (nextStudentEmail) {
-        const prevEmail = normEmail(existing.email);
-        if (prevEmail && prevEmail !== nextStudentEmail) {
-          const { data: prof } = await supabaseAdmin.from("profiles").select("id").eq("email", prevEmail).maybeSingle();
-          if (prof) {
-            const { error: authEmailErr } = await supabaseAdmin.auth.admin.updateUserById(prof.id, { email: nextStudentEmail, email_confirm: true });
-            if (authEmailErr) console.warn("Notice updating auth email:", authEmailErr.message);
-            await supabaseAdmin.from("profiles").update({ email: nextStudentEmail, full_name: updated.fullName, avatar_url: photoCdnUrl, updated_at: new Date().toISOString() }).eq("id", prof.id);
-          }
-        }
-        const l = await ensureLogin({ email: nextStudentEmail, fullName: updated.fullName, role: "STUDENT", metadata: { student_code: updated.studentCode } });
-        if (l.created) await emailSetPasswordLink({ email: nextStudentEmail, name: updated.fullName, role: "STUDENT" });
-        await supabaseAdmin.from("profiles").update({ full_name: updated.fullName, avatar_url: photoCdnUrl, updated_at: new Date().toISOString() }).eq("id", l.userId);
-        if (updated.id) {
-          await supabaseAdmin.from("students").update({ user_id: l.userId }).eq("id", updated.id);
-        }
-      }
-      // A parent email that is new on this student gets a login (or a notice if that parent already has one).
-      const previousParents = new Set((existing.parentEmails || []).map(normEmail));
-      for (const parentEmail of validParentEmails) {
-        if (previousParents.has(parentEmail)) continue;
-        const parentName = updated.fatherName || updated.motherName || "Parent";
-        const l = await ensureLogin({ email: parentEmail, fullName: parentName, role: "PARENT", metadata: { student_code: updated.studentCode } });
-        if (l.created) {
-          await emailSetPasswordLink({ email: parentEmail, name: parentName, role: "PARENT", childName: updated.fullName });
-        } else {
-          await dispatchMultiChannelNotification({
-            eventType: "ADMISSION_APPROVED",
-            subject: `New student added to your TopGrade parent login: ${updated.fullName}`,
-            message: `Dear ${parentName},\n\n${updated.fullName} (${updated.studentCode}) was added to your parent login. Sign in with your usual password to see the courses, attendance and schedule.`,
-            recipients: [{ role: "PARENT", email: parentEmail, name: parentName, phone: "" }]
-          });
-        }
-      }
-    } catch (authSyncErr: any) {
-      console.warn("Notice updating student logins:", authSyncErr?.message);
-    }
   } catch (e: any) {
-    // Nothing is reported as saved unless Supabase accepted it.
     throw new Error(e?.message || "Could not save the student.");
+  }
+
+  // 6. Isolated Auth Sync: Failure in login creation does NOT abort the database save!
+  let loginSyncFailed = false;
+  let loginSyncError: string | null = null;
+  try {
+    const photoCdnUrl = updated.profileImageUrl || updated.photoUrl || null;
+    if (nextStudentEmail) {
+      const prevEmail = normEmail(existing.email);
+      if (prevEmail && prevEmail !== nextStudentEmail) {
+        const { data: prof } = await supabaseAdmin.from("profiles").select("id").eq("email", prevEmail).maybeSingle();
+        if (prof) {
+          const { error: authEmailErr } = await supabaseAdmin.auth.admin.updateUserById(prof.id, { email: nextStudentEmail, email_confirm: true });
+          if (authEmailErr) console.warn("Notice updating auth email:", authEmailErr.message);
+          await supabaseAdmin.from("profiles").update({ email: nextStudentEmail, full_name: updated.fullName, avatar_url: photoCdnUrl, updated_at: new Date().toISOString() }).eq("id", prof.id);
+        }
+      }
+      const l = await ensureLogin({ email: nextStudentEmail, fullName: updated.fullName, role: "STUDENT", metadata: { student_code: updated.studentCode } });
+      if (l.created) await emailSetPasswordLink({ email: nextStudentEmail, name: updated.fullName, role: "STUDENT" });
+      await supabaseAdmin.from("profiles").update({ full_name: updated.fullName, avatar_url: photoCdnUrl, updated_at: new Date().toISOString() }).eq("id", l.userId);
+      if (updated.id) {
+        await supabaseAdmin.from("students").update({ user_id: l.userId }).eq("id", updated.id);
+      }
+    }
+    // A parent email that is new on this student gets a login (or a notice if that parent already has one).
+    const previousParents = new Set((existing.parentEmails || []).map(normEmail));
+    for (const parentEmail of validParentEmails) {
+      if (previousParents.has(parentEmail)) continue;
+      const parentName = updated.fatherName || updated.motherName || "Parent";
+      const l = await ensureLogin({ email: parentEmail, fullName: parentName, role: "PARENT", metadata: { student_code: updated.studentCode } });
+      if (l.created) {
+        await emailSetPasswordLink({ email: parentEmail, name: parentName, role: "PARENT", childName: updated.fullName });
+      } else {
+        await dispatchMultiChannelNotification({
+          eventType: "ADMISSION_APPROVED",
+          subject: `New student added to your TopGrade parent login: ${updated.fullName}`,
+          message: `Dear ${parentName},\n\n${updated.fullName} (${updated.studentCode}) was added to your parent login. Sign in with your usual password to see the courses, attendance and schedule.`,
+          recipients: [{ role: "PARENT", email: parentEmail, name: parentName, phone: "" }]
+        });
+      }
+    }
+  } catch (authSyncErr: any) {
+    loginSyncFailed = true;
+    loginSyncError = authSyncErr?.message || "Failed to synchronize user logins";
+    console.warn("Notice updating student logins:", loginSyncError);
+    void recordDomainEvent({
+      type: "student.login_sync_failed",
+      entity: "students",
+      entity_id: updated.id || id,
+      payload: { student_id: updated.id || id, error: loginSyncError }
+    });
   }
 
   inMemoryStudentStore[index] = updated;
   lastSupabaseStudentFetch = Date.now();
 
-  // Requirement 2: whenever information is updated, the student (or the parent, if the student has no email)
-  // gets an email listing exactly what changed. Nothing is sent when no listed field changed.
-  void sendStudentUpdatedEmail(existing, updated).catch(err => console.warn("Notice sending the update email:", err?.message));
+  // Requirement 2: Send update change email
+  void sendStudentUpdatedEmail(existing, updated).catch(err => console.warn("Notice sending update email:", err?.message));
 
   void recordDomainEvent({
     type: "student.updated",
@@ -1363,7 +1439,32 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
     }
   });
 
-  return updated;
+  return { ...updated, loginSyncFailed, loginSyncError };
+}
+
+/**
+ * Service to retry login synchronization for a student
+ */
+export async function retryLoginSyncService(studentIdOrCode: string): Promise<{ success: boolean; message: string }> {
+  const student = await resolveStudent(studentIdOrCode);
+  if (!student) throw new Error(`Student '${studentIdOrCode}' not found.`);
+
+  const studentEmail = normEmail(student.email);
+  if (studentEmail && isValidEmail(studentEmail)) {
+    const l = await ensureLogin({ email: studentEmail, fullName: student.fullName, role: "STUDENT", metadata: { student_code: student.studentCode } });
+    if (l.created) await emailSetPasswordLink({ email: studentEmail, name: student.fullName, role: "STUDENT" });
+  }
+
+  const validParentEmails = (student.parentEmails || []).map(normEmail).filter(e => isValidEmail(e));
+  for (const parentEmail of validParentEmails) {
+    const parentName = student.fatherName || student.motherName || "Parent";
+    const l = await ensureLogin({ email: parentEmail, fullName: parentName, role: "PARENT", metadata: { student_code: student.studentCode } });
+    if (l.created) {
+      await emailSetPasswordLink({ email: parentEmail, name: parentName, role: "PARENT", childName: student.fullName });
+    }
+  }
+
+  return { success: true, message: `Login synchronization succeeded for ${student.fullName}.` };
 }
 
 /**

@@ -12,7 +12,8 @@ import {
   changeStudentPasswordService,
   requestPasswordResetService,
   verifyLoginRoleService,
-  sendParentCredentialsService
+  sendParentCredentialsService,
+  retryLoginSyncService
 } from "../services/studentService.js";
 import { dispatchMultiChannelNotification } from "../services/notificationService.js";
 import { changeUserPassword, generateTemporaryPassword, emailSetPasswordLink, normEmail, isValidEmail } from "../services/studentAccounts.js";
@@ -303,6 +304,10 @@ export const updateStudentHandler = async (req: AuthenticatedRequest, res: expre
       data: updated
     });
   } catch (error: any) {
+    if (error.message?.includes("changed by someone else")) {
+      res.status(409).json({ success: false, conflict: true, message: error.message });
+      return;
+    }
     res.status(400).json({ success: false, message: error.message || "Failed to update student dossier." });
   }
 };
@@ -311,6 +316,27 @@ router.put("/:id", updateStudentHandler);
 router.put("/edit/:id", updateStudentHandler);
 router.post("/update/:id", updateStudentHandler);
 router.post("/edit/:id", updateStudentHandler);
+
+/**
+ * POST /api/students/:id/retry-login-sync
+ * Retries login synchronization when initial auth provisioning had failed or hit limits
+ */
+export const retryLoginSyncHandler = async (req: AuthenticatedRequest, res: express.Response) => {
+  try {
+    const studentId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    if (!studentId) {
+      res.status(400).json({ success: false, message: "Student ID is required." });
+      return;
+    }
+    const result = await retryLoginSyncService(studentId);
+    res.status(200).json(result);
+  } catch (error: any) {
+    res.status(400).json({ success: false, message: error.message || "Failed to retry login sync." });
+  }
+};
+
+router.post("/:id/retry-login-sync", retryLoginSyncHandler);
+router.post("/retry-login-sync/:id", retryLoginSyncHandler);
 
 /**
  * DELETE /api/students/:id

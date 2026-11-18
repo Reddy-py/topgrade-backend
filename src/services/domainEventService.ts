@@ -17,6 +17,13 @@ export type DomainEventType =
   | "student.created"
   | "student.updated"
   | "student.archived"
+  | "student.login_sync_failed"
+  | "duplicates.merged"
+  | "exam_wish.sent"
+  | "fee_due.created"
+  | "fee_due.reminded"
+  | "fee_due.paid"
+  | "fee_due.reconciled"
   | "teacher.updated"
   | "course.updated"
   | "announcement.created";
