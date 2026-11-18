@@ -4,7 +4,7 @@ import type { StudentDossier } from "./studentService.js";
 import { supabaseAdmin } from "../supabase.js";
 import { claimEmail, finishEmail, logEmail, listEmailLog, statusFromDispatch } from "./emailLog.js";
 import { instituteNow, instituteTimezone, isBirthdayToday } from "./instituteTime.js";
-import { studentContactEmails, studentOwnEmails } from "./studentNotices.js";
+import { studentContactEmails, studentOwnEmails, allStudentAndParentEmails } from "./studentNotices.js";
 import { parseEnvNumber } from "../utils/parseEnv.js";
 
 // The log of what was sent lives in the Supabase table email_log (see migration 20261012_email_log.sql).
@@ -157,7 +157,8 @@ export async function sendCourseExamNotification(student: StudentDossier, examDa
  * Returns true when the email went out (or was simulated because Gmail is not configured).
  */
 export async function sendBirthdayGreetings(student: StudentDossier, opts: { force?: boolean } = {}): Promise<boolean> {
-  const to = studentContactEmails(student);
+  const allEmails = allStudentAndParentEmails(student);
+  const to = allEmails.length > 0 ? allEmails : studentContactEmails(student);
   const key = student.id || student.studentCode || "";
   if (to.length === 0 || !key) return false;
 
@@ -351,14 +352,49 @@ export async function getBirthdayLogs() {
 }
 
 /**
+ * Builds HTML template for Admin daily digest when no birthdays are found on the scan day
+ */
+function buildNoBirthdaysTodayHtml(dateStr: string, activeStudentCount: number, teacherCount: number): string {
+  dateStr = escapeHtml(dateStr);
+  return `
+    <div style="font-family: 'Segoe UI', Tahoma, sans-serif; background: #f8fafc; padding: 25px; border-radius: 18px; border: 2px solid #cbd5e1;">
+      <div style="text-align: center; margin-bottom: 20px;">
+        <span style="font-size: 44px;">🎂 📋 ℹ️</span>
+        <h1 style="color: #1e293b; margin: 10px 0 5px 0; font-size: 24px;">Daily Birthday Scan: No Birthdays Today</h1>
+        <p style="color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; font-size: 12px; margin: 0;">Institute Date: ${dateStr} (${instituteTimezone()})</p>
+      </div>
+      <div style="background: #ffffff; padding: 25px; border-radius: 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); color: #334155; line-height: 1.7; font-size: 14px;">
+        <p>Dear Administrator,</p>
+        <p>The daily student and faculty birthday scan has completed for today, <strong>${dateStr}</strong> (${instituteTimezone()}).</p>
+        <div style="margin: 20px 0; padding: 18px; background: #f1f5f9; border-left: 4px solid #64748b; border-radius: 8px;">
+          <strong>📊 Scan Summary:</strong>
+          <ul style="margin: 8px 0 0 0; padding-left: 20px; font-size: 13px;">
+            <li><strong>Active Students Scanned:</strong> ${activeStudentCount}</li>
+            <li><strong>Teachers Scanned:</strong> ${teacherCount}</li>
+            <li><strong>Birthdays Today:</strong> 0</li>
+          </ul>
+        </div>
+        <p>No active students or faculty members have a birthday registered on file for today (${dateStr}). All daily academic schedule slots and regular operations remain active as scheduled.</p>
+        <p style="margin-top: 25px; font-weight: bold; color: #004ac6;">
+          Warm Regards,<br/>
+          <strong>Top Grade Learning Automated Engine</strong><br/>
+          <span style="font-size: 12px; color: #64748b; font-weight: normal;">tglbiz101@gmail.com</span>
+        </p>
+      </div>
+    </div>
+  `;
+}
+
+/**
  * Scans active students and teachers and sends the automatic emails that are due today in the institute's time zone:
  *  - birthdays (to the student's email, or the parent's if the student has none)
  *  - exam good-luck wishes (exam within 2 days)
  * Wishes go out from BIRTHDAY_SEND_HOUR (default 7) local time. Safe to run as often as you like:
  * the email_log table guarantees one email per person per day.
+ * If no birthdays are found today, an automated notification is sent to the admin (tglbiz101@gmail.com).
  */
 export async function runAutomatedEmailScan(
-  opts: { ignoreSendHour?: boolean } = {}
+  opts: { ignoreSendHour?: boolean; forceAdminDigest?: boolean } = {}
 ): Promise<{ birthdaysSent: number; examWishesSent: number; details: string[] }> {
   const now = instituteNow();
   const sendHour = parseEnvNumber("BIRTHDAY_SEND_HOUR", 7);
@@ -386,7 +422,7 @@ export async function runAutomatedEmailScan(
       try {
         if (await sendBirthdayGreetings(student)) {
           birthdaysSent++;
-          details.push(`🎂 Birthday email sent for ${student.fullName} (${student.studentCode}) to ${studentContactEmails(student).join(", ")}`);
+          details.push(`🎂 Birthday email sent for ${student.fullName} (${student.studentCode}) to ${allStudentAndParentEmails(student).join(", ")}`);
         }
       } catch (e: any) {
         details.push(`⚠️ Birthday for ${student.fullName} could not be processed: ${e?.message}`);
@@ -413,8 +449,10 @@ export async function runAutomatedEmailScan(
   }
 
   // Teachers' birthdays
+  let teacherCount = 0;
   try {
     const { data: teachersData } = await supabaseAdmin.from("teachers").select("*");
+    teacherCount = (teachersData || []).length;
     for (const t of (teachersData || []) as any[]) {
       const teacherDob = t.dob || t.date_of_birth || t.birth_date;
       const parsed = parseDobMonthAndDay(teacherDob);
@@ -427,6 +465,37 @@ export async function runAutomatedEmailScan(
     }
   } catch (tErr: any) {
     console.warn("Notice scanning teacher birthdays:", tErr?.message);
+  }
+
+  // C. Admin Notice: If NO birthdays found today, notify Admin
+  if (birthdaysSent === 0) {
+    const adminEmail = (process.env.ADMIN_EMAIL || process.env.GMAIL_USER || "tglbiz101@gmail.com").trim().toLowerCase();
+    let shouldSend = !!opts.forceAdminDigest || !!opts.ignoreSendHour;
+    let claimId: string | null = null;
+
+    if (!shouldSend) {
+      claimId = await claimEmail("NO_BIRTHDAY_ALERT", "admin", now.dateStr, [adminEmail], `🎂 Daily Birthday Scan: No Birthdays Today (${now.dateStr})`);
+      if (claimId) shouldSend = true;
+    }
+
+    if (shouldSend) {
+      const activeStudents = inMemoryStudentStore.filter(s => (s.status || "").toUpperCase() === "ACTIVE");
+      try {
+        const result = await dispatchMultiChannelNotification({
+          eventType: "ADMISSION_APPROVED",
+          subject: `🎂 Daily Birthday Scan: No Birthdays Today (${now.dateStr}) — Top Grade Learning`,
+          message: buildNoBirthdaysTodayHtml(now.dateStr, activeStudents.length, teacherCount),
+          recipients: [{ role: "ADMIN", email: adminEmail, name: "System Administrator", phone: "" }]
+        });
+        const status = statusFromDispatch(result);
+        if (claimId) await finishEmail(claimId, status, result.failures.join("; ") || undefined);
+        else await logEmail("NO_BIRTHDAY_ALERT", "admin", now.dateStr, [adminEmail], `🎂 Daily Birthday Scan: No Birthdays Today (${now.dateStr})`, status, result.failures.join("; ") || undefined);
+        details.push(`No birthdays found today (${now.dateStr}). Status update sent to admin ${adminEmail}.`);
+      } catch (adminErr: any) {
+        if (claimId) await finishEmail(claimId, "failed", adminErr?.message);
+        console.warn("Notice sending No Birthdays Today email to admin:", adminErr?.message);
+      }
+    }
   }
 
   return { birthdaysSent, examWishesSent, details };

@@ -12,13 +12,15 @@ const router = express.Router();
  */
 router.post(["/trigger-birthdays", "/scan-birthdays"], async (_req, res): Promise<any> => {
   try {
-    const result = await runAutomatedEmailScan({ ignoreSendHour: true });
+    const result = await runAutomatedEmailScan({ ignoreSendHour: true, forceAdminDigest: true });
     return res.status(200).json({
       success: true,
       sentCount: result.birthdaysSent,
       birthdaysSent: result.birthdaysSent,
       examWishesSent: result.examWishesSent,
-      message: `Birthday and exam email scan completed. ${result.birthdaysSent} birthday wishes sent today!`,
+      message: result.birthdaysSent > 0
+        ? `Birthday scan complete! ${result.birthdaysSent} birthday wishes dispatched today.`
+        : `Birthday scan complete: No birthdays today. Notification emailed to admin (tglbiz101@gmail.com).`,
       data: result
     });
   } catch (err: any) {
@@ -196,20 +198,117 @@ router.post("/send-exam-wishes", async (req, res): Promise<any> => {
 
 /**
  * POST /api/notifications/set-course-exam-date
- * Admin endpoint: Sets exam date for all students registered in a course,
- * and automatically sends exam notification emails to students & parents.
+ * Admin endpoint: Sets exam date for all students in a course OR customly for a single student,
+ * and automatically sends official exam notification emails to students & parents.
  */
 router.post("/set-course-exam-date", async (req: express.Request, res: express.Response): Promise<any> => {
   try {
-    const { courseName, examDate, sendEmail = true } = req.body || {};
-    if (!courseName || !examDate) {
-      return res.status(400).json({ success: false, error: "Course name and Exam Date are required." });
+    const { courseName, examDate, sendEmail = true, studentId, studentCode, studentEmail } = req.body || {};
+    if (!examDate) {
+      return res.status(400).json({ success: false, error: "Exam Date is required." });
+    }
+
+    // --- MODE A: SINGLE STUDENT CUSTOM SCHEDULE ---
+    const targetLookup = studentId || studentCode;
+    if (targetLookup || studentEmail) {
+      let targetStudent: any = null;
+      if (targetLookup) {
+        targetStudent = inMemoryStudentStore.find(
+          s => s.id === targetLookup || s.studentCode === targetLookup
+        );
+      }
+      if (!targetStudent && studentEmail) {
+        const cleanEmail = String(studentEmail).trim().toLowerCase();
+        targetStudent = inMemoryStudentStore.find(
+          s => (s.email && s.email.toLowerCase() === cleanEmail) ||
+               (s.studentEmails || []).some(e => e.toLowerCase() === cleanEmail)
+        );
+      }
+
+      // If not in memory store, check Supabase
+      if (!targetStudent && targetLookup) {
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(targetLookup);
+        const query = isUuid
+          ? supabaseAdmin.from("students").select("*").eq("id", targetLookup).maybeSingle()
+          : supabaseAdmin.from("students").select("*").ilike("student_id_code", targetLookup).maybeSingle();
+        const { data: sbRow } = await query;
+        if (sbRow) {
+          targetStudent = {
+            id: sbRow.id,
+            studentCode: sbRow.student_id_code,
+            fullName: sbRow.name || "Student",
+            email: sbRow.email || "",
+            studentEmails: sbRow.email ? [sbRow.email] : [],
+            parentEmails: Array.isArray(sbRow.parent_emails) ? sbRow.parent_emails : [],
+            school: sbRow.address?.split("School: ")?.[1] || "TopGrade",
+            dob: sbRow.dob || "",
+            program: sbRow.program || courseName || "Academic Curriculum",
+            status: sbRow.status || "ACTIVE"
+          };
+        }
+      }
+
+      if (!targetStudent) {
+        return res.status(404).json({ success: false, error: `Student '${targetLookup || studentEmail}' not found.` });
+      }
+
+      // Update in-memory
+      targetStudent.examDate = examDate;
+      targetStudent.updatedAt = new Date().toISOString();
+      saveStudentsToDisk();
+
+      // Update in Supabase
+      try {
+        await supabaseAdmin
+          .from("students")
+          .update({
+            medical_notes: `EXAM_DATE:${examDate}`,
+            exam_date: examDate
+          })
+          .eq("id", targetStudent.id);
+      } catch (sbErr: any) {
+        try {
+          await supabaseAdmin
+            .from("students")
+            .update({ medical_notes: `EXAM_DATE:${examDate}` })
+            .eq("id", targetStudent.id);
+        } catch {}
+      }
+
+      // Send official exam notice email
+      let emailDispatched = false;
+      if (sendEmail) {
+        const cName = courseName || targetStudent.program || "Academic Course";
+        emailDispatched = await sendCourseExamNotification(targetStudent, examDate, cName);
+      }
+
+      return res.status(200).json({
+        success: true,
+        mode: "SINGLE_STUDENT",
+        student: {
+          id: targetStudent.id,
+          name: targetStudent.fullName,
+          studentCode: targetStudent.studentCode,
+          examDate
+        },
+        studentsCount: 1,
+        emailsSent: emailDispatched ? 1 : 0,
+        message: `Official exam date '${examDate}' set for ${targetStudent.fullName}.${emailDispatched ? " Notification email dispatched to student, parents & admin from tglbiz101@gmail.com!" : ""}`
+      });
+    }
+
+    // --- MODE B: ENTIRE COURSE STREAM / ALL STUDENTS ---
+    if (!courseName) {
+      return res.status(400).json({ success: false, error: "Course name or specific Student is required." });
     }
 
     const cNameClean = courseName.trim().toLowerCase();
+    const isAll = cNameClean === "all" || cNameClean === "all courses" || cNameClean === "all students";
 
     // 1. Find all matching students in memory
     const matchedStudents = inMemoryStudentStore.filter(s => {
+      if ((s.status || "").toUpperCase() !== "ACTIVE") return false;
+      if (isAll) return true;
       const matchProgram = (s.program || "").trim().toLowerCase() === cNameClean || (s.program || "").toLowerCase().includes(cNameClean);
       const matchAllocated = (s.allocatedCourses || []).some(
         c => (c.courseName || "").trim().toLowerCase() === cNameClean || (c.courseName || "").toLowerCase().includes(cNameClean)
@@ -233,7 +332,7 @@ router.post("/set-course-exam-date", async (req: express.Request, res: express.R
       if (sbStudents && Array.isArray(sbStudents)) {
         for (const sbSt of sbStudents) {
           const prog = (sbSt.program || "").trim().toLowerCase();
-          if (prog === cNameClean || prog.includes(cNameClean)) {
+          if (isAll || prog === cNameClean || prog.includes(cNameClean)) {
             await supabaseAdmin
               .from("students")
               .update({ medical_notes: `EXAM_DATE:${examDate}` })
@@ -250,7 +349,8 @@ router.post("/set-course-exam-date", async (req: express.Request, res: express.R
     if (sendEmail) {
       for (const student of matchedStudents) {
         try {
-          const ok = await sendCourseExamNotification(student, examDate, courseName);
+          const effectiveCourse = isAll ? (student.program || "Academic Course") : courseName;
+          const ok = await sendCourseExamNotification(student, examDate, effectiveCourse);
           if (ok) emailsSent++;
         } catch (e) {
           console.warn(`Failed sending exam notice to ${student.fullName}:`, e);
@@ -260,9 +360,10 @@ router.post("/set-course-exam-date", async (req: express.Request, res: express.R
 
     return res.status(200).json({
       success: true,
+      mode: "COURSE",
       studentsCount: matchedStudents.length,
       emailsSent,
-      message: `Exam date '${examDate}' set for ${matchedStudents.length} students enrolled in '${courseName}'. ${emailsSent} notification emails dispatched from tglbiz101@gmail.com!`
+      message: `Exam date '${examDate}' set for ${matchedStudents.length} students ${isAll ? "across all courses" : `enrolled in '${courseName}'`}. ${emailsSent} notification emails dispatched from tglbiz101@gmail.com!`
     });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message });

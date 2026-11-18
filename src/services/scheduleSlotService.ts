@@ -158,7 +158,18 @@ export class ScheduleSlotService {
       query = query.eq("status", filters.status);
     }
 
-    const { data: rawSlots, error: slotsErr } = await query;
+    let { data: rawSlots, error: slotsErr } = await query;
+    if (slotsErr && (slotsErr.message?.includes("table 'public.schedules' in the schema cache") || slotsErr.code === "42P01")) {
+      let fallbackQuery = supabaseAdmin.from("schedule_slots").select("*").order("created_at", { ascending: true });
+      if (filters?.course_id && filters.course_id !== "ALL") fallbackQuery = fallbackQuery.eq("course_id", filters.course_id);
+      if (filters?.teacher_id && filters.teacher_id !== "ALL") fallbackQuery = fallbackQuery.eq("teacher_id", filters.teacher_id);
+      if (filters?.status && filters.status !== "ALL") fallbackQuery = fallbackQuery.eq("status", filters.status);
+      const fb = await fallbackQuery;
+      if (!fb.error && fb.data) {
+        rawSlots = fb.data;
+        slotsErr = null as any;
+      }
+    }
     if (slotsErr) {
       throw new Error(`Failed to list schedules: ${slotsErr.message}`);
     }
@@ -424,6 +435,15 @@ export class ScheduleSlotService {
       const retry = await supabaseAdmin.from("schedules").insert(insertPayload).select().maybeSingle();
       newSlot = retry.data;
       insertErr = retry.error;
+    }
+
+    // If schedules table missing in cache, fallback to schedule_slots
+    if (insertErr && (insertErr.message?.includes("table 'public.schedules' in the schema cache") || insertErr.code === "42P01")) {
+      const fallback = await supabaseAdmin.from("schedule_slots").insert(insertPayload).select().maybeSingle();
+      if (!fallback.error && fallback.data) {
+        newSlot = fallback.data;
+        insertErr = null as any;
+      }
     }
 
     if (insertErr) {
