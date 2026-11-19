@@ -310,7 +310,13 @@ export async function adminEnvironmentCheckHandler(_req: Request, res: Response)
       "token_orders",
       "token_ledger",
       "bank_transactions",
-      "stripe_processed_events"
+      "stripe_processed_events",
+      "domain_events",
+      "daily_job_claims",
+      "student_parents",
+      "student_exam_dates",
+      "fee_dues",
+      "fee_due_claims"
     ];
 
     const tableChecks: Record<string, boolean> = {};

@@ -3,6 +3,7 @@ import { ReceiptPdfService, type ReceiptDataInput } from "./receiptPdfService.js
 import { quoteEnrollment, type EnrollmentPlan } from "./pricing.js";
 import { generateReferenceCode } from "./bankReconciliationService.js";
 import { getCachedInstituteSettings, instituteAddress } from "./instituteSettingsService.js";
+import { inMemoryStudentStore } from "./studentService.js";
 
 /**
  * Class tokens. One class = one token, kept per student per course.
@@ -77,16 +78,31 @@ export async function findCourse(idOrName: string): Promise<CourseInfo | null> {
 export async function findStudent(idOrCode: string): Promise<StudentInfo | null> {
   const key = String(idOrCode ?? "").trim();
   if (!key) return null;
-  const q = supabaseAdmin.from("students").select("id, name, student_id_code, email, parent_emails");
-  const { data } = await (isUuid(key) ? q.eq("id", key) : q.eq("student_id_code", key)).maybeSingle();
-  if (!data) return null;
-  return {
-    id: data.id as string,
-    name: (data.name as string) || "",
-    code: (data.student_id_code as string) || "",
-    email: (data.email as string) || "",
-    parentEmails: Array.isArray(data.parent_emails) ? (data.parent_emails as string[]) : [],
-  };
+  try {
+    const q = supabaseAdmin.from("students").select("id, name, student_id_code, email, parent_emails");
+    const { data } = await (isUuid(key) ? q.eq("id", key) : q.eq("student_id_code", key)).maybeSingle();
+    if (data) {
+      return {
+        id: data.id as string,
+        name: (data.name as string) || "",
+        code: (data.student_id_code as string) || "",
+        email: (data.email as string) || "",
+        parentEmails: Array.isArray(data.parent_emails) ? (data.parent_emails as string[]) : [],
+      };
+    }
+  } catch {}
+
+  const mem = inMemoryStudentStore.find(s => s.id === key || s.studentCode === key);
+  if (mem) {
+    return {
+      id: mem.id,
+      name: mem.fullName,
+      code: mem.studentCode,
+      email: mem.email,
+      parentEmails: mem.parentEmails || []
+    };
+  }
+  return null;
 }
 
 /** The one place tokens change. Repeat-safe: the same (reason, ref) is applied only once. */

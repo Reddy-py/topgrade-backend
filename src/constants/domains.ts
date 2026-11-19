@@ -22,7 +22,16 @@ export function isPlaceholderEmail(email: unknown): boolean {
   if (!email || typeof email !== "string") return false;
   const clean = email.trim().toLowerCase();
   if (!clean.includes("@")) return false;
-  return KNOWN_PLACEHOLDER_DOMAINS.some(domain => clean.endsWith(`@${domain}`));
+  if (
+    clean.includes("placeholder") ||
+    clean.endsWith(".invalid") ||
+    clean.endsWith(".test") ||
+    clean.endsWith("@example.com") ||
+    clean.endsWith("@topgrade.local")
+  ) {
+    return true;
+  }
+  return KNOWN_PLACEHOLDER_DOMAINS.some(domain => clean.endsWith(`@${domain}`) || clean.endsWith(`.${domain}`));
 }
 
 export function isRealEmail(email: unknown): boolean {

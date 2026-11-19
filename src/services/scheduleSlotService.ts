@@ -161,17 +161,6 @@ export class ScheduleSlotService {
     }
 
     let { data: rawSlots, error: slotsErr } = await query;
-    if (slotsErr && (slotsErr.message?.includes("table 'public.schedules' in the schema cache") || slotsErr.code === "42P01")) {
-      let fallbackQuery = supabaseAdmin.from("schedule_slots").select("*").order("created_at", { ascending: true });
-      if (filters?.course_id && filters.course_id !== "ALL") fallbackQuery = fallbackQuery.eq("course_id", filters.course_id);
-      if (filters?.teacher_id && filters.teacher_id !== "ALL") fallbackQuery = fallbackQuery.eq("teacher_id", filters.teacher_id);
-      if (filters?.status && filters.status !== "ALL") fallbackQuery = fallbackQuery.eq("status", filters.status);
-      const fb = await fallbackQuery;
-      if (!fb.error && fb.data) {
-        rawSlots = fb.data;
-        slotsErr = null as any;
-      }
-    }
     if (slotsErr) {
       if (slotsErr.message?.includes("schema cache") || slotsErr.code === "42P01" || slotsErr.message?.includes("fetch failed")) {
         console.warn("Notice: schedules table query fallback to local store:", slotsErr.message);
@@ -450,18 +439,12 @@ export class ScheduleSlotService {
       insertErr = retry.error;
     }
 
-    // If schedules table missing in cache, fallback to schedule_slots or in-memory
+    // If schedules table missing in cache or offline, fallback to in-memory store
     if (insertErr && (insertErr.message?.includes("table 'public.schedules' in the schema cache") || insertErr.code === "42P01" || insertErr.message?.includes("fetch failed"))) {
-      const fallback = await supabaseAdmin.from("schedule_slots").insert(insertPayload).select().maybeSingle();
-      if (!fallback.error && fallback.data) {
-        newSlot = fallback.data;
-        insertErr = null as any;
-      } else {
-        console.warn("Notice: public.schedules not found in cache, persisting slot in memory fallback.");
-        newSlot = { id: slotId, ...insertPayload };
-        inMemoryScheduleStore.push(newSlot);
-        insertErr = null as any;
-      }
+      console.warn("Notice: public.schedules not found in cache, persisting slot in memory fallback.");
+      newSlot = { id: slotId, ...insertPayload };
+      inMemoryScheduleStore.push(newSlot);
+      insertErr = null as any;
     }
 
     if (insertErr) {

@@ -1,8 +1,13 @@
 import express from "express";
 import { studentContactEmails } from "../services/studentNotices.js";
 import { runAutomatedEmailScan, sendBirthdayGreetings, sendExamGoodLuckWishes, sendCourseExamNotification, getBirthdayLogs } from "../services/automatedEmailService.js";
-import { inMemoryStudentStore, saveStudentsToDisk } from "../services/studentService.js";
+import { inMemoryStudentStore, saveStudentsToDisk, resolveStudent } from "../services/studentService.js";
 import { supabaseAdmin } from "../supabase.js";
+import {
+  getStudentExamDatesService,
+  upsertStudentExamDateService,
+  sendSingleStudentExamWishService
+} from "../services/examDateService.js";
 
 const router = express.Router();
 
@@ -125,24 +130,82 @@ router.post("/trigger-exam-wishes", async (_req, res): Promise<any> => {
 });
 
 /**
+ * GET /api/notifications/student-exam-dates/:studentId
+ * Retrieve all course exam dates for a specific student
+ */
+router.get("/student-exam-dates/:studentId", async (req, res): Promise<any> => {
+  try {
+    const { studentId } = req.params;
+    const dates = await getStudentExamDatesService(studentId);
+    return res.status(200).json({ success: true, data: dates });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * POST /api/notifications/student-exam-dates
+ * Set or update a student's course exam date (never overwrites other courses)
+ */
+router.post("/student-exam-dates", async (req, res): Promise<any> => {
+  try {
+    const { studentId, courseId, examDate, notes } = req.body || {};
+    const record = await upsertStudentExamDateService({
+      studentId,
+      courseId,
+      examDate,
+      notes,
+      createdBy: (req as any).user?.id,
+    });
+    return res.status(200).json({ success: true, data: record });
+  } catch (err: any) {
+    return res.status(400).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * POST /api/notifications/send-1to1-exam-wish
+ * Send personal 1-to-1 good luck wish with recipient selection and editable message
+ */
+router.post("/send-1to1-exam-wish", async (req, res): Promise<any> => {
+  try {
+    const { studentId, courseId, examDate, recipientTypes, customMessage, forceResend } = req.body || {};
+    const result = await sendSingleStudentExamWishService({
+      studentId,
+      courseId,
+      examDate,
+      recipientTypes,
+      customMessage,
+      forceResend,
+    });
+    return res.status(200).json(result);
+  } catch (err: any) {
+    return res.status(400).json({ success: false, message: err.message });
+  }
+});
+
+/**
  * POST /api/notifications/send-exam-wish/:studentId
  * Send immediate good luck wish to specific student
  */
 router.post("/send-exam-wish/:studentId", async (req, res): Promise<any> => {
   try {
     const { studentId } = req.params;
-    const { examDate } = req.body || {};
-    const student = inMemoryStudentStore.find(s => s.id === studentId || s.studentCode === studentId);
+    const { examDate, courseId, recipientTypes, customMessage, forceResend } = req.body || {};
+    const student = await resolveStudent(studentId);
     if (!student) {
       return res.status(404).json({ success: false, error: "Student not found" });
     }
 
-    const dateToUse = examDate || student.examDate || new Date().toISOString().split("T")[0];
-    const ok = await sendExamGoodLuckWishes(student, dateToUse);
-    return res.status(200).json({
-      success: ok,
-      message: ok ? `Exam good luck email sent to ${student.fullName} and parents.` : "Failed to send exam email."
+    const result = await sendSingleStudentExamWishService({
+      studentId: student.id || studentId,
+      courseId,
+      examDate: examDate || student.examDate,
+      recipientTypes: recipientTypes || ["STUDENT", "PARENT"],
+      customMessage,
+      forceResend,
     });
+    return res.status(200).json(result);
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message });
   }

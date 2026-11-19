@@ -33,6 +33,7 @@ import upsellRouter from "./routes/upsell.js";
 import performanceRouter from "./routes/performance.js";
 import coursePackagesRouter from "./routes/coursePackages.js";
 import tokensRouter from "./routes/tokens.js";
+import duplicatesRouter from "./routes/duplicates.js";
 import { TimedEmailScheduler } from "./services/timedEmailScheduler.js";
 import { initializeAutomatedEmailScheduler } from "./services/automatedEmailService.js";
 import { authenticateJwt } from "./middleware/auth.js";
@@ -379,6 +380,7 @@ app.use("/api/monthly-notes", routeGuard("attendance.create"), monthlyNotesRoute
 app.use("/api/engagement", engagementRouter);
 app.use("/api/upsell", upsellRouter);
 app.use("/api/performance", performanceRouter);
+app.use("/api/duplicates", routeGuard("students.edit"), duplicatesRouter);
 app.get("/api/crm-info", routeGuard("dashboard.view"), async (_req, res) => {
   const [
     { count: totalStudents },
