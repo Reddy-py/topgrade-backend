@@ -340,7 +340,7 @@ export async function markFeeDuePaidService(params: {
       delta: due.hoursIncluded,
       reason: "MANUAL_CREDIT",
       ref: `FEE_DUE_${due.invoiceRef}`,
-      operatorUserId: params.adminUserId ?? null,
+      by: params.adminUserId ?? null,
       note: `Fee Payment Received (${params.paymentMethod.toUpperCase()} - ${receiptNo}): ${due.hoursIncluded} hours added`,
     });
   }
@@ -448,7 +448,7 @@ export async function unmarkFeeDuePaidService(params: {
       delta: -due.hoursCredited,
       reason: "ADJUSTMENT",
       ref: `FEE_DUE_REVERSAL_${due.invoiceRef}`,
-      operatorUserId: params.adminUserId ?? null,
+      by: params.adminUserId ?? null,
       note: `Payment Reversed for ${due.invoiceRef}. Reason: ${cleanReason}`,
     });
   }

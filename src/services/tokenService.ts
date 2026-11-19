@@ -95,11 +95,11 @@ export async function findStudent(idOrCode: string): Promise<StudentInfo | null>
   const mem = inMemoryStudentStore.find(s => s.id === key || s.studentCode === key);
   if (mem) {
     return {
-      id: mem.id,
-      name: mem.fullName,
-      code: mem.studentCode,
-      email: mem.email,
-      parentEmails: mem.parentEmails || []
+      id: String(mem.id || ""),
+      name: String(mem.fullName || ""),
+      code: String(mem.studentCode || ""),
+      email: String(mem.email || ""),
+      parentEmails: Array.isArray(mem.parentEmails) ? (mem.parentEmails as string[]) : []
     };
   }
   return null;
