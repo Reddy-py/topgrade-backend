@@ -24,6 +24,8 @@ export type DomainEventType =
   | "fee_due.reminded"
   | "fee_due.paid"
   | "fee_due.reconciled"
+  | "payment_request.paid"
+  | "payment_request.reversed"
   | "teacher.updated"
   | "course.updated"
   | "announcement.created";

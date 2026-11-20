@@ -225,6 +225,8 @@ export async function databaseHealthHandler(_req: Request, res: Response): Promi
 
 import { reconcileLedgerService } from "../services/reconciliationService.js";
 import { getDomainEventsHealth } from "../services/domainEventService.js";
+import { getCachedInstituteSettings } from "../services/instituteSettingsService.js";
+import { inMemoryAutomationPreviews } from "../services/automationService.js";
 
 /**
  * Admin-only system health metrics: includes latency, uptime, ledger reconciliation, domain outbox health, and detailed diagnostics.
@@ -247,6 +249,22 @@ export async function adminSystemHealthHandler(_req: Request, res: Response): Pr
     domainEventsHealth = { pendingCount: 0, failedCount: 0, error: dErr?.message };
   }
 
+  const settings = getCachedInstituteSettings();
+  const automationStatus = {
+    killSwitchActive: Boolean(settings.pause_all_automatic_emails),
+    lowHoursEmails: Boolean(settings.low_hours_emails),
+    paymentReminders: Boolean(settings.payment_reminders),
+    trialAutomation: Boolean(settings.trial_automation),
+    waitlist: Boolean(settings.waitlist),
+    onboardingChaser: Boolean(settings.onboarding_chaser),
+    winBack: Boolean(settings.win_back),
+    attendanceCare: Boolean(settings.attendance_care),
+    adminMorningDigest: Boolean(settings.admin_morning_digest),
+    bankAutoConfirm: Boolean(settings.bank_auto_confirm),
+    bankFeed: Boolean(settings.bank_feed),
+    previewsCount: inMemoryAutomationPreviews.length,
+  };
+
   res.status(statusCode).json({
     status: health.status,
     database: health.database,
@@ -256,6 +274,7 @@ export async function adminSystemHealthHandler(_req: Request, res: Response): Pr
     memoryUsage: process.memoryUsage(),
     ledgerReconciliation,
     domainEvents: domainEventsHealth,
+    automationStatus,
     timestamp: new Date().toISOString(),
     ...(health.error ? { error: health.error } : {})
   });
@@ -316,7 +335,14 @@ export async function adminEnvironmentCheckHandler(_req: Request, res: Response)
       "student_parents",
       "student_exam_dates",
       "fee_dues",
-      "fee_due_claims"
+      "fee_due_claims",
+      "payment_requests",
+      "payer_aliases",
+      "automation_previews",
+      "automation_claims",
+      "low_hours_crossings",
+      "trial_bookings",
+      "waitlist_entries"
     ];
 
     const tableChecks: Record<string, boolean> = {};

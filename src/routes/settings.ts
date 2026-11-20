@@ -311,6 +311,35 @@ router.put("/institute", async (req: Request, res: Response): Promise<any> => {
       updates.zelle_enabled = Boolean(body.zelle_enabled);
     }
 
+    // 15. TASK 22 Automation Rollout Safety Switches
+    if (body.low_hours_emails !== undefined) updates.low_hours_emails = Boolean(body.low_hours_emails);
+    if (body.payment_reminders !== undefined) updates.payment_reminders = Boolean(body.payment_reminders);
+    if (body.trial_automation !== undefined) updates.trial_automation = Boolean(body.trial_automation);
+    if (body.waitlist !== undefined) updates.waitlist = Boolean(body.waitlist);
+    if (body.onboarding_chaser !== undefined) updates.onboarding_chaser = Boolean(body.onboarding_chaser);
+    if (body.win_back !== undefined) updates.win_back = Boolean(body.win_back);
+    if (body.attendance_care !== undefined) updates.attendance_care = Boolean(body.attendance_care);
+    if (body.admin_morning_digest !== undefined) updates.admin_morning_digest = Boolean(body.admin_morning_digest);
+    if (body.bank_auto_confirm !== undefined) updates.bank_auto_confirm = Boolean(body.bank_auto_confirm);
+    if (body.bank_feed !== undefined) updates.bank_feed = Boolean(body.bank_feed);
+    if (body.pause_all_automatic_emails !== undefined) updates.pause_all_automatic_emails = Boolean(body.pause_all_automatic_emails);
+
+    if (body.low_hours_threshold !== undefined) updates.low_hours_threshold = Number(body.low_hours_threshold) || 2;
+    if (body.low_hours_recipients !== undefined) updates.low_hours_recipients = body.low_hours_recipients === "BOTH" ? "BOTH" : "STUDENT_ELSE_PARENT";
+    if (body.auto_confirm_limit !== undefined) updates.auto_confirm_limit = Number(body.auto_confirm_limit) || 500;
+    if (body.matching_date_window_days !== undefined) updates.matching_date_window_days = Number(body.matching_date_window_days) || 10;
+    if (body.request_expiry_days !== undefined) updates.request_expiry_days = Number(body.request_expiry_days) || 7;
+    if (body.overdue_reminders !== undefined) updates.overdue_reminders = Boolean(body.overdue_reminders);
+
+    if (body.admin_notification_emails !== undefined) {
+      if (Array.isArray(body.admin_notification_emails)) {
+        updates.admin_notification_emails = body.admin_notification_emails.map((e: any) => String(e).trim()).filter(Boolean);
+      }
+    }
+    if (body.zelle_recipient_name !== undefined) updates.zelle_recipient_name = String(body.zelle_recipient_name).trim();
+    if (body.zelle_instructions !== undefined) updates.zelle_instructions = String(body.zelle_instructions).trim();
+    if (body.saved_bank_csv_mappings !== undefined) updates.saved_bank_csv_mappings = body.saved_bank_csv_mappings;
+
     const updated = await updateInstituteSettings(updates);
     return res.json({
       success: true,

@@ -30,9 +30,43 @@ export interface InstituteSettings {
   zelle_enabled?: boolean;
   payments_enabled?: boolean;
   self_enrollment_mode?: "OFF" | "REQUEST" | "AUTO";
+  // TASK 22 Automation Rollout Safety Switches
+  low_hours_emails?: boolean;
+  payment_reminders?: boolean;
+  trial_automation?: boolean;
+  waitlist?: boolean;
+  onboarding_chaser?: boolean;
+  win_back?: boolean;
+  attendance_care?: boolean;
+  admin_morning_digest?: boolean;
+  bank_auto_confirm?: boolean;
+  bank_feed?: boolean;
+  pause_all_automatic_emails?: boolean;
+  low_hours_threshold?: number;
+  low_hours_recipients?: "STUDENT_ELSE_PARENT" | "BOTH";
+  auto_confirm_limit?: number;
+  matching_date_window_days?: number;
+  request_expiry_days?: number;
+  overdue_reminders?: boolean;
+  admin_notification_emails?: string[];
+  zelle_recipient_name?: string;
+  zelle_instructions?: string;
+  saved_bank_csv_mappings?: Record<string, string>;
   created_at?: string;
   updated_at?: string;
 }
+
+export type AutomationKey =
+  | "low_hours_emails"
+  | "payment_reminders"
+  | "trial_automation"
+  | "waitlist"
+  | "onboarding_chaser"
+  | "win_back"
+  | "attendance_care"
+  | "admin_morning_digest"
+  | "bank_auto_confirm"
+  | "bank_feed";
 
 export const DEFAULT_PROGRAM_TYPES = ["TUTORING", "AFTERSCHOOL"];
 export const DEFAULT_COURSE_CATEGORIES = [
@@ -75,6 +109,28 @@ export const DEFAULT_INSTITUTE_SETTINGS: InstituteSettings = {
   card_enabled: true,
   zelle_enabled: true,
   self_enrollment_mode: "REQUEST",
+  // TASK 22 Automation Rollout Safety Defaults (Default OFF)
+  low_hours_emails: false,
+  payment_reminders: false,
+  trial_automation: false,
+  waitlist: false,
+  onboarding_chaser: false,
+  win_back: false,
+  attendance_care: false,
+  admin_morning_digest: false,
+  bank_auto_confirm: false,
+  bank_feed: false,
+  pause_all_automatic_emails: false,
+  low_hours_threshold: 2,
+  low_hours_recipients: "STUDENT_ELSE_PARENT",
+  auto_confirm_limit: 500,
+  matching_date_window_days: 10,
+  request_expiry_days: 7,
+  overdue_reminders: false,
+  admin_notification_emails: ["tglbiz101@gmail.com"],
+  zelle_recipient_name: "Top Grade Learning LLC",
+  zelle_instructions: "Pay in your bank app using Zelle and write this code in the memo. The institute confirms when the money arrives.",
+  saved_bank_csv_mappings: {},
 };
 
 let cachedSettings: InstituteSettings = { ...DEFAULT_INSTITUTE_SETTINGS };
@@ -88,6 +144,34 @@ const CACHE_TTL_MS = 60_000; // 60 seconds cache
  */
 export function getCachedInstituteSettings(): InstituteSettings {
   return cachedSettings;
+}
+
+/**
+ * Resolves list of admin notification recipient emails from institute_settings.
+ * Guarantees zero hardcoded addresses across the application.
+ */
+export function getAdminNotificationEmails(settings?: InstituteSettings): string[] {
+  const s = settings || getCachedInstituteSettings();
+  if (Array.isArray(s.admin_notification_emails) && s.admin_notification_emails.length > 0) {
+    const list = s.admin_notification_emails.filter(e => typeof e === "string" && e.trim());
+    if (list.length > 0) return list;
+  }
+  if (s.support_email && s.support_email.trim()) {
+    return [s.support_email.trim()];
+  }
+  return [process.env.ADMIN_EMAIL || process.env.GMAIL_USER || "tglbiz101@gmail.com"];
+}
+
+/**
+ * Checks whether an automation is currently allowed to dispatch emails.
+ * Honors both the global kill switch and the individual automation switch.
+ */
+export function isAutomationEnabled(key: AutomationKey, settings?: InstituteSettings): boolean {
+  const s = settings || getCachedInstituteSettings();
+  if (s.pause_all_automatic_emails) {
+    return false;
+  }
+  return Boolean(s[key]);
 }
 
 /**

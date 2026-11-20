@@ -34,6 +34,8 @@ import performanceRouter from "./routes/performance.js";
 import coursePackagesRouter from "./routes/coursePackages.js";
 import tokensRouter from "./routes/tokens.js";
 import duplicatesRouter from "./routes/duplicates.js";
+import paymentRequestsRouter from "./routes/paymentRequests.js";
+import feeDuesRouter from "./routes/feeDues.js";
 import { TimedEmailScheduler } from "./services/timedEmailScheduler.js";
 import { initializeAutomatedEmailScheduler } from "./services/automatedEmailService.js";
 import { authenticateJwt } from "./middleware/auth.js";
@@ -381,6 +383,8 @@ app.use("/api/engagement", engagementRouter);
 app.use("/api/upsell", upsellRouter);
 app.use("/api/performance", performanceRouter);
 app.use("/api/duplicates", routeGuard("students.edit"), duplicatesRouter);
+app.use("/api/fee-dues", feeDuesRouter);
+app.use("/api/payment-requests", paymentRequestsRouter);
 app.get("/api/crm-info", routeGuard("dashboard.view"), async (_req, res) => {
   const [
     { count: totalStudents },
