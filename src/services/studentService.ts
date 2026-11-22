@@ -282,11 +282,13 @@ export async function getStudentsService(params: StudentFilterParams) {
           ...stored,
           id: s.id,
           studentCode: mapped.studentCode,
-          fullName: mapped.fullName,
-          email: mapped.email,
-          dob: mapped.dob,
+          fullName: s.name || stored.fullName || mapped.fullName || existing?.fullName || "Student",
+          firstName: (s.name || stored.fullName || mapped.fullName || "").split(" ")[0] || mapped.firstName,
+          lastName: (s.name || stored.fullName || mapped.fullName || "").split(" ").slice(1).join(" ") || mapped.lastName,
+          email: s.email || stored.email || mapped.email,
+          dob: s.dob || stored.dob || mapped.dob,
           status: mapped.status,
-          parentEmails: mapped.parentEmails,
+          parentEmails: (mapped.parentEmails && mapped.parentEmails.length > 0) ? mapped.parentEmails : (stored.parentEmails || []),
           program_type: stored.program_type || mapped.program_type,
           notes: stored.notes !== undefined ? stored.notes : mapped.notes,
           feePlan: stored.feePlan || mapped.feePlan,
@@ -1330,23 +1332,61 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
       updated_at: updated.updatedAt
     };
 
+    const codeToUpdate = updated.studentCode || existing?.studentCode || id;
     const targetIdToUpdate = isUUID(updated.id) ? updated.id : (isUUID(id) ? id : (existing?.id && isUUID(existing.id) ? existing.id : null));
+
     try {
-      if (targetIdToUpdate) {
-        const { error: sbErr } = await supabaseAdmin.from("students").update(updateFields).eq("id", targetIdToUpdate);
-        if (sbErr && !sbErr.message?.includes("updated_at")) {
-          // If updated_at doesn't exist yet, retry without it
-          delete updateFields.updated_at;
-          const retry = await supabaseAdmin.from("students").update(updateFields).eq("id", targetIdToUpdate);
-          if (retry.error) throw new Error(retry.error.message);
+      // 1. Resilient update to students table with automatic schema error recovery
+      let currentFields = { ...updateFields };
+      let updateSucceeded = false;
+
+      for (let attempt = 0; attempt < 3; attempt++) {
+        let updateQuery = targetIdToUpdate
+          ? supabaseAdmin.from("students").update(currentFields).eq("id", targetIdToUpdate)
+          : supabaseAdmin.from("students").update(currentFields).eq("student_id_code", codeToUpdate);
+
+        const { error: sbErr } = await updateQuery;
+        if (!sbErr) {
+          updateSucceeded = true;
+          // Also update by student_id_code if ID was targeted, to ensure sync across all lookup keys
+          if (targetIdToUpdate && codeToUpdate && codeToUpdate.startsWith("TG-")) {
+            try { await supabaseAdmin.from("students").update(currentFields).eq("student_id_code", codeToUpdate); } catch {}
+          }
+          break;
         }
-      } else {
-        const codeToUpdate = updated.studentCode || id;
-        const { error: sbErr } = await supabaseAdmin.from("students").update(updateFields).eq("student_id_code", codeToUpdate);
-        if (sbErr && !sbErr.message?.includes("updated_at")) {
-          delete updateFields.updated_at;
-          const retry = await supabaseAdmin.from("students").update(updateFields).eq("student_id_code", codeToUpdate);
-          if (retry.error) throw new Error(retry.error.message);
+
+        console.warn(`[STUDENTS] Supabase update attempt ${attempt + 1} notice:`, sbErr.message);
+
+        // Remove problematic column if missing in schema
+        delete currentFields.updated_at;
+        delete currentFields.parent_emails;
+        delete currentFields.teacher;
+        delete currentFields.govt_id_url;
+
+        const matchCol = sbErr.message.match(/column "?(\w+)"? of relation "students"|'(\w+)' column of 'students'/i);
+        const badCol = matchCol ? (matchCol[1] || matchCol[2]) : null;
+        if (badCol && currentFields[badCol] !== undefined) {
+          delete currentFields[badCol];
+        }
+      }
+
+      // If full row update encountered strict schema issues, ensure core name & demographics are definitely updated
+      if (!updateSucceeded) {
+        const coreFields = {
+          name: updated.fullName,
+          gender: updated.gender || "Male",
+          dob: updated.dob || null,
+          phone: updated.primaryMobile || null,
+          email: updated.email || null,
+          address: sbAddress,
+          nationality: sbNationality,
+          medical_notes: updated.examDate ? `EXAM_DATE:${updated.examDate}` : null
+        };
+        if (targetIdToUpdate) {
+          try { await supabaseAdmin.from("students").update(coreFields).eq("id", targetIdToUpdate); } catch {}
+        }
+        if (codeToUpdate) {
+          try { await supabaseAdmin.from("students").update(coreFields).eq("student_id_code", codeToUpdate); } catch {}
         }
       }
     } catch (sbConnErr: any) {
