@@ -872,8 +872,18 @@ router.get("/teacher-roster", async (req, res): Promise<any> => {
     const user = userOf(req);
     let ids: string[];
     if (user.role === "ADMIN") {
-      const { data } = await supabaseAdmin.from("token_wallets").select("student_id");
-      ids = Array.from(new Set((data || []).map((r: any) => r.student_id as string)));
+      let idsFromWallets: string[] = [];
+      try {
+        const { data } = await supabaseAdmin.from("token_wallets").select("student_id");
+        if (data) idsFromWallets = data.map((r: any) => r.student_id as string);
+      } catch {}
+      if (idsFromWallets.length === 0) {
+        try {
+          const { data: stuList } = await supabaseAdmin.from("students").select("id");
+          if (stuList) idsFromWallets = stuList.map((s: any) => s.id);
+        } catch {}
+      }
+      ids = Array.from(new Set(idsFromWallets)).filter(isUuid);
     } else {
       ids = Array.from((await getAccessScope(user)).studentKeys).filter(isUuid);
     }

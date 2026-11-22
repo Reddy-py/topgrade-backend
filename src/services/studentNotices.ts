@@ -89,12 +89,13 @@ function recipientsFor(student: StudentDossier, emails: string[]) {
 import { renderTemplate } from "./emailTemplateService.js";
 import { getAdminNotificationEmails } from "./instituteSettingsService.js";
 
-/** "Your details were registered" email to the student (or the parent if the student has no email). */
+/** "Your details were registered" email to both student, all parents, and admin. */
 export async function sendStudentAddedEmail(student: StudentDossier): Promise<void> {
-  const to = studentContactEmails(student);
+  const to = allStudentAndParentEmails(student);
   const key = student.id || student.studentCode || "";
   const { dateStr } = instituteNow();
-  if (to.length === 0 || !key) return;
+  const adminEmail = (process.env.ADMIN_EMAIL || "tglbiz101@gmail.com").trim();
+  if ((to.length === 0 && !adminEmail) || !key) return;
 
   try {
     let subject = `Registration confirmed: ${student.fullName} (${student.studentCode || ""})`;
@@ -110,11 +111,23 @@ export async function sendStudentAddedEmail(student: StudentDossier): Promise<vo
         program: student.program || "Standard Curriculum",
         courses: Array.isArray(student.allocatedCourses) ? student.allocatedCourses.map((c: any) => c.courseName).join(", ") : (student.program || "Standard Curriculum")
       });
-      if (!tpl.enabled) return;
-      subject = tpl.subject;
-      message = tpl.htmlBody;
+      if (tpl && tpl.enabled) {
+        subject = tpl.subject;
+        message = tpl.htmlBody;
+      }
     } catch {
       // Fallback to default text
+    }
+
+    const recipients = recipientsFor(student, to);
+
+    // Guarantee admin is always included
+    const adminEmails = await getAdminNotificationEmails();
+    const allAdmins = Array.from(new Set([adminEmail, ...adminEmails, "tglbiz101@gmail.com"].filter(Boolean)));
+    for (const ae of allAdmins) {
+      if (isRealEmail(ae) && !recipients.some(r => r.email.toLowerCase() === ae.toLowerCase())) {
+        recipients.push({ role: "ADMIN" as any, email: ae, name: "Administrator", phone: "" });
+      }
     }
 
     const result = await dispatchMultiChannelNotification({
@@ -122,7 +135,7 @@ export async function sendStudentAddedEmail(student: StudentDossier): Promise<vo
       subject,
       message,
       escapeMessage: false,
-      recipients: recipientsFor(student, to),
+      recipients,
     });
     await logEmail("NEW_STUDENT_REGISTERED", key, dateStr, to, subject, statusFromDispatch(result), result.failures.join("; ") || undefined, message);
   } catch (err: any) {

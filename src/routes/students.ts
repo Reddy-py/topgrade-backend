@@ -313,10 +313,25 @@ export const updateStudentHandler = async (req: AuthenticatedRequest, res: expre
   }
 };
 
+
+/**
+ * GET /api/students/parents/list
+ * Fetch registered parent profiles
+ */
+router.get("/parents/list", authenticateJwt, authorizePermission("parents.view"), async (_req: AuthenticatedRequest, res: express.Response) => {
+  res.status(200).json({
+    success: true,
+    data: [
+      { id: "prt-1", email: "venkat.reddy@gmail.com", full_name: "Venkat Reddy", phone: "+1 (555) 019-2834", role: "PARENT" },
+      { id: "prt-2", email: "rajesh.sharma@corp.com", full_name: "Rajesh Sharma", phone: "+1 (555) 019-2835", role: "PARENT" }
+    ]
+  });
+});
+
 router.get("/:id", async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
   try {
     const studentId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    if (!studentId) {
+    if (!studentId || studentId === "parents") {
       return res.status(400).json({ success: false, message: "Student ID is required." });
     }
     const student = await resolveStudent(studentId);
@@ -409,19 +424,6 @@ export const toggleStudentStatusHandler = async (req: AuthenticatedRequest, res:
 
 router.patch("/:id/status", toggleStudentStatusHandler);
 
-/**
- * GET /api/students/parents/list
- * Fetch registered parent profiles
- */
-router.get("/parents/list", authenticateJwt, authorizePermission("parents.view"), async (_req: AuthenticatedRequest, res: express.Response) => {
-  res.status(200).json({
-    success: true,
-    data: [
-      { id: "prt-1", email: "venkat.reddy@gmail.com", full_name: "Venkat Reddy", phone: "+1 (555) 019-2834", role: "PARENT" },
-      { id: "prt-2", email: "rajesh.sharma@corp.com", full_name: "Rajesh Sharma", phone: "+1 (555) 019-2835", role: "PARENT" }
-    ]
-  });
-});
 
 /**
  * POST /api/students/de-enroll/request

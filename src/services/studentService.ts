@@ -234,6 +234,24 @@ export async function getStudentsService(params: StudentFilterParams) {
         const examDate = s.exam_date || (s.medical_notes && s.medical_notes.startsWith("EXAM_DATE:") ? s.medical_notes.replace("EXAM_DATE:", "") : (existing?.examDate || ""));
         const rawProgramType = (s.program_type || (s.program && s.program.toUpperCase().includes("AFTERSCHOOL") ? "AFTERSCHOOL" : (s.program ? s.program.toUpperCase() : "TUTORING"))).toUpperCase();
         const notes = s.notes || (s.medical_notes && !s.medical_notes.startsWith("EXAM_DATE:") ? s.medical_notes : (existing?.notes || ""));
+        const stored = dossierById.get(s.id) || {};
+
+        const candidateParents = [
+          ...(Array.isArray(s.parent_emails) ? s.parent_emails : (typeof s.parent_emails === "string" ? s.parent_emails.split(",") : [])),
+          ...(Array.isArray(existing?.parentEmails) ? existing.parentEmails : []),
+          ...(Array.isArray(stored?.parentEmails) ? stored.parentEmails : [])
+        ];
+        const mergedParents = Array.from(new Set(candidateParents.map(e => String(e || "").trim().toLowerCase()).filter(e => e && isValidEmail(e))));
+
+        const candidateStudentMails = [
+          s.email,
+          existing?.email,
+          stored?.email,
+          ...(Array.isArray(s.student_emails) ? s.student_emails : (typeof s.student_emails === "string" ? s.student_emails.split(",") : [])),
+          ...(Array.isArray(existing?.studentEmails) ? existing.studentEmails : []),
+          ...(Array.isArray(stored?.studentEmails) ? stored.studentEmails : [])
+        ];
+        const mergedStudentMails = Array.from(new Set(candidateStudentMails.map(e => String(e || "").trim().toLowerCase()).filter(e => e && isValidEmail(e))));
 
         const mapped: any = {
           id: s.id,
@@ -241,7 +259,7 @@ export async function getStudentsService(params: StudentFilterParams) {
           fullName: s.name || s.full_name || s.fullName || existing?.fullName || "Student",
           firstName: (s.name || "").split(" ")[0] || existing?.firstName || "Student",
           lastName: (s.name || "").split(" ").slice(1).join(" ") || existing?.lastName || "",
-          email: s.email || existing?.email || "",
+          email: mergedStudentMails[0] || s.email || existing?.email || "",
           dob: s.dob || existing?.dob || "2005-01-01",
           age: s.age || existing?.age || 18,
           school: rawSchool || "Top Grade Academy",
@@ -254,10 +272,8 @@ export async function getStudentsService(params: StudentFilterParams) {
           parentPhones: s.parent_phones || existing?.parentPhones || (s.father_phone ? [s.father_phone] : (s.phone ? [s.phone] : [])),
           studentWhatsapp: s.student_whatsapp || existing?.studentWhatsapp || s.phone || "",
           parentWhatsapp: s.parent_whatsapp || existing?.parentWhatsapp || (s.father_phone ? [s.father_phone] : []),
-          studentEmails: s.student_emails || existing?.studentEmails || (s.email ? [s.email] : []),
-          parentEmails: (s.parent_emails && (Array.isArray(s.parent_emails) ? s.parent_emails.length > 0 : String(s.parent_emails).trim() !== ""))
-            ? (Array.isArray(s.parent_emails) ? s.parent_emails : String(s.parent_emails).split(",").map((e: string) => e.trim()).filter(Boolean))
-            : (existing?.parentEmails && existing.parentEmails.length > 0 ? existing.parentEmails : []),
+          studentEmails: mergedStudentMails,
+          parentEmails: mergedParents,
           fatherName: s.father_name || existing?.fatherName || "",
           motherName: s.mother_name || existing?.motherName || "",
           guardianName: s.guardian || existing?.guardianName || "",
@@ -276,7 +292,6 @@ export async function getStudentsService(params: StudentFilterParams) {
           paymentMethod: s.payment_method || existing?.paymentMethod || "Zelle",
           allocatedCourses: (s.allocated_courses && s.allocated_courses.length > 0) ? s.allocated_courses : (existing?.allocatedCourses && existing.allocatedCourses.length > 0 ? existing.allocatedCourses : (s.program ? [{ courseName: s.program, duration: "3 Months" }] : []))
         };
-        const stored = dossierById.get(s.id) || {};
         return {
           ...mapped,
           ...stored,
@@ -285,10 +300,11 @@ export async function getStudentsService(params: StudentFilterParams) {
           fullName: s.name || stored.fullName || mapped.fullName || existing?.fullName || "Student",
           firstName: (s.name || stored.fullName || mapped.fullName || "").split(" ")[0] || mapped.firstName,
           lastName: (s.name || stored.fullName || mapped.fullName || "").split(" ").slice(1).join(" ") || mapped.lastName,
-          email: s.email || stored.email || mapped.email,
+          email: mergedStudentMails[0] || s.email || stored.email || mapped.email,
+          studentEmails: mergedStudentMails,
           dob: s.dob || stored.dob || mapped.dob,
           status: mapped.status,
-          parentEmails: (mapped.parentEmails && mapped.parentEmails.length > 0) ? mapped.parentEmails : (stored.parentEmails || []),
+          parentEmails: mergedParents.length > 0 ? mergedParents : (stored.parentEmails || []),
           program_type: stored.program_type || mapped.program_type,
           notes: stored.notes !== undefined ? stored.notes : mapped.notes,
           feePlan: stored.feePlan || mapped.feePlan,
@@ -1178,16 +1194,33 @@ export async function resolveStudent(lookup: string): Promise<StudentDossier | n
 
       const inMem = inMemoryStudentStore.find(s => s.id === sbRow.id || s.studentCode === sbRow.student_id_code);
 
-      const rawParents = sbRow.parent_emails || dossierData.parentEmails || inMem?.parentEmails;
-      const parsedParents: string[] = Array.isArray(rawParents)
-        ? rawParents.filter(Boolean)
-        : (typeof rawParents === "string" ? rawParents.split(",").map((e: string) => e.trim()).filter(Boolean) : []);
+      // Extract and combine parent emails across all potential stores (never wiped by an empty array)
+      const allCandidateParents = [
+        ...(Array.isArray(sbRow.parent_emails) ? sbRow.parent_emails : (typeof sbRow.parent_emails === "string" ? sbRow.parent_emails.split(",") : [])),
+        ...(Array.isArray(dossierData.parentEmails) ? dossierData.parentEmails : (typeof dossierData.parentEmails === "string" ? dossierData.parentEmails.split(",") : [])),
+        ...(Array.isArray(inMem?.parentEmails) ? inMem.parentEmails : [])
+      ];
+      const parsedParents: string[] = Array.from(new Set(
+        allCandidateParents
+          .map(e => String(e || "").trim().toLowerCase())
+          .filter(e => e && isValidEmail(e))
+      ));
 
-      const studentMail = sbRow.email || dossierData.email || inMem?.email || "";
-      const rawStudentMails = sbRow.student_emails || dossierData.studentEmails || inMem?.studentEmails || (studentMail ? [studentMail] : []);
-      const parsedStudentMails: string[] = Array.isArray(rawStudentMails)
-        ? rawStudentMails.filter(Boolean)
-        : (typeof rawStudentMails === "string" ? rawStudentMails.split(",").map((e: string) => e.trim()).filter(Boolean) : (studentMail ? [studentMail] : []));
+      // Extract and combine student emails across all potential stores
+      const allCandidateStudentMails = [
+        sbRow.email,
+        dossierData.email,
+        inMem?.email,
+        ...(Array.isArray(sbRow.student_emails) ? sbRow.student_emails : (typeof sbRow.student_emails === "string" ? sbRow.student_emails.split(",") : [])),
+        ...(Array.isArray(dossierData.studentEmails) ? dossierData.studentEmails : (typeof dossierData.studentEmails === "string" ? dossierData.studentEmails.split(",") : [])),
+        ...(Array.isArray(inMem?.studentEmails) ? inMem.studentEmails : [])
+      ];
+      const parsedStudentMails: string[] = Array.from(new Set(
+        allCandidateStudentMails
+          .map(e => String(e || "").trim().toLowerCase())
+          .filter(e => e && isValidEmail(e))
+      ));
+      const studentMail = parsedStudentMails[0] || sbRow.email || dossierData.email || inMem?.email || "";
 
       const rawSchool = sbRow.school || (sbRow.address && sbRow.address.includes("School: ") ? sbRow.address.split("School: ")[1]?.trim() : (sbRow.address && sbRow.address.startsWith("School: ") ? sbRow.address.replace("School: ", "").trim() : (dossierData.school || "")));
       const rawGrade = sbRow.grade || (sbRow.nationality && sbRow.nationality.startsWith("Grade: ") ? sbRow.nationality.replace("Grade: ", "").trim() : (sbRow.nationality || dossierData.grade || "Grade 10"));
