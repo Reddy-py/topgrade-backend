@@ -1390,7 +1390,7 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
         }
       }
       const l = await ensureLogin({ email: nextStudentEmail, fullName: updated.fullName, role: "STUDENT", metadata: { student_code: updated.studentCode } });
-      if (l.created) await emailSetPasswordLink({ email: nextStudentEmail, name: updated.fullName, role: "STUDENT" });
+      if (l.created) void emailSetPasswordLink({ email: nextStudentEmail, name: updated.fullName, role: "STUDENT" }).catch(() => undefined);
       await supabaseAdmin.from("profiles").update({ full_name: updated.fullName, avatar_url: photoCdnUrl, updated_at: new Date().toISOString() }).eq("id", l.userId);
       if (updated.id) {
         await supabaseAdmin.from("students").update({ user_id: l.userId }).eq("id", updated.id);
@@ -1403,14 +1403,14 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
       const parentName = updated.fatherName || updated.motherName || "Parent";
       const l = await ensureLogin({ email: parentEmail, fullName: parentName, role: "PARENT", metadata: { student_code: updated.studentCode } });
       if (l.created) {
-        await emailSetPasswordLink({ email: parentEmail, name: parentName, role: "PARENT", childName: updated.fullName });
+        void emailSetPasswordLink({ email: parentEmail, name: parentName, role: "PARENT", childName: updated.fullName }).catch(() => undefined);
       } else {
-        await dispatchMultiChannelNotification({
+        void dispatchMultiChannelNotification({
           eventType: "ADMISSION_APPROVED",
           subject: `New student added to your TopGrade parent login: ${updated.fullName}`,
           message: `Dear ${parentName},\n\n${updated.fullName} (${updated.studentCode}) was added to your parent login. Sign in with your usual password to see the courses, attendance and schedule.`,
           recipients: [{ role: "PARENT", email: parentEmail, name: parentName, phone: "" }]
-        });
+        }).catch(() => undefined);
       }
     }
   } catch (authSyncErr: any) {

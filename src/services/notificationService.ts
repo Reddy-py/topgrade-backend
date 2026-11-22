@@ -92,6 +92,9 @@ function getTransporter(): { transporter: any; gmailUser: string } {
           user: gmailUser,
           pass: cleanPass,
         },
+        connectionTimeout: 6000,
+        greetingTimeout: 6000,
+        socketTimeout: 8000,
       });
       lastTransporterCreds = credKey;
       return { transporter: cachedTransporter, gmailUser };
@@ -237,7 +240,7 @@ export async function dispatchMultiChannelNotification(payload: NotificationPayl
           mailHeaders["List-Unsubscribe"] = `<${payload.unsubLink}>`;
         }
 
-        await transporter.sendMail({
+        const sendPromise = transporter.sendMail({
           from: `"${escapeHtml(getCachedInstituteSettings().institute_name || "Top Grade Learning")}" <${senderAddress}>`,
           replyTo: getCachedInstituteSettings().support_email || senderAddress,
           to: emailTarget,
@@ -247,6 +250,12 @@ export async function dispatchMultiChannelNotification(payload: NotificationPayl
           attachments: payload.attachments,
           headers: Object.keys(mailHeaders).length > 0 ? mailHeaders : undefined
         });
+
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("SMTP socket timeout after 7 seconds")), 7000)
+        );
+
+        await Promise.race([sendPromise, timeoutPromise]);
 
         sent++;
         const liveLog = `✅ [REAL GMAIL SENT] To: ${recipient.role} <${emailTarget}> | Subject: "${payload.subject}"`;

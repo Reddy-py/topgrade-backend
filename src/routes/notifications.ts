@@ -350,15 +350,16 @@ router.post("/set-course-exam-date", async (req: express.Request, res: express.R
         } catch {}
       }
 
-      // Send official exam notice email
-      let emailDispatched = false;
+      // Send official exam notice email asynchronously so response is instant and never hangs
       const isSimulated = process.env.SIMULATE_EMAILS === "true";
       if (sendEmail) {
         const cName = courseName || targetStudent.program || "Academic Course";
-        emailDispatched = await sendCourseExamNotification(targetStudent, examDate, cName);
+        void sendCourseExamNotification(targetStudent, examDate, cName).catch(err => {
+          console.warn("[EXAM_NOTICE] Background email delivery notice:", err.message);
+        });
       }
 
-      const emailNote = emailDispatched
+      const emailNote = sendEmail
         ? isSimulated
           ? " Notification email logged in SIMULATION mode (set SIMULATE_EMAILS=false in server environment to deliver live emails)."
           : " Live notification email dispatched to student, parents & admin from tglbiz101@gmail.com! (Note: In Gmail, self-sent copies appear in the 'Sent' folder)."
@@ -374,7 +375,7 @@ router.post("/set-course-exam-date", async (req: express.Request, res: express.R
           examDate
         },
         studentsCount: 1,
-        emailsSent: emailDispatched ? 1 : 0,
+        emailsSent: sendEmail ? 1 : 0,
         simulated: isSimulated,
         message: `Official exam date '${examDate}' set for ${targetStudent.fullName}.${emailNote}`
       });
