@@ -1249,7 +1249,7 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
 
   // 2. Concurrency Check: Check updated_at version against someone else's edit
   const clientVersion = payload.expectedUpdatedAt || (payload as any).expected_updated_at;
-  const isForce = (payload as any).force === true || (payload as any).overwrite === true;
+  const isForce = (payload as any).force === true || (payload as any).overwrite === true || (payload as any).forceOverwrite === true;
   if (clientVersion && existing.updatedAt && !isForce) {
     const loadedTime = new Date(clientVersion).getTime();
     const existingTime = new Date(existing.updatedAt).getTime();
