@@ -1165,44 +1165,64 @@ export async function resolveStudent(lookup: string): Promise<StudentDossier | n
     } else if (isEmail) {
       query = query.or(`email.ilike.${clean},parent_emails.cs.{"${clean.toLowerCase()}"}`);
     } else {
-      query = query.or(`student_id_code.ilike.${clean},id.eq.${clean},name.ilike.${clean}`);
+      query = query.or(`student_id_code.ilike.${clean},name.ilike.${clean}`);
     }
     const { data: sbRow, error: sbErr } = await query.maybeSingle();
     if (!sbErr && sbRow) {
-      const rawSchool = sbRow.school || (sbRow.address && sbRow.address.includes("School: ") ? sbRow.address.split("School: ")[1]?.trim() : (sbRow.address && sbRow.address.startsWith("School: ") ? sbRow.address.replace("School: ", "").trim() : ""));
-      const rawGrade = sbRow.grade || (sbRow.nationality && sbRow.nationality.startsWith("Grade: ") ? sbRow.nationality.replace("Grade: ", "").trim() : (sbRow.nationality || "Grade 10"));
-      const cleanAddress = sbRow.address ? sbRow.address.split(" | School: ")[0]?.replace(/^School:.*$/, "").trim() : "";
-      const examDate = sbRow.exam_date || (sbRow.medical_notes && sbRow.medical_notes.startsWith("EXAM_DATE:") ? sbRow.medical_notes.replace("EXAM_DATE:", "").trim() : "");
+      // Also fetch from student_dossiers for contact emails and full details
+      let dossierData: any = {};
+      try {
+        const { data: dRow } = await supabaseAdmin.from("student_dossiers").select("dossier").eq("student_id", sbRow.id).maybeSingle();
+        if (dRow?.dossier) dossierData = dRow.dossier;
+      } catch {}
+
+      const inMem = inMemoryStudentStore.find(s => s.id === sbRow.id || s.studentCode === sbRow.student_id_code);
+
+      const rawParents = sbRow.parent_emails || dossierData.parentEmails || inMem?.parentEmails;
+      const parsedParents: string[] = Array.isArray(rawParents)
+        ? rawParents.filter(Boolean)
+        : (typeof rawParents === "string" ? rawParents.split(",").map((e: string) => e.trim()).filter(Boolean) : []);
+
+      const studentMail = sbRow.email || dossierData.email || inMem?.email || "";
+      const rawStudentMails = sbRow.student_emails || dossierData.studentEmails || inMem?.studentEmails || (studentMail ? [studentMail] : []);
+      const parsedStudentMails: string[] = Array.isArray(rawStudentMails)
+        ? rawStudentMails.filter(Boolean)
+        : (typeof rawStudentMails === "string" ? rawStudentMails.split(",").map((e: string) => e.trim()).filter(Boolean) : (studentMail ? [studentMail] : []));
+
+      const rawSchool = sbRow.school || (sbRow.address && sbRow.address.includes("School: ") ? sbRow.address.split("School: ")[1]?.trim() : (sbRow.address && sbRow.address.startsWith("School: ") ? sbRow.address.replace("School: ", "").trim() : (dossierData.school || "")));
+      const rawGrade = sbRow.grade || (sbRow.nationality && sbRow.nationality.startsWith("Grade: ") ? sbRow.nationality.replace("Grade: ", "").trim() : (sbRow.nationality || dossierData.grade || "Grade 10"));
+      const cleanAddress = sbRow.address ? sbRow.address.split(" | School: ")[0]?.replace(/^School:.*$/, "").trim() : (dossierData.residentialAddress || "");
+      const examDate = sbRow.exam_date || (sbRow.medical_notes && sbRow.medical_notes.startsWith("EXAM_DATE:") ? sbRow.medical_notes.replace("EXAM_DATE:", "").trim() : (dossierData.examDate || ""));
 
       const mapped: StudentDossier = {
         id: sbRow.id,
         studentCode: sbRow.student_id_code || `TG-STU-${sbRow.id?.slice(0, 4)}`,
-        fullName: sbRow.name || "Student",
-        firstName: (sbRow.name || "").split(" ")[0] || "Student",
-        lastName: (sbRow.name || "").split(" ").slice(1).join(" ") || "",
-        email: sbRow.email || "",
-        dob: sbRow.dob || "",
-        age: sbRow.age || 0,
+        fullName: sbRow.name || dossierData.fullName || "Student",
+        firstName: (sbRow.name || "").split(" ")[0] || dossierData.firstName || "Student",
+        lastName: (sbRow.name || "").split(" ").slice(1).join(" ") || dossierData.lastName || "",
+        email: studentMail,
+        dob: sbRow.dob || dossierData.dob || "",
+        age: sbRow.age || dossierData.age || 0,
         school: rawSchool || "Top Grade Academy",
         grade: rawGrade || "Grade 10",
-        status: (sbRow.status || "ACTIVE").toUpperCase(),
-        primaryMobile: sbRow.phone || "",
-        studentPhones: sbRow.phone ? [sbRow.phone] : [],
-        parentPhones: sbRow.father_phone ? [sbRow.father_phone] : [],
-        studentEmails: sbRow.email ? [sbRow.email] : [],
-        parentEmails: Array.isArray(sbRow.parent_emails) ? sbRow.parent_emails : [],
-        fatherName: sbRow.father_name || "",
-        motherName: sbRow.mother_name || "",
-        guardianName: sbRow.guardian || "",
-        program: sbRow.program || "",
-        teacher: sbRow.teacher || "",
+        status: (sbRow.status || dossierData.status || "ACTIVE").toUpperCase(),
+        primaryMobile: sbRow.phone || dossierData.primaryMobile || "",
+        studentPhones: sbRow.phone ? [sbRow.phone] : (dossierData.studentPhones || []),
+        parentPhones: sbRow.father_phone ? [sbRow.father_phone] : (dossierData.parentPhones || []),
+        studentEmails: parsedStudentMails,
+        parentEmails: parsedParents,
+        fatherName: sbRow.father_name || dossierData.fatherName || "",
+        motherName: sbRow.mother_name || dossierData.motherName || "",
+        guardianName: sbRow.guardian || dossierData.guardianName || "",
+        program: sbRow.program || dossierData.program || "",
+        teacher: sbRow.teacher || dossierData.teacher || "",
         residentialAddress: cleanAddress,
-        studentAddress: sbRow.alternate_address || "",
-        alternateAddress: sbRow.alternate_address || "",
+        studentAddress: sbRow.alternate_address || dossierData.studentAddress || "",
+        alternateAddress: sbRow.alternate_address || dossierData.alternateAddress || "",
         examDate,
-        purchasedHours: Number(sbRow.purchased_hours) || 0,
-        feePlan: sbRow.fee_plan || "Standard Plan",
-        allocatedCourses: sbRow.program ? [{ courseName: sbRow.program, duration: "3 Months" }] : [],
+        purchasedHours: Number(sbRow.purchased_hours) || dossierData.purchasedHours || 0,
+        feePlan: sbRow.fee_plan || dossierData.feePlan || "Standard Plan",
+        allocatedCourses: sbRow.program ? [{ courseName: sbRow.program, duration: "3 Months" }] : (dossierData.allocatedCourses || []),
         updatedAt: sbRow.updated_at || new Date().toISOString()
       };
       return mapped;
@@ -1275,28 +1295,36 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
     updatedAt: new Date().toISOString()
   };
 
-  // 4. Parent & student email handling
-  const nextParentEmails = Array.from(new Set((updated.parentEmails || []).map(normEmail).filter(Boolean)));
-  const validParentEmails = nextParentEmails.filter(e => isValidEmail(e));
-  
-  let nextStudentEmail = normEmail(updated.email);
-  if (nextStudentEmail && !isValidEmail(nextStudentEmail)) {
-    nextStudentEmail = "";
-    updated.email = "";
+  // 4. Parent & student email handling: Preserve existing emails if edit form didn't re-specify them
+  const incomingParentEmails = Array.from(new Set((payload.parentEmails || []).map(normEmail).filter(Boolean)));
+  const validIncomingParents = incomingParentEmails.filter(e => isValidEmail(e));
+  const effectiveParentEmails = validIncomingParents.length > 0
+    ? validIncomingParents
+    : (existing.parentEmails || []).map(normEmail).filter(e => Boolean(e) && isValidEmail(e)) as string[];
+
+  let nextStudentEmail = normEmail(payload.email || updated.email);
+  if (!nextStudentEmail || !isValidEmail(nextStudentEmail)) {
+    nextStudentEmail = normEmail(existing.email) || "";
   }
+  updated.email = nextStudentEmail;
+  updated.studentEmails = Array.from(new Set([
+    ...(payload.studentEmails || []).map(normEmail).filter(Boolean),
+    ...(existing.studentEmails || []).map(normEmail).filter(Boolean),
+    ...(nextStudentEmail ? [nextStudentEmail] : [])
+  ].filter(Boolean) as string[]));
 
   // Sibling parent email reuse is explicitly permitted!
   // Only reject if parent email matches the student's own individual login email
   if (
     nextStudentEmail &&
-    validParentEmails.includes(nextStudentEmail) &&
+    effectiveParentEmails.includes(nextStudentEmail) &&
     (payload.email || payload.parentEmails)
   ) {
     if (payload.email && payload.email !== existing.email) {
       throw new Error("A parent email must be different from the student's own email, because each email is one login.");
     }
   }
-  updated.parentEmails = validParentEmails.length > 0 ? validParentEmails : nextParentEmails;
+  updated.parentEmails = effectiveParentEmails;
   delete (updated as any).password;
 
   // 5. Database Save
@@ -1425,7 +1453,7 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
     }
     // A parent email that is new on this student gets a login (or a notice if that parent already has one).
     const previousParents = new Set((existing.parentEmails || []).map(normEmail));
-    for (const parentEmail of validParentEmails) {
+    for (const parentEmail of effectiveParentEmails) {
       if (previousParents.has(parentEmail)) continue;
       const parentName = updated.fatherName || updated.motherName || "Parent";
       const l = await ensureLogin({ email: parentEmail, fullName: parentName, role: "PARENT", metadata: { student_code: updated.studentCode } });

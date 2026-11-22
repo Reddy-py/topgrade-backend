@@ -173,11 +173,35 @@ export async function sendStudentUpdatedEmail(before: StudentDossier, after: Stu
       // Fallback
     }
 
-    const recipients = recipientsFor(after, to);
+    // Merge recipient emails from after AND before to guarantee no contact email is dropped
+    const combinedEmails = Array.from(new Set([
+      ...allStudentAndParentEmails(after),
+      ...allStudentAndParentEmails(before),
+      ...((after.studentEmails || []).map(realEmail).filter(Boolean) as string[]),
+      ...((before.studentEmails || []).map(realEmail).filter(Boolean) as string[]),
+      ...((after.parentEmails || []).map(realEmail).filter(Boolean) as string[]),
+      ...((before.parentEmails || []).map(realEmail).filter(Boolean) as string[]),
+      ...(after.email && isRealEmail(after.email) ? [normEmail(after.email)!] : []),
+      ...(before.email && isRealEmail(before.email) ? [normEmail(before.email)!] : []),
+    ]));
+
+    const recipients = recipientsFor(after, combinedEmails);
+
     // Guarantee student email is always included if valid
-    const cleanStudentEmail = realEmail(after.email);
+    const cleanStudentEmail = realEmail(after.email) || realEmail(before.email);
     if (cleanStudentEmail && !recipients.some(r => r.email.toLowerCase() === cleanStudentEmail.toLowerCase())) {
       recipients.push({ role: "STUDENT", email: cleanStudentEmail, name: after.fullName, phone: after.primaryMobile || "" });
+    }
+
+    // Guarantee parent email(s) are always included if valid
+    const effectiveParents = [
+      ...((after.parentEmails || []).map(realEmail).filter(Boolean) as string[]),
+      ...((before.parentEmails || []).map(realEmail).filter(Boolean) as string[])
+    ];
+    for (const pe of effectiveParents) {
+      if (isRealEmail(pe) && !recipients.some(r => r.email.toLowerCase() === pe.toLowerCase())) {
+        recipients.push({ role: "PARENT", email: pe, name: `Parent of ${after.fullName}`, phone: "" });
+      }
     }
 
     // Guarantee admin email(s) are always included

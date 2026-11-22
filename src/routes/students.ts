@@ -13,7 +13,8 @@ import {
   requestPasswordResetService,
   verifyLoginRoleService,
   sendParentCredentialsService,
-  retryLoginSyncService
+  retryLoginSyncService,
+  resolveStudent
 } from "../services/studentService.js";
 import { dispatchMultiChannelNotification } from "../services/notificationService.js";
 import { changeUserPassword, generateTemporaryPassword, emailSetPasswordLink, normEmail, isValidEmail } from "../services/studentAccounts.js";
@@ -311,6 +312,22 @@ export const updateStudentHandler = async (req: AuthenticatedRequest, res: expre
     res.status(400).json({ success: false, message: error.message || "Failed to update student dossier." });
   }
 };
+
+router.get("/:id", async (req: AuthenticatedRequest, res: express.Response): Promise<any> => {
+  try {
+    const studentId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    if (!studentId) {
+      return res.status(400).json({ success: false, message: "Student ID is required." });
+    }
+    const student = await resolveStudent(studentId);
+    if (!student) {
+      return res.status(404).json({ success: false, message: `Student '${studentId}' not found.` });
+    }
+    return res.status(200).json({ success: true, data: student });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err?.message || "Failed to fetch student." });
+  }
+});
 
 router.put("/:id", updateStudentHandler);
 router.put("/edit/:id", updateStudentHandler);
