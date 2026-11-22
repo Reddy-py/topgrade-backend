@@ -118,7 +118,6 @@ export async function sendCourseExamNotification(student: StudentDossier, examDa
   ].filter(Boolean) as string[];
 
   const uniqueRecipients = Array.from(new Set(recipientEmails.map(e => e.trim().toLowerCase())));
-  if (uniqueRecipients.length === 0) return false;
 
   const recipients: any[] = uniqueRecipients.map(e => ({
     role: "STUDENT",
@@ -136,6 +135,8 @@ export async function sendCourseExamNotification(student: StudentDossier, examDa
       phone: ""
     });
   }
+
+  if (recipients.length === 0) return false;
 
   try {
     const result = await dispatchMultiChannelNotification({

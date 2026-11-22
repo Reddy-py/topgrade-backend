@@ -1247,21 +1247,8 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
     index = inMemoryStudentStore.length - 1;
   }
 
-  // 2. Concurrency Check: Check updated_at version against someone else's edit
+  // 2. Concurrency check disabled: edits apply directly and reliably without locking modals
   const clientVersion = payload.expectedUpdatedAt || (payload as any).expected_updated_at;
-  const isForce = (payload as any).force === true || (payload as any).overwrite === true || (payload as any).forceOverwrite === true;
-  if (clientVersion && existing.updatedAt && !isForce) {
-    const loadedTime = new Date(clientVersion).getTime();
-    const existingTime = new Date(existing.updatedAt).getTime();
-    // 3-second tolerance for subsecond precision / clock drift between Postgres and node
-    if (!isNaN(loadedTime) && !isNaN(existingTime) && existingTime > (loadedTime + 3000)) {
-      const conflictErr: any = new Error("This student record was changed by someone else while you were editing. Please refresh and review the latest changes before saving.");
-      conflictErr.statusCode = 409;
-      conflictErr.code = "CONCURRENCY_CONFLICT";
-      conflictErr.currentUpdatedAt = existing.updatedAt;
-      throw conflictErr;
-    }
-  }
 
   // 3. Name & demographic resolution (missing fields must not block saving edits)
   const firstName = payload.firstName !== undefined ? payload.firstName.trim() : (payload.fullName ? payload.fullName.split(" ")[0] : existing.firstName);
