@@ -118,15 +118,16 @@ export function getCorsOptions() {
   const isProd = process.env.NODE_ENV === "production";
   const rawOrigins = [
     "https://topgrade-vert.vercel.app",
+    "https://topgrade.vert.vercel.app",
     ...(process.env.CORS_ORIGIN || process.env.FRONTEND_URL || "")
       .split(",")
       .map(o => o.trim())
       .filter(Boolean)
   ];
 
-  // Regex strictly matching topgrade-vert and preview URLs of this project only
-  // E.g. https://topgrade-vert.vercel.app, https://topgrade-vert-git-main-reddy-pys-projects.vercel.app
-  const vercelProjectPreviewRegex = /^https:\/\/topgrade-vert(-[a-zA-Z0-9_\-]+)?\.vercel\.app$/;
+  // Regex matching topgrade-vert and preview URLs of this project
+  // E.g. https://topgrade-vert.vercel.app, https://topgrade-vert-git-main-reddy-pys-projects.vercel.app, https://topgrade.vert.vercel.app
+  const vercelProjectPreviewRegex = /^https:\/\/topgrade[-.]vert(-[a-zA-Z0-9_\-]+)?\.vercel\.app$/;
 
   return {
     origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
