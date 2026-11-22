@@ -327,9 +327,8 @@ router.post("/set-course-exam-date", async (req: express.Request, res: express.R
         return res.status(404).json({ success: false, error: `Student '${targetLookup || studentEmail}' not found.` });
       }
 
-      // Update in-memory
+      // Update in-memory (exam date only - do not invalidate demographic profile edit version)
       targetStudent.examDate = examDate;
-      targetStudent.updatedAt = new Date().toISOString();
       saveStudentsToDisk();
 
       // Update in Supabase
