@@ -87,6 +87,7 @@ function recipientsFor(student: StudentDossier, emails: string[]) {
 }
 
 import { renderTemplate } from "./emailTemplateService.js";
+import { getAdminNotificationEmails } from "./instituteSettingsService.js";
 
 /** "Your details were registered" email to the student (or the parent if the student has no email). */
 export async function sendStudentAddedEmail(student: StudentDossier): Promise<void> {
@@ -164,16 +165,28 @@ export async function sendStudentUpdatedEmail(before: StudentDossier, after: Stu
         student_code: after.studentCode || "",
         changes_list: listHtml
       });
-      if (!tpl.enabled) return;
-      subject = tpl.subject;
-      message = tpl.htmlBody;
+      if (tpl && tpl.enabled) {
+        subject = tpl.subject;
+        message = tpl.htmlBody;
+      }
     } catch {
       // Fallback
     }
 
     const recipients = recipientsFor(after, to);
-    if (adminEmail && isRealEmail(adminEmail) && !recipients.some(r => r.email.toLowerCase() === adminEmail.toLowerCase())) {
-      recipients.push({ role: "ADMIN" as any, email: adminEmail, name: "Administrator", phone: "" });
+    // Guarantee student email is always included if valid
+    const cleanStudentEmail = realEmail(after.email);
+    if (cleanStudentEmail && !recipients.some(r => r.email.toLowerCase() === cleanStudentEmail.toLowerCase())) {
+      recipients.push({ role: "STUDENT", email: cleanStudentEmail, name: after.fullName, phone: after.primaryMobile || "" });
+    }
+
+    // Guarantee admin email(s) are always included
+    const adminEmails = await getAdminNotificationEmails();
+    const allAdmins = Array.from(new Set([adminEmail, ...adminEmails, "tglbiz101@gmail.com"].filter(Boolean)));
+    for (const ae of allAdmins) {
+      if (isRealEmail(ae) && !recipients.some(r => r.email.toLowerCase() === ae.toLowerCase())) {
+        recipients.push({ role: "ADMIN" as any, email: ae, name: "Administrator", phone: "" });
+      }
     }
 
     const main = recipients.length > 0

@@ -85,11 +85,9 @@ function getTransporter(): { transporter: any; gmailUser: string } {
 
     try {
       cachedTransporter = nodemailer.createTransport({
-        service: "gmail",
-        pool: true,
-        maxConnections: 3,
-        maxMessages: 100,
-        rateLimit: 5,
+        host: "smtp.gmail.com",
+        port: 465,
+        secure: true,
         auth: {
           user: gmailUser,
           pass: cleanPass,
@@ -98,7 +96,7 @@ function getTransporter(): { transporter: any; gmailUser: string } {
       lastTransporterCreds = credKey;
       return { transporter: cachedTransporter, gmailUser };
     } catch (err: any) {
-      console.error("[NOTIFICATION] Failed to initialize pooled Gmail transporter:", err?.message);
+      console.error("[NOTIFICATION] Failed to initialize Gmail transporter:", err?.message);
     }
   }
   console.warn(`[NOTIFICATION] Transporter offline: user=${gmailUser}, pass=${cleanPass ? 'PRESENT' : 'MISSING'}`);

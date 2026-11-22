@@ -138,12 +138,16 @@ export async function sendCourseExamNotification(student: StudentDossier, examDa
   }
 
   try {
-    await dispatchMultiChannelNotification({
+    const result = await dispatchMultiChannelNotification({
       eventType: "ADMISSION_APPROVED" as any,
       subject: `📅 Exam Date Scheduled: ${courseName} on ${examDate} — Top Grade Learning`,
       message: buildExamScheduledHtml(student.fullName, examDate, courseName),
       recipients
     });
+    if (result.failed > 0 && result.sent === 0 && result.simulated === 0) {
+      console.error(`Failed to send exam notification email for ${student.fullName}:`, result.failures.join("; "));
+      return false;
+    }
     return true;
   } catch (err: any) {
     console.error(`Failed to send exam notification email for ${student.fullName}:`, err.message);

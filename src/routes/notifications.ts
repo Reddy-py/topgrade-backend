@@ -288,15 +288,16 @@ router.post("/set-course-exam-date", async (req: express.Request, res: express.R
         );
       }
 
-      // If not in memory store, check Supabase
-      if (!targetStudent && targetLookup) {
-        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(targetLookup);
+      // If not in memory store or email missing, check Supabase
+      if (!targetStudent || (!targetStudent.email && targetLookup)) {
+        const lookupKey = targetLookup || studentEmail;
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(lookupKey);
         const query = isUuid
-          ? supabaseAdmin.from("students").select("*").eq("id", targetLookup).maybeSingle()
-          : supabaseAdmin.from("students").select("*").ilike("student_id_code", targetLookup).maybeSingle();
+          ? supabaseAdmin.from("students").select("*").eq("id", lookupKey).maybeSingle()
+          : supabaseAdmin.from("students").select("*").or(`student_id_code.ilike.${lookupKey},email.ilike.${lookupKey}`).maybeSingle();
         const { data: sbRow } = await query;
         if (sbRow) {
-          targetStudent = {
+          const fresh = {
             id: sbRow.id,
             studentCode: sbRow.student_id_code,
             fullName: sbRow.name || "Student",
@@ -308,7 +309,18 @@ router.post("/set-course-exam-date", async (req: express.Request, res: express.R
             program: sbRow.program || courseName || "Academic Curriculum",
             status: sbRow.status || "ACTIVE"
           };
+          if (!targetStudent) targetStudent = fresh;
+          else {
+            if (!targetStudent.email && fresh.email) targetStudent.email = fresh.email;
+            if ((!targetStudent.parentEmails || targetStudent.parentEmails.length === 0) && fresh.parentEmails.length > 0) {
+              targetStudent.parentEmails = fresh.parentEmails;
+            }
+          }
         }
+      }
+
+      if (studentEmail && targetStudent && !targetStudent.email) {
+        targetStudent.email = studentEmail;
       }
 
       if (!targetStudent) {

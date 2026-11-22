@@ -1249,13 +1249,16 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
 
   // 2. Concurrency Check: Check updated_at version against someone else's edit
   const clientVersion = payload.expectedUpdatedAt || (payload as any).expected_updated_at;
-  if (clientVersion && existing.updatedAt) {
+  const isForce = (payload as any).force === true || (payload as any).overwrite === true;
+  if (clientVersion && existing.updatedAt && !isForce) {
     const loadedTime = new Date(clientVersion).getTime();
     const existingTime = new Date(existing.updatedAt).getTime();
-    if (!isNaN(loadedTime) && !isNaN(existingTime) && existingTime > loadedTime) {
+    // 3-second tolerance for subsecond precision / clock drift between Postgres and node
+    if (!isNaN(loadedTime) && !isNaN(existingTime) && existingTime > (loadedTime + 3000)) {
       const conflictErr: any = new Error("This student record was changed by someone else while you were editing. Please refresh and review the latest changes before saving.");
       conflictErr.statusCode = 409;
       conflictErr.code = "CONCURRENCY_CONFLICT";
+      conflictErr.currentUpdatedAt = existing.updatedAt;
       throw conflictErr;
     }
   }
