@@ -18,6 +18,12 @@ export type LoginRole = "STUDENT" | "PARENT" | "TEACHER" | "ADMIN";
 export const normEmail = (e: unknown): string => String(e ?? "").trim().toLowerCase();
 export const isValidEmail = (e: string): boolean => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
 
+export const getDefaultInitialPassword = (): string =>
+  parseEnv("DEFAULT_INITIAL_PASSWORD", "TopGradeDefault2026!")!;
+
+export const fallbackLoginEmailForCode = (code: string): string =>
+  `${String(code || "user").trim().toLowerCase()}@login.topgrade.local`;
+
 const frontendUrl = (): string => (parseEnv("FRONTEND_URL", "http://localhost:5173")!).replace(/\/+$/, "");
 
 export const randomPassword = (): string => crypto.randomBytes(24).toString("base64url");
@@ -94,7 +100,7 @@ export async function ensureLogin(params: {
 
   let userId: string | null = null;
   let created = false;
-  const initialPw = params.initialPassword || generateTemporaryPassword(16);
+  const initialPw = params.initialPassword || getDefaultInitialPassword();
   const { data: createdUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
     email,
     password: initialPw,

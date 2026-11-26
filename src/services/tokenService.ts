@@ -186,10 +186,10 @@ export async function applyTokens(p: {
       .eq("course_id", p.courseId)
       .maybeSingle();
 
-    const cur = w ? Number(w.balance) || 0 : 0;
+    const cur = Math.max(0, w ? Number(w.balance) || 0 : 0);
     const prevPurchased = w ? Number(w.total_purchased) || 0 : 0;
     const prevUsed = w ? Number(w.total_used) || 0 : 0;
-    newBalance = cur + p.delta;
+    newBalance = Math.max(0, cur + p.delta);
     await supabaseAdmin.from("token_wallets").upsert({
       student_id: p.studentId,
       course_id: p.courseId,
@@ -283,11 +283,11 @@ async function viewWallets(rows: any[]): Promise<WalletView[]> {
   }
   return rows.map(w => {
     const c = byId.get(String(w.course_id));
-    const balance = Number(w.balance) || 0;
+    const balance = Math.max(0, Number(w.balance) || 0);
     return {
       studentId: w.student_id, courseId: w.course_id, courseName: c?.name || "Course",
       pricePerToken: c?.price || 0, balance, totalPurchased: Number(w.total_purchased) || 0,
-      totalUsed: Number(w.total_used) || 0, low: balance <= LOW_TOKEN_LIMIT, owed: balance < 0,
+      totalUsed: Number(w.total_used) || 0, low: balance <= LOW_TOKEN_LIMIT, owed: false,
     };
   });
 }
@@ -380,7 +380,7 @@ async function loadMergedCourseBalancesForStudentIds(ids: string[]): Promise<{
   for (const [sid, courseMap] of byStudent.entries()) {
     for (const [cid, totals] of courseMap.entries()) {
       const c = byCourseId.get(cid);
-      const balance = Number(totals.balance) || 0;
+      const balance = Math.max(0, Number(totals.balance) || 0);
       wallets.push({
         studentId: sid,
         courseId: cid,
@@ -390,7 +390,7 @@ async function loadMergedCourseBalancesForStudentIds(ids: string[]): Promise<{
         totalPurchased: totals.totalPurchased,
         totalUsed: totals.totalUsed,
         low: balance <= LOW_TOKEN_LIMIT,
-        owed: balance < 0,
+        owed: false,
       });
     }
   }

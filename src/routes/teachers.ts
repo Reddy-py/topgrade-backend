@@ -7,7 +7,8 @@ import { authorizePermission } from "../middleware/authorize.js";
 import { dispatchMultiChannelNotification } from "../services/notificationService.js";
 import { ScheduleDataService } from "../services/scheduleDataService.js";
 import { resolveTeacherIdentity } from "../services/teacherIdentity.js";
-import { ensureLogin, emailSetPasswordLink, generateTemporaryPassword, isValidEmail, normEmail } from "../services/studentAccounts.js";
+import { ensureLogin, emailSetPasswordLink, generateTemporaryPassword, getDefaultInitialPassword, isValidEmail, normEmail } from "../services/studentAccounts.js";
+import { parseEnv } from "../utils/parseEnv.js";
 import { isRealEmail } from "../constants/domains.js";
 import { recordDomainEvent } from "../services/domainEventService.js";
 import { logEmail, statusFromDispatch } from "../services/emailLog.js";
@@ -127,29 +128,29 @@ export const createTeacherHandler = async (req: express.Request, res: express.Re
 
   let savedTeacher: any = newTeacher;
   let createdLogins: Array<{ role: string; email: string; name: string; temporaryPassword: string }> = [];
+  const defaultPassword = getDefaultInitialPassword();
 
-  // Supabase Database & Auth sync using ensureLogin
+  // Supabase Database & Auth sync using ensureLogin with DEFAULT_INITIAL_PASSWORD
   try {
     const loginRes = await ensureLogin({
       email: cleanEmail,
       fullName: newTeacher.name,
       role: "TEACHER",
       phone: newTeacher.phone,
+      initialPassword: defaultPassword,
       mustChangePassword: true,
       metadata: { teacher_id_code: uniqueId }
     });
 
     if (loginRes.userId) newTeacher.user_id = loginRes.userId;
 
-    if (loginRes.created && loginRes.temporaryPassword) {
+    if (loginRes.created) {
       createdLogins.push({
         role: "TEACHER",
         email: cleanEmail,
         name: newTeacher.name,
-        temporaryPassword: loginRes.temporaryPassword
+        temporaryPassword: defaultPassword
       });
-      // Send set-password link without logging or printing password
-      await emailSetPasswordLink({ email: cleanEmail, name: newTeacher.name, role: "TEACHER" });
     }
 
     const { data: inserted, error: tUpsertErr } = await supabaseAdmin
@@ -167,25 +168,42 @@ export const createTeacherHandler = async (req: express.Request, res: express.Re
     return res.status(400).json({ success: false, message: error.message || "Failed to add teacher profile." });
   }
 
-  // Automatic Email Dispatch to Teacher and Admin
+  // Automatic Welcome & Credentials Email Dispatch to Teacher and Admin
   try {
-    const recipients: Array<{ role: "TEACHER" | "ADMIN"; email: string; name: string }> = [
-      { role: "ADMIN", email: process.env.ADMIN_EMAIL || "tglbiz101@gmail.com", name: "TopGrade Admin" },
-      { role: "TEACHER", email: cleanEmail, name: newTeacher.name }
-    ];
+    const portalUrl = (parseEnv("FRONTEND_URL", "https://topgrade-vert.vercel.app")!).replace(/\/+$/, "");
+    const adminEmail = parseEnv("ADMIN_EMAIL", "tglbiz101@gmail.com")!;
+    const teacherWelcomeMsg =
+      `Dear ${newTeacher.name},\n\n` +
+      `Welcome to TopGrade Learning Faculty! Your instructor account has been created by the Administrator.\n\n` +
+      `Here are your Faculty Portal login credentials:\n` +
+      `• Portal URL: ${portalUrl}/login\n` +
+      `• Username (Email): ${cleanEmail}\n` +
+      `• Teacher ID: ${uniqueId}\n` +
+      `• Default Password: ${defaultPassword}\n` +
+      `• Specialization: ${newTeacher.specialization || "General"}\n\n` +
+      `Please sign in to view your assigned courses, schedules, and student attendance rosters. We recommend updating your password after signing in.\n\n` +
+      `Warm regards,\nTopGrade Learning Administration (${adminEmail})`;
 
     await dispatchMultiChannelNotification({
-      recipients: recipients as any,
-      subject: `🎉 Welcome to TopGrade Faculty: ${newTeacher.name} [ID: ${uniqueId}]`,
-      message: `A new faculty instructor profile has been registered in the TopGrade CRM system.\n\n` +
-               `Faculty Details:\n` +
-               `• Teacher Name: ${newTeacher.name}\n` +
-               `• Teacher ID: ${uniqueId}\n` +
-               `• Specialization: ${newTeacher.specialization || "General"}\n` +
-               `• Official Email: ${newTeacher.email}\n` +
-               `• Status: Active\n\n` +
-               `Please sign in at the TopGrade CRM Faculty Portal to manage your course schedules and attendance rosters.\n\n` +
-               `TopGrade Administration Center`,
+      recipients: [{ role: "TEACHER", email: cleanEmail, name: newTeacher.name, phone: newTeacher.phone || "" }] as any,
+      subject: `🎉 Welcome to TopGrade Faculty: Your Login Credentials [ID: ${uniqueId}]`,
+      message: teacherWelcomeMsg,
+      escapeMessage: true,
+      eventType: "TEACHER_ASSIGNMENT"
+    });
+
+    await dispatchMultiChannelNotification({
+      recipients: [{ role: "ADMIN", email: adminEmail, name: "TopGrade Admin", phone: "" }] as any,
+      subject: `🎉 New Faculty Registered: ${newTeacher.name} [ID: ${uniqueId}]`,
+      message:
+        `A new faculty instructor profile has been registered in TopGrade CRM:\n\n` +
+        `• Teacher Name: ${newTeacher.name}\n` +
+        `• Teacher ID: ${uniqueId}\n` +
+        `• Official Email: ${cleanEmail}\n` +
+        `• Specialization: ${newTeacher.specialization || "General"}\n` +
+        `• Status: Active\n\n` +
+        `Welcome email and portal credentials were sent to ${cleanEmail}.`,
+      escapeMessage: true,
       eventType: "TEACHER_ASSIGNMENT"
     });
   } catch (notifyErr) {

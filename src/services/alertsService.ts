@@ -215,6 +215,69 @@ export class AlertsService {
   }) {
     const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_SENDER_EMAIL || "tglbiz101@gmail.com";
     const nowIso = new Date().toISOString();
+    const cohort = (input.targetCohort || "ALL").toUpperCase();
+    const dispatchedResults: AlertLogRecord[] = [];
+
+    // Custom Announcement to Faculty Teachers when cohort is TEACHERS or ALL
+    if (input.triggerType === "CUSTOM_ANNOUNCEMENT" && (cohort === "TEACHERS" || cohort === "ALL")) {
+      const { data: teachers } = await supabaseAdmin
+        .from("teachers")
+        .select("id, name, email, phone, status")
+        .in("status", ["Active", "ACTIVE", "active"]);
+
+      const subject = input.customSubject || `📢 Center Announcement: TopGrade Learning`;
+      const message = input.customMessage || `Dear Faculty,\n\nPlease take note of the latest updates from administration.`;
+
+      for (const teacher of teachers || []) {
+        const tEmail = (teacher.email || "").trim();
+        if (!tEmail || !tEmail.includes("@")) continue;
+        const logId = `log-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+        const logRecord: AlertLogRecord = {
+          id: logId,
+          triggerType: "CUSTOM_ANNOUNCEMENT",
+          recipientId: teacher.id || tEmail,
+          recipientName: teacher.name || "Teacher",
+          recipientEmail: tEmail,
+          recipientPhone: teacher.phone || "",
+          recipientRole: "TEACHER",
+          channel: "EMAIL",
+          subject,
+          messagePreview: message.length > 120 ? message.slice(0, 120) + "..." : message,
+          status: "DELIVERED",
+          timestamp: nowIso
+        };
+        await supabaseAdmin.from("alert_logs").insert({
+          id: logRecord.id,
+          trigger_type: logRecord.triggerType,
+          recipient_id: logRecord.recipientId,
+          recipient_name: logRecord.recipientName,
+          recipient_email: logRecord.recipientEmail,
+          recipient_phone: logRecord.recipientPhone,
+          recipient_role: logRecord.recipientRole,
+          channel: logRecord.channel,
+          subject: logRecord.subject,
+          message_preview: logRecord.messagePreview,
+          status: logRecord.status,
+          timestamp: logRecord.timestamp
+        });
+        dispatchedResults.push(logRecord);
+        void dispatchMultiChannelNotification({
+          eventType: "TEACHER_ASSIGNMENT",
+          subject,
+          message,
+          recipients: [{ role: "TEACHER", email: tEmail, name: teacher.name || "Teacher", phone: teacher.phone || "" }]
+        }).catch(() => {});
+      }
+
+      if (cohort === "TEACHERS") {
+        return {
+          success: true,
+          message: `Dispatched ${dispatchedResults.length} announcement notification(s) to teachers.`,
+          dispatchedCount: dispatchedResults.length,
+          logs: dispatchedResults
+        };
+      }
+    }
 
     let studentQuery = supabaseAdmin.from("students").select("*");
     if (input.studentId) {
@@ -227,7 +290,6 @@ export class AlertsService {
     }
 
     const targetStudents = students || [];
-    const dispatchedResults: AlertLogRecord[] = [];
 
     for (const student of targetStudents) {
       const studentEmail = student.email || adminEmail;

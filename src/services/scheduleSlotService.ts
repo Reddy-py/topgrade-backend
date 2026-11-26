@@ -698,9 +698,10 @@ export class ScheduleSlotService {
       balance = Number(wallet?.balance || 0);
     }
 
-    if (balance < requiredTokens) {
+    balance = Math.max(0, balance);
+    if (balance <= 0 || balance < requiredTokens) {
       throw new Error(
-        `Insufficient tokens for '${slot.course_name || course?.name || "this course"}'. Required: ${requiredTokens} token(s), Available: ${balance} token(s). Please buy course tokens first.`
+        `Out of credits / insufficient tokens for '${slot.course_name || course?.name || "this course"}'. Required: ${requiredTokens} token(s), Available: ${balance} token(s). Please buy course tokens first.`
       );
     }
 

@@ -1,6 +1,6 @@
 import { dispatchMultiChannelNotification } from "./notificationService.js";
 import { resolveTeacherIdentity } from "./teacherIdentity.js";
-import { ensureLogin, deleteLogin, emailSetPasswordLink, normEmail, isValidEmail } from "./studentAccounts.js";
+import { ensureLogin, deleteLogin, emailSetPasswordLink, normEmail, isValidEmail, fallbackLoginEmailForCode } from "./studentAccounts.js";
 import { sendStudentAddedEmail, sendStudentUpdatedEmail } from "./studentNotices.js";
 import { sendExamGoodLuckWishes, sendBirthdayGreetings } from "./automatedEmailService.js";
 import { supabaseAdmin } from "../supabase.js";
@@ -843,21 +843,21 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
   }
   cleanParentEmails.splice(0, cleanParentEmails.length, ...uniqueParentEmails);
 
-  // Student email is MANDATORY for a NEW student
-  const studentLoginEmail = normEmail(cleanStudentEmails[0] || payload.email);
-  if (!studentLoginEmail) {
-    throw new Error("Student email is mandatory for a new student registration.");
+  // Student email: use provided real email, or generate ID-based login (tgst001@login.topgrade.local) when empty
+  const rawStudentEmail = normEmail(cleanStudentEmails[0] || payload.email);
+  if (rawStudentEmail && !isValidEmail(rawStudentEmail)) {
+    throw new Error(`'${rawStudentEmail}' is not a valid student email.`);
   }
-  if (!isValidEmail(studentLoginEmail)) {
-    throw new Error(`'${studentLoginEmail}' is not a valid student email.`);
-  }
-  if (uniqueParentEmails.includes(studentLoginEmail)) {
+  const studentLoginEmail = rawStudentEmail || fallbackLoginEmailForCode(studentCode);
+  if (rawStudentEmail && uniqueParentEmails.includes(rawStudentEmail)) {
     throw new Error("A parent email must be different from the student's own email, because each email is one login.");
   }
 
-  const { data: dupStudent } = await supabaseAdmin.from("students").select("id").eq("email", studentLoginEmail).limit(1);
-  if (dupStudent && dupStudent.length > 0) {
-    throw new Error("A student with this email already exists.");
+  if (rawStudentEmail) {
+    const { data: dupStudent } = await supabaseAdmin.from("students").select("id").eq("email", rawStudentEmail).limit(1);
+    if (dupStudent && dupStudent.length > 0) {
+      throw new Error("A student with this email already exists.");
+    }
   }
 
   // Sibling duplicate check (normalized first name + shared parent email + same grade or DOB)
@@ -1041,7 +1041,7 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
         metadata: { student_code: newStudent.studentCode }
       });
 
-      // Maintain relational link in student_parents table
+      // Maintain relational link in student_parents and parents directory (TGP001+)
       try {
         await supabaseAdmin.from("student_parents").upsert({
           student_id: newStudent.id,
@@ -1051,6 +1051,25 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
       } catch {
         // Safe fallback if table is not yet migrated
       }
+
+      try {
+        const cleanParentEm = normEmail(parentEmail);
+        const { data: existingParentRow } = await supabaseAdmin
+          .from("parents")
+          .select("id")
+          .ilike("email", cleanParentEm)
+          .maybeSingle();
+        if (!existingParentRow) {
+          const tgpCode = await generateSequentialCode("parents", "parent_id_code", "TGP", 3);
+          await supabaseAdmin.from("parents").insert({
+            parent_id_code: tgpCode,
+            profile_id: pLogin.userId,
+            name: parentName,
+            email: cleanParentEm,
+            phone: (cleanParentPhones[0] || null)
+          });
+        }
+      } catch {}
 
       if (pLogin.created && pLogin.temporaryPassword) {
         newLogins.push({ email: parentEmail, name: parentName, role: "PARENT", userId: pLogin.userId });
@@ -1392,7 +1411,7 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
       nationality: sbNationality,
       address: sbAddress,
       alternate_address: updated.studentAddress || updated.alternateAddress || "",
-      purchased_hours: updated.purchasedHours || 0,
+      purchased_hours: Math.max(0, Number(updated.purchasedHours) || 0),
       govt_id_url: updated.profileImageUrl || updated.photoUrl || null,
       medical_notes: updated.examDate ? `EXAM_DATE:${updated.examDate}` : null,
       program: updated.program || "General Academic Track",
@@ -1524,8 +1543,8 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
   inMemoryStudentStore[index] = updated;
   lastSupabaseStudentFetch = Date.now();
 
-  // Requirement 2: Send update change email
-  void sendStudentUpdatedEmail(existing, updated).catch(err => console.warn("Notice sending update email:", err?.message));
+  // Requirement 2: Always dispatch automatic update email to BOTH student and parent from admin email
+  await sendStudentUpdatedEmail(existing, updated).catch(err => console.warn("Notice sending update email:", err?.message));
 
   void recordDomainEvent({
     type: "student.updated",

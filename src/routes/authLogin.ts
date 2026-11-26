@@ -5,6 +5,7 @@ import { supabaseAdmin } from "../supabase.js";
 import { loginAttemptTracker, rateLimit } from "../middleware/rateLimit.js";
 import { authenticateJwt, type AuthenticatedRequest } from "../middleware/auth.js";
 import { extractSessionId, revokeSession, checkAndTouchSession } from "../services/sessionTracker.js";
+import { parseEnv } from "../utils/parseEnv.js";
 
 const router = Router();
 
@@ -105,17 +106,19 @@ router.post("/login", loginIpRateLimit, async (req: Request, res: Response) => {
           }
         }
       } else {
-        // ID code lookup: Student ID or Teacher ID
+        // ID code lookup: Student ID (TGST...), Teacher ID (TGT...), or Parent ID (TGP...)
         const codeUpper = cleanIdentifier.toUpperCase();
 
         const { data: stu } = await supabaseAdmin
           .from("students")
-          .select("email")
+          .select("email, student_id_code")
           .eq("student_id_code", codeUpper)
           .maybeSingle();
 
-        if (stu?.email) {
-          targetEmail = String(stu.email).toLowerCase();
+        if (stu) {
+          targetEmail = stu.email
+            ? String(stu.email).toLowerCase()
+            : `${codeUpper.toLowerCase()}@login.topgrade.local`;
         } else {
           const { data: tch } = await supabaseAdmin
             .from("teachers")
@@ -125,6 +128,18 @@ router.post("/login", loginIpRateLimit, async (req: Request, res: Response) => {
 
           if (tch?.email) {
             targetEmail = String(tch.email).toLowerCase();
+          } else {
+            const { data: par } = await supabaseAdmin
+              .from("parents")
+              .select("email, parent_id_code")
+              .eq("parent_id_code", codeUpper)
+              .maybeSingle();
+
+            if (par) {
+              targetEmail = par.email
+                ? String(par.email).toLowerCase()
+                : `${codeUpper.toLowerCase()}@login.topgrade.local`;
+            }
           }
         }
       }
@@ -182,6 +197,9 @@ router.post("/login", loginIpRateLimit, async (req: Request, res: Response) => {
       }
 
       // Standard known TopGrade defaults
+      const envDefault = parseEnv("DEFAULT_INITIAL_PASSWORD");
+      if (envDefault) candidates.add(envDefault);
+      candidates.add("TopGradeDefault2026!");
       candidates.add("TopGrade2026!");
       candidates.add("TopGrade2026");
       candidates.add("TopGrade@2026!");
@@ -292,6 +310,45 @@ router.post("/touch-session", authenticateJwt, (req: AuthenticatedRequest, res: 
     });
   }
   return res.status(200).json({ success: true, timestamp: Date.now() });
+});
+
+/**
+ * Active Profile Verification: GET /api/auth/me
+ * Allows PWA/frontend to verify active session profile reliably via service role.
+ */
+router.get("/me", authenticateJwt, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+    const { data: prof } = await supabaseAdmin
+      .from("profiles")
+      .select("id, email, full_name, role, status, phone, created_at, updated_at")
+      .eq("id", userId)
+      .maybeSingle();
+
+    const status = String(prof?.status || "Active");
+    if (status.toLowerCase() !== "active") {
+      return res.status(403).json({ success: false, message: "Account inactive" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      profile: {
+        id: prof?.id || userId,
+        email: prof?.email || req.user?.email || "",
+        full_name: prof?.full_name || (req.user as any)?.fullName || "User",
+        role: String(prof?.role || req.user?.role || "STUDENT").toUpperCase(),
+        status,
+        phone: prof?.phone || null,
+        created_at: prof?.created_at || new Date().toISOString(),
+        updated_at: prof?.updated_at || new Date().toISOString()
+      }
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err?.message || "Failed to load profile" });
+  }
 });
 
 /**

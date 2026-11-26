@@ -32,6 +32,7 @@ import upsellRouter from "./routes/upsell.js";
 import performanceRouter from "./routes/performance.js";
 import coursePackagesRouter from "./routes/coursePackages.js";
 import tokensRouter from "./routes/tokens.js";
+import parentsRouter from "./routes/parents.js";
 import paymentRequestsRouter from "./routes/paymentRequests.js";
 import feeDuesRouter from "./routes/feeDues.js";
 import { TimedEmailScheduler } from "./services/timedEmailScheduler.js";
@@ -385,6 +386,7 @@ app.use("/api/monthly-notes", routeGuard("attendance.create"), monthlyNotesRoute
 app.use("/api/engagement", engagementRouter);
 app.use("/api/upsell", upsellRouter);
 app.use("/api/performance", performanceRouter);
+app.use("/api/parents", routeGuard("students.view"), parentsRouter);
 app.use("/api/fee-dues", feeDuesRouter);
 app.use("/api/payment-requests", paymentRequestsRouter);
 app.get("/api/crm-info", routeGuard("dashboard.view"), async (_req, res) => {

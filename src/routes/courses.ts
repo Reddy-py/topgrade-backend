@@ -10,6 +10,9 @@ import { getInstituteSettings, updateInstituteSettings } from "../services/insti
 import { recordDomainEvent } from "../services/domainEventService.js";
 import { inMemoryStudentStore } from "../services/studentService.js";
 import { generateSequentialCode } from "../utils/idGenerator.js";
+import { dispatchMultiChannelNotification } from "../services/notificationService.js";
+import { isRealEmail } from "../constants/domains.js";
+import { parseEnv } from "../utils/parseEnv.js";
 
 const router = express.Router();
 
@@ -812,6 +815,54 @@ export const createCourseHandler = async (req: express.Request, res: express.Res
       }
     });
 
+    // Notify Admin and all active Students that a new course has been added
+    void (async () => {
+      try {
+        const adminEmail = parseEnv("ADMIN_EMAIL", "tglbiz101@gmail.com")!;
+        const recipients: Array<{ role: "ADMIN" | "STUDENT" | "PARENT"; email: string; name: string; phone?: string }> = [
+          { role: "ADMIN", email: adminEmail, name: "TopGrade Administrator" }
+        ];
+        const seen = new Set<string>([adminEmail.toLowerCase()]);
+
+        const { data: students } = await supabaseAdmin
+          .from("students")
+          .select("name, email, parent_emails, status")
+          .in("status", ["ACTIVE", "Active", "active", "enrolled", "Enrolled"]);
+
+        for (const stu of (students || []) as any[]) {
+          const own = String(stu.email || "").trim().toLowerCase();
+          if (own && isRealEmail(own) && !seen.has(own)) {
+            seen.add(own);
+            recipients.push({ role: "STUDENT", email: own, name: stu.name || "Student" });
+          } else if (Array.isArray(stu.parent_emails)) {
+            for (const pe of stu.parent_emails) {
+              const p = String(pe || "").trim().toLowerCase();
+              if (p && isRealEmail(p) && !seen.has(p)) {
+                seen.add(p);
+                recipients.push({ role: "PARENT", email: p, name: `Parent of ${stu.name || "Student"}` });
+              }
+            }
+          }
+        }
+
+        await dispatchMultiChannelNotification({
+          eventType: "ADMISSION_APPROVED",
+          subject: `📚 New Course Added: ${savedData.name} (${savedData.course_code || uniqueCode})`,
+          message:
+            `Hello,\n\nTopGrade Learning has added a new course to the curriculum:\n\n` +
+            `• Course Name: ${savedData.name}\n` +
+            `• Course Code: ${savedData.course_code || uniqueCode}\n` +
+            `• Category: ${savedData.category || "General"}\n` +
+            `• Pricing: $1.00 / hour token (Continuous — No End Date)\n\n` +
+            `Sign in to TopGrade CRM to purchase tokens and register for upcoming class schedules.`,
+          escapeMessage: true,
+          recipients: recipients as any
+        });
+      } catch (broadcastErr: any) {
+        console.warn("Notice broadcasting new course email:", broadcastErr?.message);
+      }
+    })();
+
     return res.status(201).json({
       success: true,
       message: `Course '${savedData.name}' created successfully.`,
@@ -1246,7 +1297,7 @@ export const mapStudentHandler = async (req: express.Request, res: express.Respo
 
 router.post("/:id/map-student", mapStudentHandler);
 
-// DELETE: Remove course (Blocked if active slots exist, offer archive)
+// DELETE: Remove course and notify all active students & admin that it is no longer available
 export const deleteCourseHandler = async (req: express.Request, res: express.Response): Promise<any> => {
   const courseId = String(req.params.id);
   if (!courseId) {
@@ -1260,27 +1311,39 @@ export const deleteCourseHandler = async (req: express.Request, res: express.Res
     .maybeSingle();
 
   if (!courseRow) {
+    const idx = inMemoryCourses.findIndex(c => c.id === courseId || c.course_code === courseId);
+    if (idx !== -1) {
+      const removed = inMemoryCourses.splice(idx, 1)[0];
+      return res.status(200).json({ success: true, message: `Course '${removed.name}' deleted successfully.`, data: removed });
+    }
     return res.status(404).json({ success: false, message: `Course '${courseId}' not found.` });
   }
 
-  // Check R7: A course with active slots cannot be deleted; offer Archive
-  const { count: slotCount } = await supabaseAdmin
-    .from("schedules")
-    .select("id", { count: "exact", head: true })
-    .or(`course_id.eq.${courseRow.id},course_name.eq.${courseRow.name}`)
-    .neq("status", "cancelled")
-    .eq("is_active", true);
-
-  if (slotCount && slotCount > 0) {
-    return res.status(400).json({
-      success: false,
-      message: `Course '${courseRow.name}' cannot be deleted because it has ${slotCount} active schedule slot(s). Please archive the course instead.`,
-      canArchive: true
-    });
+  // Clean up dependent course_packages and schedule slots referencing this course before deleting
+  try {
+    await supabaseAdmin.from("course_packages").delete().eq("course_id", courseRow.id);
+  } catch {}
+  try {
+    const { data: linkedSlots } = await supabaseAdmin
+      .from("schedules")
+      .select("id")
+      .or(`course_id.eq.${courseRow.id},course_name.eq.${courseRow.name}`);
+    const slotIds = (linkedSlots || []).map((s: any) => s.id).filter(Boolean);
+    if (slotIds.length > 0) {
+      await supabaseAdmin.from("student_enrollments").delete().in("slot_id", slotIds);
+      await supabaseAdmin.from("schedules").delete().in("id", slotIds);
+    }
+  } catch (cleanupErr: any) {
+    console.warn("Notice cleaning up course schedule dependencies:", cleanupErr?.message);
   }
 
-  // Archive endpoint or status set
-  await supabaseAdmin.from("courses").delete().eq("id", courseRow.id);
+  const { error: delErr } = await supabaseAdmin.from("courses").delete().eq("id", courseRow.id);
+  if (delErr) {
+    return res.status(500).json({ success: false, message: `Failed to delete course: ${delErr.message}` });
+  }
+
+  const memIdx = inMemoryCourses.findIndex(c => c.id === courseRow.id || c.course_code === courseRow.course_code);
+  if (memIdx !== -1) inMemoryCourses.splice(memIdx, 1);
 
   void recordDomainEvent({
     type: "course.deleted",
@@ -1293,6 +1356,50 @@ export const deleteCourseHandler = async (req: express.Request, res: express.Res
       actor: (req as any).user?.email || "Admin"
     }
   });
+
+  // Notify all active students (and parents when student email missing) + Admin that course is removed
+  void (async () => {
+    try {
+      const adminEmail = parseEnv("ADMIN_EMAIL", "tglbiz101@gmail.com")!;
+      const recipients: Array<{ role: "ADMIN" | "STUDENT" | "PARENT"; email: string; name: string }> = [
+        { role: "ADMIN", email: adminEmail, name: "TopGrade Administrator" }
+      ];
+      const seen = new Set<string>([adminEmail.toLowerCase()]);
+
+      const { data: students } = await supabaseAdmin
+        .from("students")
+        .select("name, email, parent_emails, status")
+        .in("status", ["ACTIVE", "Active", "active", "enrolled", "Enrolled"]);
+
+      for (const stu of (students || []) as any[]) {
+        const own = String(stu.email || "").trim().toLowerCase();
+        if (own && isRealEmail(own) && !seen.has(own)) {
+          seen.add(own);
+          recipients.push({ role: "STUDENT", email: own, name: stu.name || "Student" });
+        } else if (Array.isArray(stu.parent_emails)) {
+          for (const pe of stu.parent_emails) {
+            const p = String(pe || "").trim().toLowerCase();
+            if (p && isRealEmail(p) && !seen.has(p)) {
+              seen.add(p);
+              recipients.push({ role: "PARENT", email: p, name: `Parent of ${stu.name || "Student"}` });
+            }
+          }
+        }
+      }
+
+      await dispatchMultiChannelNotification({
+        eventType: "ADMISSION_APPROVED",
+        subject: `Course Discontinued: ${courseRow.name} (${courseRow.course_code || ""})`,
+        message:
+          `Hello,\n\nPlease note that the course '${courseRow.name}' (${courseRow.course_code || ""}) has been removed from TopGrade Learning and is no longer available.\n\n` +
+          `If you have any questions regarding active schedules or course tokens, please contact TopGrade Administration.`,
+        escapeMessage: true,
+        recipients: recipients as any
+      });
+    } catch (broadcastErr: any) {
+      console.warn("Notice broadcasting course deletion email:", broadcastErr?.message);
+    }
+  })();
 
   return res.status(200).json({
     success: true,
