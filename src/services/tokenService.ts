@@ -51,18 +51,19 @@ export async function findCourse(idOrName: string): Promise<CourseInfo | null> {
       materialObj = typeof hit.course_material === "string" ? JSON.parse(hit.course_material) : hit.course_material;
     } catch {}
   }
-  const hRate = hit.hourly_rate !== null && hit.hourly_rate !== undefined 
-    ? Number(hit.hourly_rate) 
-    : (materialObj.hourly_rate !== null && materialObj.hourly_rate !== undefined ? Number(materialObj.hourly_rate) : 50);
-  const pkgPrice = hit.package_price !== null && hit.package_price !== undefined 
-    ? Number(hit.package_price) 
-    : (materialObj.package_price !== null && materialObj.package_price !== undefined ? Number(materialObj.package_price) : 900);
-  const pkgHours = hit.package_hours !== null && hit.package_hours !== undefined 
-    ? Number(hit.package_hours) 
-    : (materialObj.package_hours !== null && materialObj.package_hours !== undefined ? Number(materialObj.package_hours) : 20);
-  const durMonths = hit.duration_months !== null && hit.duration_months !== undefined 
-    ? Number(hit.duration_months) 
-    : (materialObj.duration_months !== null && materialObj.duration_months !== undefined ? Number(materialObj.duration_months) : 3);
+  const hRate = hit.hourly_rate !== null && hit.hourly_rate !== undefined && Number(hit.hourly_rate) > 0
+    ? Number(hit.hourly_rate)
+    : (materialObj.hourly_rate !== null && materialObj.hourly_rate !== undefined && Number(materialObj.hourly_rate) > 0 ? Number(materialObj.hourly_rate) : 1);
+  const pkgPrice = hit.package_price !== null && hit.package_price !== undefined
+    ? Number(hit.package_price)
+    : (materialObj.package_price !== null && materialObj.package_price !== undefined ? Number(materialObj.package_price) : 10);
+  const pkgHours = hit.package_hours !== null && hit.package_hours !== undefined
+    ? Number(hit.package_hours)
+    : (materialObj.package_hours !== null && materialObj.package_hours !== undefined ? Number(materialObj.package_hours) : 10);
+  const rawDurMonths = hit.duration_months !== null && hit.duration_months !== undefined
+    ? Number(hit.duration_months)
+    : (materialObj.duration_months !== null && materialObj.duration_months !== undefined ? Number(materialObj.duration_months) : undefined);
+  const durMonths = rawDurMonths && rawDurMonths > 0 ? rawDurMonths : undefined;
 
   return {
     id: String(hit.id),
@@ -141,21 +142,36 @@ export async function applyTokens(p: {
       course_id: p.courseId,
       hours: p.delta,
       type: typeVal,
+      delta: p.delta,
+      reason: p.reason,
+      ref: p.ref || null,
       note: p.note || `${p.reason}: ${p.delta > 0 ? "+" : ""}${p.delta} hour(s)`,
       created_by: p.by || "system"
     };
-    const { error: uniErr } = await supabaseAdmin.from("token_ledger").insert(ledgerUnified);
+    let { error: uniErr } = await supabaseAdmin.from("token_ledger").insert(ledgerUnified);
     if (uniErr && (uniErr.message.includes("column") || uniErr.message.includes("schema cache") || uniErr.message.includes("violates check constraint"))) {
-      const ledgerLegacy: any = {
+      // Retry with subset depending on which columns exist
+      const minimalUnified: any = {
         student_id: p.studentId,
         course_id: p.courseId,
-        delta: p.delta,
-        reason: p.reason,
-        ref: p.ref || null,
-        note: p.note || null,
-        created_by: p.by || null
+        hours: p.delta,
+        type: typeVal,
+        note: p.note || `${p.reason}: ${p.delta > 0 ? "+" : ""}${p.delta} hour(s)`,
+        created_by: p.by || "system"
       };
-      await supabaseAdmin.from("token_ledger").insert(ledgerLegacy);
+      const r2 = await supabaseAdmin.from("token_ledger").insert(minimalUnified);
+      if (r2.error && (r2.error.message.includes("column") || r2.error.message.includes("schema cache") || r2.error.message.includes("violates check constraint"))) {
+        const ledgerLegacy: any = {
+          student_id: p.studentId,
+          course_id: p.courseId,
+          delta: p.delta,
+          reason: p.reason,
+          ref: p.ref || null,
+          note: p.note || null,
+          created_by: p.by || null
+        };
+        await supabaseAdmin.from("token_ledger").insert(ledgerLegacy);
+      }
     }
   } catch (ledErr: any) {
     console.warn("Notice inserting into token_ledger fallback:", ledErr?.message);
@@ -165,17 +181,21 @@ export async function applyTokens(p: {
   try {
     const { data: w } = await supabaseAdmin
       .from("token_wallets")
-      .select("balance")
+      .select("balance, total_purchased, total_used")
       .eq("student_id", p.studentId)
       .eq("course_id", p.courseId)
       .maybeSingle();
 
     const cur = w ? Number(w.balance) || 0 : 0;
+    const prevPurchased = w ? Number(w.total_purchased) || 0 : 0;
+    const prevUsed = w ? Number(w.total_used) || 0 : 0;
     newBalance = cur + p.delta;
     await supabaseAdmin.from("token_wallets").upsert({
       student_id: p.studentId,
       course_id: p.courseId,
       balance: newBalance,
+      total_purchased: prevPurchased + (p.delta > 0 ? p.delta : 0),
+      total_used: prevUsed + (p.delta < 0 ? Math.abs(p.delta) : 0),
       updated_at: new Date().toISOString()
     });
   } catch {}
@@ -272,71 +292,132 @@ async function viewWallets(rows: any[]): Promise<WalletView[]> {
   });
 }
 
+async function loadMergedCourseBalancesForStudentIds(ids: string[]): Promise<{
+  wallets: WalletView[];
+  byStudent: Map<string, Map<string, { balance: number; totalPurchased: number; totalUsed: number }>>;
+}> {
+  const byStudent = new Map<string, Map<string, { balance: number; totalPurchased: number; totalUsed: number }>>();
+  const ensureEntry = (sid: string, cid: string) => {
+    if (!byStudent.has(sid)) byStudent.set(sid, new Map());
+    const sm = byStudent.get(sid)!;
+    if (!sm.has(cid)) sm.set(cid, { balance: 0, totalPurchased: 0, totalUsed: 0 });
+    return sm.get(cid)!;
+  };
+
+  // 1. Read token_wallets (tracks balance, total_purchased, total_used)
+  const walletPairs = new Set<string>();
+  try {
+    const { data: wRows } = await supabaseAdmin
+      .from("token_wallets")
+      .select("student_id, course_id, balance, total_purchased, total_used")
+      .in("student_id", ids);
+    for (const w of (wRows || []) as any[]) {
+      const sid = String(w.student_id);
+      const cid = String(w.course_id);
+      walletPairs.add(`${sid}:${cid}`);
+      const entry = ensureEntry(sid, cid);
+      entry.balance = Number(w.balance) || 0;
+      entry.totalPurchased = Number(w.total_purchased) || 0;
+      entry.totalUsed = Number(w.total_used) || 0;
+    }
+  } catch {}
+
+  // 2. Read student_course_balance view (falls back to summing token_ledger directly if view fails)
+  const ledgerPairs = new Map<string, number>();
+  let viewOk = false;
+  try {
+    const { data: viewRows, error: viewErr } = await supabaseAdmin
+      .from("student_course_balance")
+      .select("student_id, course_id, available_tokens")
+      .in("student_id", ids);
+    if (!viewErr && Array.isArray(viewRows)) {
+      viewOk = true;
+      for (const b of viewRows as any[]) {
+        ledgerPairs.set(`${b.student_id}:${b.course_id}`, Number(b.available_tokens) || 0);
+      }
+    }
+  } catch {}
+
+  if (!viewOk) {
+    try {
+      const { data: ledRows } = await supabaseAdmin
+        .from("token_ledger")
+        .select("student_id, course_id, hours, delta, expires_at")
+        .in("student_id", ids);
+      const nowMs = Date.now();
+      for (const row of (ledRows || []) as any[]) {
+        if (row.expires_at && new Date(row.expires_at).getTime() <= nowMs) continue;
+        const val = Number(row.hours ?? row.delta ?? 0);
+        const k = `${row.student_id}:${row.course_id}`;
+        ledgerPairs.set(k, (ledgerPairs.get(k) || 0) + val);
+      }
+    } catch {}
+  }
+
+  for (const [pairKey, ledgerBal] of ledgerPairs.entries()) {
+    const [sid, cid] = pairKey.split(":");
+    if (!sid || !cid) continue;
+    const hasWallet = walletPairs.has(pairKey);
+    const entry = ensureEntry(sid, cid);
+    if (!hasWallet || (entry.balance === 0 && entry.totalPurchased === 0 && entry.totalUsed === 0 && ledgerBal !== 0)) {
+      entry.balance = ledgerBal;
+      if (entry.totalPurchased === 0 && ledgerBal > 0) entry.totalPurchased = ledgerBal;
+    }
+  }
+
+  const { data: courses } = await supabaseAdmin.from("courses").select("id, name, hourly_rate");
+  const byCourseId = new Map<string, CourseInfo>();
+  for (const c of (courses || []) as any[]) {
+    const rate = Number(c.hourly_rate);
+    byCourseId.set(String(c.id), {
+      id: String(c.id),
+      name: String(c.name || ""),
+      price: !isNaN(rate) && rate > 0 ? rate : 1,
+    });
+  }
+
+  const wallets: WalletView[] = [];
+  for (const [sid, courseMap] of byStudent.entries()) {
+    for (const [cid, totals] of courseMap.entries()) {
+      const c = byCourseId.get(cid);
+      const balance = Number(totals.balance) || 0;
+      wallets.push({
+        studentId: sid,
+        courseId: cid,
+        courseName: c?.name || "Course",
+        pricePerToken: c?.price || 1,
+        balance,
+        totalPurchased: totals.totalPurchased,
+        totalUsed: totals.totalUsed,
+        low: balance <= LOW_TOKEN_LIMIT,
+        owed: balance < 0,
+      });
+    }
+  }
+  return { wallets, byStudent };
+}
+
 export async function getBalances(studentIdOrCode: string): Promise<WalletView[]> {
   const student = await findStudent(studentIdOrCode);
   if (!student) return [];
-  const { data: balances } = await supabaseAdmin
-    .from("student_course_balance")
-    .select("student_id, course_id, available_tokens")
-    .eq("student_id", student.id);
-
-  const { data: courses } = await supabaseAdmin.from("courses").select("id, name, hourly_rate");
-  const byId = new Map<string, CourseInfo>();
-  for (const c of (courses || []) as any[]) {
-    byId.set(String(c.id), { id: String(c.id), name: String(c.name || ""), price: Number(c.hourly_rate || 50) });
-  }
-
-  return (balances || []).map((b: any) => {
-    const c = byId.get(String(b.course_id));
-    const balance = Number(b.available_tokens) || 0;
-    return {
-      studentId: b.student_id,
-      courseId: b.course_id,
-      courseName: c?.name || "Course",
-      pricePerToken: c?.price || 50,
-      balance,
-      totalPurchased: balance,
-      totalUsed: 0,
-      low: balance <= LOW_TOKEN_LIMIT,
-      owed: balance < 0
-    };
-  });
+  const { wallets } = await loadMergedCourseBalancesForStudentIds([student.id]);
+  return wallets;
 }
 
 export async function getBalancesForStudents(studentUuids: string[]): Promise<Array<WalletView & { studentName: string; studentCode: string }>> {
   const ids = studentUuids.filter(isUuid);
   if (ids.length === 0) return [];
-  const { data: balances } = await supabaseAdmin
-    .from("student_course_balance")
-    .select("student_id, course_id, available_tokens")
-    .in("student_id", ids);
-
-  const { data: students } = await supabaseAdmin.from("students").select("id, name, student_id_code").in("id", ids);
+  const [{ wallets }, { data: students }] = await Promise.all([
+    loadMergedCourseBalancesForStudentIds(ids),
+    supabaseAdmin.from("students").select("id, name, student_id_code").in("id", ids),
+  ]);
   const nameOf = new Map<string, any>((students || []).map((s: any) => [s.id, s]));
 
-  const { data: courses } = await supabaseAdmin.from("courses").select("id, name, hourly_rate");
-  const byId = new Map<string, CourseInfo>();
-  for (const c of (courses || []) as any[]) {
-    byId.set(String(c.id), { id: String(c.id), name: String(c.name || ""), price: Number(c.hourly_rate || 50) });
-  }
-
-  return (balances || []).map((b: any) => {
-    const c = byId.get(String(b.course_id));
-    const balance = Number(b.available_tokens) || 0;
-    return {
-      studentId: b.student_id,
-      studentName: nameOf.get(b.student_id)?.name || "",
-      studentCode: nameOf.get(b.student_id)?.student_id_code || "",
-      courseId: b.course_id,
-      courseName: c?.name || "Course",
-      pricePerToken: c?.price || 50,
-      balance,
-      totalPurchased: balance,
-      totalUsed: 0,
-      low: balance <= LOW_TOKEN_LIMIT,
-      owed: balance < 0
-    };
-  });
+  return wallets.map(w => ({
+    ...w,
+    studentName: nameOf.get(w.studentId)?.name || "",
+    studentCode: nameOf.get(w.studentId)?.student_id_code || "",
+  }));
 }
 
 export async function getLedger(studentIdOrCode: string, limit = 100) {
@@ -531,6 +612,7 @@ export function buildReceiptData(order: OrderRow, student: StudentInfo): Receipt
     parentName: "Parent / Guardian",
     studentEmail: student.email,
     parentEmail: student.parentEmails[0] || order.payer_email || "",
+    parentEmails: student.parentEmails,
     courseName: order.course_name || "Course",
     pricingModel: order.plan === "PACKAGE" ? "FIXED_COURSE_PACKAGE" : "HOURLY_CREDIT_PACKAGE",
     purchasedHours: order.quantity,
@@ -544,6 +626,8 @@ export function buildReceiptData(order: OrderRow, student: StudentInfo): Receipt
         ? (order.card_brand && order.card_last4
             ? `Card (${order.card_brand.toUpperCase()} •••• ${order.card_last4})`
             : "Card")
+        : order.provider_ref === "INSTANT_TOKEN_PORTAL"
+        ? "Instant Token Checkout"
         : order.provider,
     paymentDate: order.paid_at || order.created_at,
   } as ReceiptDataInput;

@@ -5,14 +5,13 @@ import { instituteNow } from "../services/instituteTime.js";
 import { SessionAttendanceService, classSessionQrStore, type ClassSessionQRRecord } from "../services/sessionAttendanceService.js";
 import { inMemoryStudentStore } from "../services/studentService.js";
 import { supabaseAdmin } from "../supabase.js";
-import { sendDailyAttendanceRollCallEmail, sendMonthlyAttendanceSummaryEmail } from "../services/notificationService.js";
+import { dispatchMultiChannelNotification, sendDailyAttendanceRollCallEmail, sendMonthlyAttendanceSummaryEmail, sendCompletedClassAttendanceReportEmail } from "../services/notificationService.js";
 import { findStudent, isUuid } from "../services/tokenService.js";
 import { ScheduleDataService } from "../services/scheduleDataService.js";
 import type { AuthenticatedRequest } from "../middleware/auth.js";
 import { getAccessScope, allowsStudent, scopeSessions, slotBelongsToTeacher } from "../services/accessScope.js";
 import { isRealEmail } from "../constants/domains.js";
 import { ScheduleSlotService } from "../services/scheduleSlotService.js";
-import { dispatchMultiChannelNotification } from "../services/notificationService.js";
 
 const router = express.Router();
 
@@ -243,17 +242,18 @@ router.post("/daily-rollcall", async (req, res): Promise<any> => {
           actor: recordedBy
         });
 
-        // PART B: Automatic email: student's own real email, otherwise parents; placeholder counts as no email; correction sends 'corrected' notice
+        // Automatic notification to BOTH student AND all parent emails when marked Present or Absent
         const student = await findStudent(studentKey);
         const studentRealEmail = isRealEmail(student?.email) ? student!.email : null;
-        const parentRealEmail = (student?.parentEmails || []).find((e: string) => isRealEmail(e)) || null;
-        const targetEmail = studentRealEmail || parentRealEmail;
+        const parentRealEmails = Array.from(new Set((student?.parentEmails || []).filter((e: string) => isRealEmail(e))));
 
-        if (targetEmail) {
+        if (studentRealEmail || parentRealEmails.length > 0) {
           const isCorrection = !saved.created;
           const noticeRemarks = isCorrection ? `[Corrected] ${remarks || ""}`.trim() : remarks;
           sendDailyAttendanceRollCallEmail({
-            parentEmail: targetEmail,
+            studentEmail: studentRealEmail,
+            parentEmails: parentRealEmails,
+            parentEmail: parentRealEmails[0] || studentRealEmail || "",
             studentName,
             courseName,
             date: rollDate,
@@ -267,7 +267,9 @@ router.post("/daily-rollcall", async (req, res): Promise<any> => {
         processedRecords.push({
           studentId: saved.record.studentId,
           studentName,
+          studentCode: student?.code || "",
           status,
+          remarks,
           attendancePercentage: stats.attendancePercentage,
           tokens_remaining: saved.token.remaining,
           isLowQuotaWarning: saved.token.low,
@@ -279,11 +281,41 @@ router.post("/daily-rollcall", async (req, res): Promise<any> => {
     }
 
     const allFailed = processedRecords.length === 0;
+    if (!allFailed) {
+      let teacherEmail = slot.teacher_email || "";
+      if (!isRealEmail(teacherEmail) && user.role === "TEACHER" && isRealEmail(user.email)) {
+        teacherEmail = user.email!;
+      }
+      if (!isRealEmail(teacherEmail) && slot.teacher_id) {
+        try {
+          const { data: tRow } = await supabaseAdmin.from("teachers").select("email").eq("id", slot.teacher_id).maybeSingle();
+          if (tRow?.email && isRealEmail(tRow.email)) teacherEmail = tRow.email;
+        } catch {}
+      }
+
+      sendCompletedClassAttendanceReportEmail({
+        courseName,
+        date: rollDate,
+        timeSlot: slot.time_slot || `${slot.start_time || ""} - ${slot.end_time || ""}`.trim(),
+        room: slot.room || "Room 101",
+        teacherName: slot.teacher_name || recordedBy,
+        teacherEmail: teacherEmail || null,
+        scheduleId,
+        entries: processedRecords.map(pr => ({
+          studentName: pr.studentName,
+          studentCode: pr.studentCode,
+          status: pr.status,
+          remarks: pr.remarks,
+          tokensRemaining: pr.tokens_remaining,
+        })),
+      }).catch(err => console.warn("Completed class report email warning:", err));
+    }
+
     return res.status(allFailed ? 400 : 200).json({
       success: !allFailed,
       message: allFailed
         ? "Nothing was saved. " + (rejected[0]?.reason || "")
-        : `Attendance saved for ${processedRecords.length} students.${rejected.length ? ` ${rejected.length} could not be saved.` : ""}`,
+        : `Attendance saved for ${processedRecords.length} students. Individual Present/Absent emails sent to Students & Parents, and class summary report sent to Teacher & Admin.${rejected.length ? ` ${rejected.length} could not be saved.` : ""}`,
       data: {
         date: rollDate, courseName, total: processedRecords.length,
         present: presentCount, absent: absentCount, excused: excusedCount,

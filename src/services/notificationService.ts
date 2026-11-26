@@ -2,11 +2,11 @@ import nodemailer from "nodemailer";
 import dotenv from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { getCachedInstituteSettings, emailFooter } from "./instituteSettingsService.js";
+import { getCachedInstituteSettings, getAdminNotificationEmails, emailFooter } from "./instituteSettingsService.js";
 import { renderTemplate } from "./emailTemplateService.js";
 import { logEmail, statusFromDispatch } from "./emailLog.js";
 import { instituteToday } from "./instituteTime.js";
-import { isPlaceholderEmail } from "../constants/domains.js";
+import { isPlaceholderEmail, isRealEmail } from "../constants/domains.js";
 import { parseEnv } from "../utils/parseEnv.js";
 export { emailFooter } from "./instituteSettingsService.js";
 
@@ -336,10 +336,13 @@ export async function sendClassScheduleEmail(params: {
 }
 
 /**
- * Node 8: Daily Attendance Roll-Call Summary Email to Parents (1-Click Notification)
+ * Node 8: Daily Attendance Roll-Call Summary Email to Student & Parents (1-Click Notification)
  */
 export async function sendDailyAttendanceRollCallEmail(params: {
-  parentEmail: string;
+  parentEmail?: string;
+  studentEmail?: string | null;
+  parentEmails?: string[];
+  recipients?: Array<{ role: "STUDENT" | "PARENT"; email: string; name?: string }>;
   studentName: string;
   courseName: string;
   date: string;
@@ -351,11 +354,11 @@ export async function sendDailyAttendanceRollCallEmail(params: {
   const normStatus = params.status.toUpperCase();
   const statusEmoji = normStatus === "PRESENT" ? "✅" : normStatus === "ABSENT" ? "🚨" : "ℹ️";
   let subject = `${statusEmoji} Attendance Notice: ${params.studentName} — ${normStatus} (${params.courseName})`;
-  let message = `Daily Attendance Notice: ${params.studentName} attended ${params.courseName} on ${params.date}.`;
+  let message = `Daily Attendance Notice: ${params.studentName} was marked ${normStatus} for ${params.courseName} on ${params.date}.`;
 
   try {
     const tpl = await renderTemplate("ATTENDANCE_DAILY_SUMMARY", {
-      parent_name: "Parent",
+      parent_name: "Student / Parent",
       student_name: params.studentName,
       course_name: params.courseName,
       attendance_date: params.date,
@@ -371,25 +374,45 @@ export async function sendDailyAttendanceRollCallEmail(params: {
     // Fallback
   }
 
+  const resolvedRecipients: Array<{ role: "STUDENT" | "PARENT"; email: string; name: string }> = [];
+  const seen = new Set<string>();
+  const addRec = (role: "STUDENT" | "PARENT", email?: string | null, name?: string) => {
+    const clean = String(email || "").trim();
+    if (!isRealEmail(clean)) return;
+    const key = clean.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    resolvedRecipients.push({
+      role,
+      email: clean,
+      name: name || (role === "STUDENT" ? params.studentName : `Parent of ${params.studentName}`),
+    });
+  };
+
+  for (const r of params.recipients || []) {
+    addRec(r.role, r.email, r.name);
+  }
+  addRec("STUDENT", params.studentEmail, params.studentName);
+  addRec("PARENT", params.parentEmail);
+  for (const pe of params.parentEmails || []) {
+    addRec("PARENT", pe);
+  }
+
+  if (resolvedRecipients.length === 0) return false;
+
   const result = await dispatchMultiChannelNotification({
     eventType: "ATTENDANCE_ALERT",
     subject,
     message,
     escapeMessage: false,
-    recipients: [
-      {
-        role: "PARENT",
-        email: params.parentEmail,
-        name: `Parent of ${params.studentName}`
-      }
-    ]
+    recipients: resolvedRecipients
   });
 
   await logEmail(
     "ATTENDANCE_DAILY",
     params.studentName,
     params.date || instituteToday(),
-    [params.parentEmail],
+    resolvedRecipients.map(r => r.email),
     subject,
     statusFromDispatch(result),
     result.failures.join("; ") || undefined,
@@ -504,6 +527,160 @@ export async function sendPaymentConfirmationReceiptEmail(params: {
       }
     ]
   });
+
+  return result.success;
+}
+
+/**
+ * Completed Class Attendance Roster Report Email dispatched to BOTH the Teacher and Admin email.
+ */
+export async function sendCompletedClassAttendanceReportEmail(params: {
+  courseName: string;
+  date: string;
+  timeSlot?: string;
+  room?: string;
+  teacherName: string;
+  teacherEmail?: string | null;
+  scheduleId?: string;
+  entries: Array<{
+    studentName: string;
+    studentCode?: string;
+    status: string;
+    remarks?: string;
+    tokensRemaining?: number;
+  }>;
+}): Promise<boolean> {
+  const rows = params.entries || [];
+  if (rows.length === 0) return false;
+
+  const presentCount = rows.filter(r => String(r.status || "").toUpperCase() === "PRESENT" || String(r.status || "").toUpperCase() === "LATE").length;
+  const absentCount = rows.filter(r => String(r.status || "").toUpperCase() === "ABSENT").length;
+  const totalCount = rows.length;
+  const ratePct = totalCount > 0 ? Math.round((presentCount / totalCount) * 100) : 0;
+
+  const recipients: Array<{ role: "TEACHER" | "ADMIN"; email: string; name: string }> = [];
+  const seen = new Set<string>();
+
+  if (isRealEmail(params.teacherEmail)) {
+    const tClean = String(params.teacherEmail).trim();
+    seen.add(tClean.toLowerCase());
+    recipients.push({ role: "TEACHER", email: tClean, name: params.teacherName || "Course Instructor" });
+  }
+
+  let adminEmails: string[] = [];
+  try {
+    adminEmails = await getAdminNotificationEmails();
+  } catch {}
+  if (adminEmails.length === 0) {
+    const fallbackAdmin = (process.env.ADMIN_EMAIL || process.env.GMAIL_SENDER_EMAIL || "tglbiz101@gmail.com").trim();
+    if (fallbackAdmin) adminEmails = [fallbackAdmin];
+  }
+  for (const ae of adminEmails) {
+    const clean = String(ae || "").trim();
+    if (!clean || !clean.includes("@")) continue;
+    if (seen.has(clean.toLowerCase())) continue;
+    seen.add(clean.toLowerCase());
+    recipients.push({ role: "ADMIN", email: clean, name: "System Administrator" });
+  }
+
+  if (recipients.length === 0) return false;
+
+  const subject = `📋 Class Attendance Report: ${params.courseName} — ${params.date} (${presentCount}/${totalCount} Present)`;
+  const tableRowsHtml = rows.map((r, i) => {
+    const st = String(r.status || "PRESENT").toUpperCase();
+    const badgeColor = st === "PRESENT" || st === "LATE"
+      ? "background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;"
+      : st === "ABSENT"
+      ? "background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;"
+      : "background:#fffbeb;color:#b45309;border:1px solid #fde68a;";
+    return `
+      <tr>
+        <td style="padding:10px;border-bottom:1px solid #e2e8f0;font-size:12px;color:#475569;">${i + 1}</td>
+        <td style="padding:10px;border-bottom:1px solid #e2e8f0;font-size:12px;font-weight:700;color:#0f172a;">${escapeHtml(r.studentName)}</td>
+        <td style="padding:10px;border-bottom:1px solid #e2e8f0;font-size:11px;font-family:monospace;color:#475569;">${escapeHtml(r.studentCode || "—")}</td>
+        <td style="padding:10px;border-bottom:1px solid #e2e8f0;"><span style="display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:800;${badgeColor}">${escapeHtml(st)}</span></td>
+        <td style="padding:10px;border-bottom:1px solid #e2e8f0;font-size:12px;color:#334155;">${r.tokensRemaining !== undefined ? `${r.tokensRemaining} left` : "—"}</td>
+        <td style="padding:10px;border-bottom:1px solid #e2e8f0;font-size:11px;color:#64748b;">${escapeHtml(r.remarks || "—")}</td>
+      </tr>`;
+  }).join("");
+
+  const htmlMessage = `
+    <div style="font-family:'Segoe UI',Helvetica,Arial,sans-serif;max-width:720px;margin:0 auto;background:#ffffff;border:1px solid #cbd5e1;border-radius:14px;overflow:hidden;">
+      <div style="background:linear-gradient(135deg,#0d1c2f,#004ac6);padding:22px 24px;color:#ffffff;">
+        <div style="font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#93c5fd;">Completed Class Attendance Summary</div>
+        <h2 style="margin:6px 0 4px 0;font-size:20px;font-weight:900;">${escapeHtml(params.courseName)}</h2>
+        <div style="font-size:12px;color:#e2e8f0;">
+          Date: <strong>${escapeHtml(params.date)}</strong>${params.timeSlot ? ` &nbsp;•&nbsp; Slot: <strong>${escapeHtml(params.timeSlot)}</strong>` : ""}${params.room ? ` &nbsp;•&nbsp; Room: <strong>${escapeHtml(params.room)}</strong>` : ""}<br>
+          Instructor: <strong>${escapeHtml(params.teacherName || "Course Faculty")}</strong>
+        </div>
+      </div>
+
+      <div style="padding:20px 24px;">
+        <table width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:18px;">
+          <tr>
+            <td style="width:25%;padding:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;text-align:center;">
+              <div style="font-size:10px;text-transform:uppercase;font-weight:800;color:#64748b;">Total Students</div>
+              <div style="font-size:20px;font-weight:900;color:#0f172a;margin-top:2px;">${totalCount}</div>
+            </td>
+            <td style="width:4%"></td>
+            <td style="width:25%;padding:10px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;text-align:center;">
+              <div style="font-size:10px;text-transform:uppercase;font-weight:800;color:#047857;">Present</div>
+              <div style="font-size:20px;font-weight:900;color:#047857;margin-top:2px;">${presentCount}</div>
+            </td>
+            <td style="width:4%"></td>
+            <td style="width:25%;padding:10px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;text-align:center;">
+              <div style="font-size:10px;text-transform:uppercase;font-weight:800;color:#b91c1c;">Absent</div>
+              <div style="font-size:20px;font-weight:900;color:#b91c1c;margin-top:2px;">${absentCount}</div>
+            </td>
+            <td style="width:4%"></td>
+            <td style="width:13%;padding:10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;text-align:center;">
+              <div style="font-size:10px;text-transform:uppercase;font-weight:800;color:#1d4ed8;">Rate</div>
+              <div style="font-size:18px;font-weight:900;color:#1d4ed8;margin-top:2px;">${ratePct}%</div>
+            </td>
+          </tr>
+        </table>
+
+        <table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
+          <thead>
+            <tr style="background:#f1f5f9;text-align:left;font-size:11px;text-transform:uppercase;color:#475569;">
+              <th style="padding:10px;">#</th>
+              <th style="padding:10px;">Student</th>
+              <th style="padding:10px;">ID</th>
+              <th style="padding:10px;">Status</th>
+              <th style="padding:10px;">Tokens</th>
+              <th style="padding:10px;">Remarks</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRowsHtml}
+          </tbody>
+        </table>
+      </div>
+      ${emailFooter()}
+    </div>
+  `;
+
+  const result = await dispatchMultiChannelNotification({
+    eventType: "ATTENDANCE_ALERT",
+    subject,
+    message: htmlMessage,
+    escapeMessage: false,
+    recipients
+  });
+
+  const summaryPreview = `Completed class attendance (${presentCount}/${totalCount} present): ` +
+    rows.map(r => `${r.studentName} (${String(r.status || "PRESENT").toUpperCase()})`).join(", ");
+
+  await logEmail(
+    "ATTENDANCE_CLASS_REPORT",
+    params.courseName,
+    params.date || instituteToday(),
+    recipients.map(r => r.email),
+    subject,
+    statusFromDispatch(result),
+    result.failures.join("; ") || undefined,
+    summaryPreview
+  );
 
   return result.success;
 }

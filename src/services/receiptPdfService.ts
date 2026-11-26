@@ -9,6 +9,7 @@ export interface ReceiptDataInput {
   parentName?: string | undefined;
   studentEmail: string;
   parentEmail?: string | undefined;
+  parentEmails?: string[] | undefined;
   courseName: string;
   pricingModel: "HOURLY_CREDIT_PACKAGE" | "FIXED_COURSE_PACKAGE";
   purchasedHours?: number | undefined;
@@ -148,8 +149,20 @@ export class ReceiptPdfService {
       { role: "ADMIN", email: adminEmail, name: "System Administrator" }
     ];
 
-    if (data.parentEmail) {
-      recipients.push({ role: "PARENT", email: data.parentEmail, name: data.parentName || "Parent" });
+    const seenEmails = new Set<string>([
+      String(data.studentEmail || adminEmail).trim().toLowerCase(),
+      adminEmail.trim().toLowerCase(),
+    ]);
+    const allParents = [
+      ...(Array.isArray(data.parentEmails) ? data.parentEmails : []),
+      ...(data.parentEmail ? [data.parentEmail] : []),
+    ];
+    for (const pEmail of allParents) {
+      const clean = String(pEmail || "").trim();
+      if (!clean || !clean.includes("@")) continue;
+      if (seenEmails.has(clean.toLowerCase())) continue;
+      seenEmails.add(clean.toLowerCase());
+      recipients.push({ role: "PARENT", email: clean, name: data.parentName || "Parent / Guardian" });
     }
 
     try {

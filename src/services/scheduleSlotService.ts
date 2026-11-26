@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "../supabase.js";
 import { instituteTimezone } from "./instituteTime.js";
 import { recordDomainEvent } from "./domainEventService.js";
+import { applyTokens, getBalances } from "./tokenService.js";
 
 export const inMemoryScheduleStore: any[] = [];
 
@@ -11,7 +12,9 @@ export interface ScheduleSlotDto {
   course_code?: string;
   teacher_id: string;
   teacher_name: string;
-  teacher_email?: string;
+  teacher_email?: string | undefined;
+  teacher_id_code?: string | undefined;
+  teacher_user_id?: string | undefined;
   grade: string;
   start_at: string; // UTC ISO
   end_at: string;   // UTC ISO
@@ -186,10 +189,10 @@ export class ScheduleSlotService {
       .select("id, name, course_code");
     const courseMap = new Map((courses || []).map(c => [c.id, c]));
 
-    // 3. Fetch teachers map
+    // 3. Fetch teachers map (include teacher_id_code and user_id for rock-solid faculty matching)
     const { data: teachers } = await supabaseAdmin
       .from("teachers")
-      .select("id, name, email, phone");
+      .select("id, teacher_id_code, user_id, name, email, phone");
     const teacherMap = new Map((teachers || []).map(t => [t.id, t]));
 
     // 4. Fetch active and paused enrollments with students from canonical student_enrollments
@@ -266,6 +269,8 @@ export class ScheduleSlotService {
         teacher_id: slot.teacher_id || "",
         teacher_name: slot.teacher_name || teacher?.name || "Unassigned Faculty",
         teacher_email: teacher?.email || "",
+        teacher_id_code: teacher?.teacher_id_code || "",
+        teacher_user_id: teacher?.user_id || "",
         grade: slot.grade_range || slot.grade || "All Grades",
         start_at: startUtcStr,
         end_at: endUtcStr,
@@ -667,18 +672,29 @@ export class ScheduleSlotService {
       throw new Error("Student is already enrolled in this class slot.");
     }
 
-    // Check hours balance for this course in token_wallets
-    const { data: wallet } = await supabaseAdmin
-      .from("token_wallets")
-      .select("balance")
-      .eq("student_id", studentId)
-      .eq("course_id", slot.course_id)
-      .maybeSingle();
+    // Check live course token balance across unified wallets + ledger
+    const requiredTokens = Math.max(1, Math.round(Number(slot.duration_hours || 1.0)));
+    const wallets = await getBalances(studentId);
+    const courseWallet = wallets.find(w =>
+      String(w.courseId) === String(slot.course_id) ||
+      String(w.courseName || "").trim().toLowerCase() === String(slot.course_name || course?.name || "").trim().toLowerCase()
+    );
+    let balance = courseWallet ? Number(courseWallet.balance || 0) : 0;
 
-    const balance = Number(wallet?.balance || 0);
-    const requiredHours = Number(slot.duration_hours || 1.0);
-    if (balance < requiredHours) {
-      throw new Error(`Insufficient hours for this course. Required: ${requiredHours} hr(s), Available: ${balance} hr(s).`);
+    if (!courseWallet) {
+      const { data: wallet } = await supabaseAdmin
+        .from("token_wallets")
+        .select("balance")
+        .eq("student_id", studentId)
+        .eq("course_id", slot.course_id)
+        .maybeSingle();
+      balance = Number(wallet?.balance || 0);
+    }
+
+    if (balance < requiredTokens) {
+      throw new Error(
+        `Insufficient tokens for '${slot.course_name || course?.name || "this course"}'. Required: ${requiredTokens} token(s), Available: ${balance} token(s). Please buy course tokens first.`
+      );
     }
 
     // Insert enrollment
@@ -691,7 +707,7 @@ export class ScheduleSlotService {
         student_id: studentId,
         course_id: slot.course_id,
         plan: "HOURS",
-        hours_total: requiredHours,
+        hours_total: requiredTokens,
         status: "ACTIVE",
         created_at: new Date().toISOString()
       })
@@ -702,6 +718,24 @@ export class ScheduleSlotService {
       throw new Error(`Enrollment failed: ${enrErr.message}`);
     }
 
+    // Deduct 1 token (for 1hr) or 2 tokens (for 2hr) immediately on schedule registration
+    const deduction = await applyTokens({
+      studentId,
+      courseId: String(slot.course_id),
+      delta: -requiredTokens,
+      reason: "ADJUSTMENT",
+      ref: `booking:${enrollmentId}`,
+      note: `Class registration: ${slot.course_name || course?.name || "Course"} (${slot.day_of_week || ""} ${slot.time_slot || ""}) — ${requiredTokens} token(s)`,
+      by: "schedule-booking",
+    });
+
+    try {
+      await supabaseAdmin
+        .from("token_ledger")
+        .update({ ref_booking_id: enrollmentId })
+        .eq("ref", `booking:${enrollmentId}`);
+    } catch {}
+
     void recordDomainEvent({
       type: "enrollment.created",
       entity: "student_enrollments",
@@ -710,20 +744,24 @@ export class ScheduleSlotService {
         slot_id: slotId,
         student_id: studentId,
         course_id: slot.course_id,
-        duration_hours: requiredHours
+        duration_hours: requiredTokens,
+        tokens_deducted: requiredTokens,
+        remaining_balance: deduction.balance
       }
     });
 
     return {
       success: true,
-      bookingId: newEnr.id
+      bookingId: newEnr.id,
+      tokensDeducted: requiredTokens,
+      balance: deduction.balance
     };
   }
 
   /**
-   * Cancels a student's enrollment in a slot.
+   * Cancels a student's enrollment in a slot, refunding tokens when cancelled by admin or >= 24h in advance.
    */
-  static async cancelBooking(bookingId: string, _cancelledBy?: string, _reason?: string) {
+  static async cancelBooking(bookingId: string, cancelledBy?: string, reason?: string, isAdminCancel = false) {
     const { data: enr, error } = await supabaseAdmin
       .from("student_enrollments")
       .select("*")
@@ -731,11 +769,53 @@ export class ScheduleSlotService {
       .single();
 
     if (error || !enr) throw new Error("Enrollment not found.");
+    if (enr.status === "CANCELLED" || enr.status === "ENDED") {
+      return { success: true, tokensReleased: 0, policy: "Already cancelled" };
+    }
 
     await supabaseAdmin
       .from("student_enrollments")
       .update({ status: "ENDED", end_date: new Date().toISOString(), updated_at: new Date().toISOString() })
       .eq("id", bookingId);
+
+    // Refund tokens reserved at registration when cancelled >= 24h ahead or by Admin
+    let tokensReleased = 0;
+    try {
+      const { data: bookingDebit } = await supabaseAdmin
+        .from("token_ledger")
+        .select("id")
+        .eq("ref", `booking:${bookingId}`)
+        .maybeSingle();
+
+      if (bookingDebit) {
+        let canRefund = isAdminCancel;
+        if (!canRefund) {
+          const { data: slot } = await supabaseAdmin.from("schedules").select("start_at").eq("id", enr.slot_id).maybeSingle();
+          const startMs = slot?.start_at ? new Date(slot.start_at).getTime() : 0;
+          if (!startMs || startMs < Date.now()) {
+            // Recurring weekly slot with initial start_at in the past: treat as upcoming next week (>=24h refund eligible)
+            canRefund = true;
+          } else {
+            const hoursUntil = (startMs - Date.now()) / (1000 * 3600);
+            canRefund = hoursUntil >= 24;
+          }
+        }
+
+        if (canRefund) {
+          const qty = Math.max(1, Math.round(Number(enr.hours_total || 1)));
+          const r = await applyTokens({
+            studentId: enr.student_id,
+            courseId: enr.course_id,
+            delta: qty,
+            reason: "REFUND",
+            ref: `cancel-booking:${bookingId}`,
+            note: reason ? `Booking cancelled: ${reason}` : `Class registration cancelled (+${qty} token(s) refunded)`,
+            by: cancelledBy || "portal",
+          });
+          if (r.applied) tokensReleased = qty;
+        }
+      }
+    } catch {}
 
     void recordDomainEvent({
       type: "enrollment.ended",
@@ -744,14 +824,17 @@ export class ScheduleSlotService {
       payload: {
         slot_id: enr.slot_id,
         student_id: enr.student_id,
-        course_id: enr.course_id
+        course_id: enr.course_id,
+        tokens_released: tokensReleased
       }
     });
 
     return {
       success: true,
-      tokensReleased: 0,
-      policy: "Unused hours preserved on student wallet"
+      tokensReleased,
+      policy: tokensReleased > 0
+        ? "Cancelled in advance: tokens refunded to course wallet"
+        : "Unused hours preserved on student wallet"
     };
   }
 
@@ -800,7 +883,27 @@ export class ScheduleSlotService {
     const durHours = Number(slot?.duration_hours || 1.0);
     const prevStatus = att.status;
 
-    if (status === "present" && prevStatus !== "present") {
+    // Prevent double deduction when tokens were already deducted at schedule registration
+    let prepaidAtBooking = false;
+    try {
+      const { data: enrs } = await supabaseAdmin
+        .from("student_enrollments")
+        .select("id")
+        .eq("student_id", att.student_id)
+        .eq("slot_id", att.schedule_id)
+        .in("status", ["ACTIVE", "COMPLETED"]);
+      if (enrs && enrs.length > 0) {
+        const refs = enrs.map((e: any) => `booking:${e.id}`);
+        const { data: debits } = await supabaseAdmin
+          .from("token_ledger")
+          .select("id")
+          .in("ref", refs)
+          .limit(1);
+        if (debits && debits.length > 0) prepaidAtBooking = true;
+      }
+    } catch {}
+
+    if (!prepaidAtBooking && status === "present" && prevStatus !== "present") {
       await supabaseAdmin.from("token_ledger").insert({
         student_id: att.student_id,
         course_id: slot?.course_id || "general",
@@ -836,7 +939,7 @@ export class ScheduleSlotService {
           .eq("slot_id", att.schedule_id)
           .eq("status", "ACTIVE");
       }
-    } else if (prevStatus === "present" && status !== "present") {
+    } else if (!prepaidAtBooking && prevStatus === "present" && status !== "present") {
       await supabaseAdmin.from("token_ledger").insert({
         student_id: att.student_id,
         course_id: slot?.course_id || "general",
@@ -918,7 +1021,7 @@ export class ScheduleSlotService {
           }
         });
       }
-    } else if (prevStatus === "present" && status !== "present") {
+    } else if (!prepaidAtBooking && prevStatus === "present" && status !== "present") {
       void recordDomainEvent({
         type: "enrollment.resumed",
         entity: "student_enrollments",

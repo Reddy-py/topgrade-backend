@@ -162,6 +162,7 @@ app.use(["/api/schedules", "/api/schedule"], routeGuard("classes", [
   { method: "GET", path: /^\/teacher\/[^/]+\/roster\/?$/, permission: "attendance.create" },
   { method: "GET", path: /^\/open\/?$/, permission: "attendance.create" },
   { method: "POST", path: /^\/[^/]+\/(claim|release)\/?$/, permission: "attendance.create" },
+  { method: "POST", path: /^\/(book|cancel-booking)\/?$/, permission: "classes.view" },
 ]));
 app.use("/api/attendance", routeGuard("attendance", [
   { method: "GET", path: /^\/session\/[^/]+\/roster\/?$/, permission: "attendance.create" },
@@ -215,6 +216,12 @@ app.use("/api/locations", routeGuard("classes", [
 ]));
 app.use("/api/locations", locationsRouter);
 app.use("/api/course-packages", coursePackagesRouter);
+app.use("/api/tokens", routeGuard("payments.create", [
+  { method: "GET", path: /^\/student\/[^/]+\/(balance|ledger)\/?$/, permission: "fees.view" },
+  { method: "POST", path: /^\/purchase\/?$/, permission: "fees.pay" },
+]));
+app.get("/api/tokens/student/:studentId/balance", requireOwnStudent("param:studentId"));
+app.get("/api/tokens/student/:studentId/ledger", requireOwnStudent("param:studentId"));
 app.use("/api/tokens", tokensRouter);
 
 // A parent may pay only for their own child; a student only scans for themselves.

@@ -101,23 +101,43 @@ export function allowsCourse(scope: AccessScope, ...keys: unknown[]): boolean {
 
 export function slotBelongsToTeacher(slot: any, scope: AccessScope): boolean {
   return (
-    allowsTeacher(scope, slot.teacher_id, slot.teacherId, slot.teacher_email) ||
+    allowsTeacher(scope, slot.teacher_id, slot.teacherId, slot.teacher_email, slot.teacher_id_code, slot.teacher_user_id) ||
     (has(slot.teacher_name) && scope.teacherNames.has(norm(slot.teacher_name)))
   );
 }
 
-/** Schedule slots one login may see. Parent and student only get the entries for their own child. */
-export function scopeSchedules(slots: any[], scope: AccessScope): any[] {
+/**
+ * Schedule slots one login may see.
+ * - TEACHER: only their assigned slots.
+ * - PARENT & STUDENT: can view all active open schedules to register (students list is strictly scrubbed to only their own linked student(s), preserving total booked_count / available_seats).
+ * - If opts.enrolledOnly is true, returns only slots where the login's own student(s) are already enrolled.
+ */
+export function scopeSchedules(
+  slots: any[],
+  scope: AccessScope,
+  opts?: { enrolledOnly?: boolean }
+): any[] {
   if (scope.unrestricted) return slots;
   if (scope.role === "TEACHER") return slots.filter(s => slotBelongsToTeacher(s, scope));
-  return slots
-    .map(s => ({
-      ...s,
-      students: (s.students || []).filter((st: any) =>
-        allowsStudent(scope, st.student_id, st.student_code, st.id, st.studentCode)
-      ),
-    }))
-    .filter(s => s.students.length > 0);
+  const scoped = slots
+    .filter(s => s.is_active !== false && s.status !== "cancelled" && s.status !== "archived")
+    .map(s => {
+      const totalBooked = Number(s.booked_count ?? (Array.isArray(s.students) ? s.students.length : 0));
+      const maxCap = Number(s.max_capacity ?? s.max_students ?? 15);
+      const { teacher_email: _hiddenEmail, ...rest } = s;
+      return {
+        ...rest,
+        booked_count: totalBooked,
+        available_seats: Math.max(0, maxCap - totalBooked),
+        students: (s.students || []).filter((st: any) =>
+          allowsStudent(scope, st.student_id, st.student_code, st.id, st.studentCode)
+        ),
+      };
+    });
+  if (opts?.enrolledOnly) {
+    return scoped.filter(s => s.students.length > 0);
+  }
+  return scoped;
 }
 
 /** Attendance class sessions one login may see (sessions carry teacher and course, not a student list). */

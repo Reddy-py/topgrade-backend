@@ -45,7 +45,7 @@ export const getTeachersHandler = async (req: express.Request, res: express.Resp
     list = list.filter(t => allowsTeacher(scope, t.id, t.teacher_id_code, t.email, t.user_id));
   } else if (user.role === "PARENT" || user.role === "STUDENT") {
     const scope = await getAccessScope(user);
-    const slots = scopeSchedules(await ScheduleDataService.listSchedules(), scope);
+    const slots = scopeSchedules(await ScheduleDataService.listSchedules(), scope, { enrolledOnly: true });
     const ids = new Set<string>();
     const names = new Set<string>();
     for (const s of slots as any[]) {

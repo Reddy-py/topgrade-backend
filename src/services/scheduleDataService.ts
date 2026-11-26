@@ -18,6 +18,11 @@ export interface ScheduleSlot {
   course_name: string;
   teacher_id: string;
   teacher_name: string;
+  teacher_email?: string | undefined;
+  teacher_id_code?: string | undefined;
+  teacher_user_id?: string | undefined;
+  booked_count?: number | undefined;
+  available_seats?: number | undefined;
   day_of_week: string; // 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
   start_time: string;  // e.g. '10:00 AM'
   end_time: string;    // e.g. '11:30 AM'
@@ -318,6 +323,9 @@ export class ScheduleDataService {
             course_name: s.course_name,
             teacher_id: s.teacher_id,
             teacher_name: s.teacher_name,
+            teacher_email: s.teacher_email,
+            teacher_id_code: (s as any).teacher_id_code,
+            teacher_user_id: (s as any).teacher_user_id,
             day_of_week: s.day_of_week,
             start_time: s.start_time,
             end_time: s.end_time,
@@ -328,6 +336,8 @@ export class ScheduleDataService {
             room: s.notes || "Room 101",
             location: "Main Academic Center",
             max_capacity: s.max_students,
+            booked_count: s.booked_count,
+            available_seats: s.available_seats,
             is_active: s.status !== "cancelled" && s.status !== "archived",
             open_for_teachers: !s.teacher_id,
             claimed_by_teacher: Boolean(s.teacher_id),

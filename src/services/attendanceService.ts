@@ -1,5 +1,5 @@
 import { dispatchMultiChannelNotification } from "./notificationService.js";
-import { consumeAttendanceToken, refundAttendanceToken, findCourse, findStudent } from "./tokenService.js";
+import { consumeAttendanceToken, refundAttendanceToken, findCourse, findStudent, getBalances, LOW_TOKEN_LIMIT } from "./tokenService.js";
 import {
   saveAttendance, findOpenCheckin, setCheckOut, listAttendance, statsFor, isAttended, classKeyOf,
   type AttendanceRecord, type AttendanceStatusEnum, type ScanMethodEnum, type RecordInput,
@@ -41,9 +41,46 @@ export async function markAttendance(p: RecordInput): Promise<{ record: Attendan
   const courseKey = p.courseId || p.courseName || "";
   const classRef = `${classKeyOf(p)}:${p.date}`;
   try {
-    if (!courseKey || !(await findCourse(courseKey))) {
+    const courseObj = courseKey ? await findCourse(courseKey) : null;
+    if (!courseObj) {
       token.warning = "No hour was used: this class is not linked to a course.";
-    } else if (isAttended(p.status)) {
+      return { record: saved.record, created: saved.created, token };
+    }
+
+    // Check if student's tokens were already deducted at schedule registration (no double deduction; absent stays consumed)
+    let prepaidAtBooking = false;
+    const stuObj = await findStudent(p.studentIdOrCode);
+    if (stuObj && p.scheduleId) {
+      try {
+        const { data: enrs } = await supabaseAdmin
+          .from("student_enrollments")
+          .select("id")
+          .eq("student_id", stuObj.id)
+          .eq("slot_id", p.scheduleId)
+          .in("status", ["ACTIVE", "COMPLETED"]);
+        if (enrs && enrs.length > 0) {
+          const refs = enrs.map((e: any) => `booking:${e.id}`);
+          const { data: debits } = await supabaseAdmin
+            .from("token_ledger")
+            .select("id")
+            .in("ref", refs)
+            .limit(1);
+          if (debits && debits.length > 0) prepaidAtBooking = true;
+        }
+      } catch {}
+    }
+
+    if (prepaidAtBooking && stuObj) {
+      const wallets = await getBalances(stuObj.id);
+      const cw = wallets.find(w => w.courseId === courseObj.id) || wallets[0];
+      const rem = cw ? cw.balance : 0;
+      token.remaining = rem;
+      token.owed = rem < 0;
+      token.low = rem <= LOW_TOKEN_LIMIT;
+      return { record: saved.record, created: saved.created, token };
+    }
+
+    if (isAttended(p.status)) {
       const used = await consumeAttendanceToken({
         studentIdOrCode: p.studentIdOrCode,
         courseIdOrName: courseKey,

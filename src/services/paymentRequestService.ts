@@ -112,7 +112,7 @@ export async function calculateServerPrice(params: {
 }> {
   const course = await findCourse(params.courseId);
   const courseName = course?.name || "Selected Course";
-  const hourlyRate = course?.hourly_rate || course?.price || 40;
+  const hourlyRate = course?.hourly_rate || course?.price || 1;
   const packagePrice = course?.package_price;
   const packageHours = course?.package_hours || 10;
 

@@ -72,11 +72,13 @@ function mapSupabaseCourseToCourseData(c: any): CourseData {
     } catch {}
   }
 
-  const hourlyRate = c.hourly_rate !== null && c.hourly_rate !== undefined
+  const hourlyRate = c.hourly_rate !== null && c.hourly_rate !== undefined && Number(c.hourly_rate) > 0
     ? Number(c.hourly_rate)
-    : null;
+    : (materialObj.hourly_rate !== null && materialObj.hourly_rate !== undefined && Number(materialObj.hourly_rate) > 0
+        ? Number(materialObj.hourly_rate)
+        : 1);
 
-  const durationMonths = c.duration_months !== null && c.duration_months !== undefined
+  const durationMonths = c.duration_months !== null && c.duration_months !== undefined && Number(c.duration_months) > 0
     ? Number(c.duration_months)
     : null;
 
@@ -97,12 +99,12 @@ function mapSupabaseCourseToCourseData(c: any): CourseData {
     grade_category: c.age_group || "All Grades",
     age_group: c.age_group || "All Grades",
     grade_eligibility: Array.isArray(c.grade_eligibility) ? c.grade_eligibility : (c.age_group ? [c.age_group] : ["All Grades"]),
-    duration: c.duration || (durationMonths ? `${durationMonths} Months` : ""),
+    duration: c.duration || (durationMonths ? `${durationMonths} Months` : "Continuous (No End Date)"),
     duration_months: durationMonths,
     class_length: c.class_length ? Number(c.class_length) : (materialObj.class_length ? Number(materialObj.class_length) : 1),
     package_hours: packageHours,
     package_price: packagePrice,
-    fee: Number(c.fee) || 0,
+    fee: Number(c.fee) > 0 ? Number(c.fee) : hourlyRate,
     hourly_rate: hourlyRate,
     max_hours: Number(materialObj.max_hours) || 25,
     max_students: Number(c.max_students) || 20,
@@ -178,12 +180,24 @@ export const getCoursesHandler = async (req: express.Request, res: express.Respo
     list = list.filter(c => c.category === category);
   }
 
-  // Role scoping: students and parents see courses their child is enrolled in or eligible for
+  // Role scoping:
+  // - ADMIN sees all courses
+  // - TEACHER sees assigned/teaching courses
+  // - STUDENT & PARENT can browse all active courses so they can purchase tokens and register for classes (strip private student mappings)
   const user = (req as AuthenticatedRequest).user;
   if (user && user.role !== "ADMIN") {
-    const scope = await getAccessScope(user);
-    if (!scope.unrestricted) {
-      list = list.filter(c => allowsCourse(scope, c.id, c.course_code, c.name));
+    if (user.role === "TEACHER") {
+      const scope = await getAccessScope(user);
+      if (!scope.unrestricted) {
+        list = list.filter(c => allowsCourse(scope, c.id, c.course_code, c.name));
+      }
+    } else {
+      list = list
+        .filter(c => String(c.status || "Active").toLowerCase() !== "archived")
+        .map(c => ({
+          ...c,
+          mapped_students: [],
+        }));
     }
   }
 
@@ -270,16 +284,21 @@ export const getFeeStructureHandler = async (req: express.Request, res: express.
         } catch {}
       }
 
+      const rawDurMonths = c.duration_months ?? materialObj.duration_months ?? null;
+      const parsedDurMonths = rawDurMonths !== null && rawDurMonths !== "" && Number(rawDurMonths) > 0
+        ? Number(rawDurMonths)
+        : null;
+
       return {
         id: c.id,
         course_code: c.course_code || "",
         name: c.name || "",
         category: c.category || materialObj.category || "General",
-        hourly_rate: Number(c.hourly_rate ?? materialObj.hourly_rate ?? 50),
-        package_hours: Number(c.package_hours ?? materialObj.package_hours ?? 20),
-        package_price: Number(c.package_price ?? materialObj.package_price ?? 900),
-        duration_months: Number(c.duration_months ?? materialObj.duration_months ?? 3),
-        duration: c.duration || materialObj.duration || "3 Months",
+        hourly_rate: Number(c.hourly_rate ?? materialObj.hourly_rate ?? 1) || 1,
+        package_hours: Number(c.package_hours ?? materialObj.package_hours ?? 10),
+        package_price: Number(c.package_price ?? materialObj.package_price ?? 10),
+        duration_months: parsedDurMonths,
+        duration: c.duration || materialObj.duration || (parsedDurMonths ? `${parsedDurMonths} Months` : "Continuous (No End Date)"),
         status: c.status || "Active",
         updated_at: c.updated_at || new Date().toISOString()
       };
@@ -352,7 +371,8 @@ export const updateCourseFeeStructureHandler = async (req: express.Request, res:
   const hourlyRateNum = Number(hourly_rate);
   const packageHoursNum = Number(package_hours);
   const packagePriceNum = Number(package_price);
-  const durationMonthsNum = Number(duration_months);
+  const isContinuousReq = duration_months === null || duration_months === undefined || duration_months === "" || Number(duration_months) === 0;
+  const durationMonthsNum = isContinuousReq ? null : Number(duration_months);
 
   if (isNaN(hourlyRateNum) || hourlyRateNum <= 0) {
     return res.status(400).json({ success: false, message: "Hourly price ($/hr) must be a positive number." });
@@ -363,8 +383,8 @@ export const updateCourseFeeStructureHandler = async (req: express.Request, res:
   if (isNaN(packagePriceNum) || packagePriceNum <= 0) {
     return res.status(400).json({ success: false, message: "Package price ($) must be a positive number." });
   }
-  if (isNaN(durationMonthsNum) || durationMonthsNum <= 0 || !Number.isInteger(durationMonthsNum)) {
-    return res.status(400).json({ success: false, message: "Duration (Months) must be a positive whole number." });
+  if (durationMonthsNum !== null && (isNaN(durationMonthsNum) || durationMonthsNum <= 0 || !Number.isInteger(durationMonthsNum))) {
+    return res.status(400).json({ success: false, message: "Duration (Months) must be blank/0 for Continuous or a positive whole number." });
   }
 
   let existingCourse: any = null;
@@ -408,20 +428,23 @@ export const updateCourseFeeStructureHandler = async (req: express.Request, res:
     } catch {}
   }
 
+  const oldDurMonths = existingCourse.duration_months ?? materialObj.duration_months ?? null;
   const oldValues = {
-    hourly_rate: Number(existingCourse.hourly_rate ?? materialObj.hourly_rate ?? 50),
-    package_hours: Number(existingCourse.package_hours ?? materialObj.package_hours ?? 20),
-    package_price: Number(existingCourse.package_price ?? materialObj.package_price ?? 900),
-    duration_months: Number(existingCourse.duration_months ?? materialObj.duration_months ?? 3),
-    duration: existingCourse.duration || materialObj.duration || "3 Months"
+    hourly_rate: Number(existingCourse.hourly_rate ?? materialObj.hourly_rate ?? 1),
+    package_hours: Number(existingCourse.package_hours ?? materialObj.package_hours ?? 10),
+    package_price: Number(existingCourse.package_price ?? materialObj.package_price ?? 10),
+    duration_months: oldDurMonths !== null && oldDurMonths !== "" ? Number(oldDurMonths) : null,
+    duration: existingCourse.duration || materialObj.duration || (oldDurMonths ? `${oldDurMonths} Months` : "Continuous (No End Date)")
   };
 
-  const newDuration = duration ? String(duration).trim() : `${durationMonthsNum} Month${durationMonthsNum === 1 ? "" : "s"}`;
+  const newDuration = duration
+    ? String(duration).trim()
+    : (durationMonthsNum ? `${durationMonthsNum} Month${durationMonthsNum === 1 ? "" : "s"}` : "Continuous (No End Date)");
   const newValues = {
     hourly_rate: Math.round(hourlyRateNum * 100) / 100,
     package_hours: Math.floor(packageHoursNum),
     package_price: Math.round(packagePriceNum * 100) / 100,
-    duration_months: Math.floor(durationMonthsNum),
+    duration_months: durationMonthsNum ? Math.floor(durationMonthsNum) : null,
     duration: newDuration
   };
 
@@ -571,15 +594,20 @@ export const getCourseDetailHandler = async (req: express.Request, res: express.
     // Role scoping
     const user = (req as AuthenticatedRequest).user;
     if (user && user.role !== "ADMIN") {
-      const scope = await getAccessScope(user);
-      if (!scope.unrestricted && !allowsCourse(scope, courseData.id, courseData.course_code, courseData.name)) {
-        return res.status(403).json({ success: false, message: "Forbidden: You are not authorized to view this course." });
+      if (user.role === "TEACHER") {
+        const scope = await getAccessScope(user);
+        if (!scope.unrestricted && !allowsCourse(scope, courseData.id, courseData.course_code, courseData.name)) {
+          return res.status(403).json({ success: false, message: "Forbidden: You are not authorized to view this course." });
+        }
+      } else if (String(courseData.status || "Active").toLowerCase() === "archived") {
+        return res.status(404).json({ success: false, message: "Course not found." });
       }
     }
 
     courseData.assigned_teachers = Array.from(teacherMap.values());
-    courseData.mapped_students = Array.from(studentMap.values());
-    courseData.enrolled_students = courseData.mapped_students.length;
+    const allStudentsArr = Array.from(studentMap.values());
+    courseData.enrolled_students = allStudentsArr.length;
+    courseData.mapped_students = user && (user.role === "STUDENT" || user.role === "PARENT") ? [] : allStudentsArr;
 
     return res.status(200).json({
       success: true,
@@ -677,7 +705,7 @@ export const createCourseHandler = async (req: express.Request, res: express.Res
       if (!isNaN(v) && v > 0) packagePrice = Math.round(v * 100) / 100;
     }
 
-    let hourlyRate: number | null = null;
+    let hourlyRate: number | null = 1;
     if (c.hourly_rate !== undefined && c.hourly_rate !== null && c.hourly_rate !== "") {
       const v = Number(c.hourly_rate);
       if (!isNaN(v) && v > 0) hourlyRate = Math.round(v * 100) / 100;
@@ -686,12 +714,20 @@ export const createCourseHandler = async (req: express.Request, res: express.Res
       if (!isNaN(v) && v > 0) hourlyRate = Math.round(v * 100) / 100;
     }
 
+    const classLength = Math.max(1, Math.min(2, Number(c.class_length ?? c.classLength ?? 1) || 1));
+
     const gradeEligibility: string[] = Array.isArray(c.grade_eligibility) 
       ? c.grade_eligibility 
       : (Array.isArray(c.grade_levels) ? c.grade_levels : (Array.isArray(c.gradeLevels) ? c.gradeLevels : []));
 
+    const resolvedDuration = c.duration
+      ? String(c.duration).trim()
+      : (durationMonths ? `${durationMonths} Months` : "Continuous (No End Date)");
+
     const materialObj = {
+      duration: resolvedDuration,
       duration_months: durationMonths,
+      class_length: classLength,
       package_hours: packageHours,
       package_price: packagePrice,
       hourly_rate: hourlyRate,
@@ -703,12 +739,13 @@ export const createCourseHandler = async (req: express.Request, res: express.Res
       course_code: uniqueCode,
       name: c.name.trim(),
       description: c.description ? c.description.trim() : "",
-      duration: c.duration || (durationMonths ? `${durationMonths} Months` : ""),
+      duration: resolvedDuration,
       duration_months: durationMonths,
+      class_length: classLength,
       package_hours: packageHours,
       package_price: packagePrice,
       hourly_rate: hourlyRate,
-      fee: packagePrice || (hourlyRate ? hourlyRate * (packageHours || 1) : 0),
+      fee: packagePrice || (hourlyRate ? hourlyRate * (packageHours || 1) : 1),
       max_students: c.maxStudents ? parseInt(c.maxStudents) : (c.max_students ? parseInt(c.max_students) : 20),
       required_teacher_skills: c.category.trim(),
       status: c.status || "Active",

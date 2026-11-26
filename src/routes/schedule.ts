@@ -463,10 +463,19 @@ router.post("/cancel/:id", async (req, res): Promise<any> => {
   }
 });
 
-// 5c. Transactional Student Booking (uses public.book_slot RPC)
+// 5c. Transactional Student Booking (token-gated, deducts 1 token for 1hr / 2 tokens for 2hr)
 router.post("/book", async (req, res): Promise<any> => {
   try {
-    const { slot_id, student_id } = req.body;
+    const user = (req as AuthenticatedRequest).user!;
+    let { slot_id, student_id } = req.body || {};
+
+    if (!student_id && user.role === "STUDENT") {
+      const scope = await getAccessScope(user);
+      const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const ownId = Array.from(scope.studentKeys).find(k => uuidRe.test(k));
+      if (ownId) student_id = ownId;
+    }
+
     if (!slot_id || !student_id) {
       return res.status(400).json({
         success: false,
@@ -474,10 +483,20 @@ router.post("/book", async (req, res): Promise<any> => {
       });
     }
 
-    const result = await ScheduleSlotService.bookSlot(student_id, slot_id);
+    if (user.role !== "ADMIN") {
+      const scope = await getAccessScope(user);
+      if (!allowsStudent(scope, String(student_id))) {
+        return res.status(403).json({
+          success: false,
+          error: "Forbidden: You can only book schedules for yourself or your linked child."
+        });
+      }
+    }
+
+    const result = await ScheduleSlotService.bookSlot(String(student_id), String(slot_id));
     return res.status(200).json({
       success: true,
-      message: "Class slot booked successfully! Tokens reserved and attendance scheduled.",
+      message: `Class slot booked! ${result.tokensDeducted || 1} token(s) deducted; added to instructor's Attendance roster.`,
       data: result
     });
   } catch (err: any) {
@@ -491,8 +510,8 @@ router.post("/book", async (req, res): Promise<any> => {
 // 5d. Cancel Booking with 24h Cutoff Policy
 router.post("/cancel-booking", async (req, res): Promise<any> => {
   try {
-    const { booking_id, reason } = req.body;
-    const user = (req as AuthenticatedRequest).user;
+    const { booking_id, reason } = req.body || {};
+    const user = (req as AuthenticatedRequest).user!;
     if (!booking_id) {
       return res.status(400).json({
         success: false,
@@ -500,12 +519,29 @@ router.post("/cancel-booking", async (req, res): Promise<any> => {
       });
     }
 
-    const result = await ScheduleSlotService.cancelBooking(booking_id, user?.id, reason);
+    if (user.role !== "ADMIN") {
+      const { data: enr } = await supabaseAdmin
+        .from("student_enrollments")
+        .select("student_id")
+        .eq("id", String(booking_id))
+        .maybeSingle();
+      if (enr?.student_id) {
+        const scope = await getAccessScope(user);
+        if (!allowsStudent(scope, enr.student_id)) {
+          return res.status(403).json({
+            success: false,
+            error: "Forbidden: You can only cancel bookings for yourself or your child."
+          });
+        }
+      }
+    }
+
+    const result = await ScheduleSlotService.cancelBooking(booking_id, user?.id, reason, user.role === "ADMIN");
     return res.status(200).json({
       success: true,
       message: result.tokensReleased > 0
-        ? `Booking cancelled. ${result.tokensReleased} hours released back to your token balance.`
-        : "Booking cancelled within 24 hours. Under institute policy, hours remain consumed.",
+        ? `Booking cancelled. ${result.tokensReleased} token(s) refunded back to your course wallet.`
+        : "Booking cancelled within 24 hours. Under institute policy, tokens remain consumed.",
       data: result
     });
   } catch (err: any) {

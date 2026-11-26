@@ -3,7 +3,8 @@ import type { AttendanceStatusEnum } from "./attendanceRepo.js";
 import { instituteNow } from "./instituteTime.js";
 import { ScheduleDataService } from "./scheduleDataService.js";
 import { resolveTeacherIdentity } from "./teacherIdentity.js";
-import { dispatchMultiChannelNotification } from "./notificationService.js";
+import { dispatchMultiChannelNotification, sendCompletedClassAttendanceReportEmail } from "./notificationService.js";
+import { isRealEmail } from "../constants/domains.js";
 import { supabaseAdmin } from "../supabase.js";
 import { claimEmail, finishEmail } from "./emailLog.js";
 import { getBalances } from "./tokenService.js";
@@ -365,6 +366,14 @@ export class SessionAttendanceService {
       .in("id", entryStudentIds);
     const stuMap = new Map((dbStudents || []).map((s: any) => [s.id, s]));
 
+    const reportRows: Array<{
+      studentName: string;
+      studentCode?: string;
+      status: string;
+      remarks?: string;
+      tokensRemaining?: number;
+    }> = [];
+
     for (const entry of entries) {
       // Must be registered in class
       if (actor?.role === "TEACHER" && !enrolledStudentIds.has(entry.studentId)) {
@@ -428,49 +437,63 @@ export class SessionAttendanceService {
       savedCount++;
       if (attended) presentCount++; else absentCount++;
 
+      const hoursLeft = saved.token.remaining ?? 0;
+      reportRows.push({
+        studentName,
+        studentCode: studentInfo?.student_id_code || "",
+        status,
+        ...(entry.notes ? { remarks: entry.notes } : {}),
+        tokensRemaining: hoursLeft,
+      });
+
       // Warning if student with 0 hours is marked present (hours owed)
-      if (attended && (saved.token.owed || (saved.token.remaining ?? 0) <= 0)) {
-        warnings.push(`Warning: ${studentName} has 0 hours left (hours owed).`);
+      if (attended && (saved.token.owed || hoursLeft <= 0)) {
+        warnings.push(`Warning: ${studentName} has ${hoursLeft} token(s) left.`);
       } else if (saved.token.warning) {
         warnings.push(`${studentName}: ${saved.token.warning}`);
       }
 
-      // Determine real recipient email
-      let targetRecipient: { email: string; name: string; role: "STUDENT" | "PARENT" } | null = null;
-      if (studentInfo?.email && !isPlaceholderEmail(studentInfo.email)) {
-        targetRecipient = { email: studentInfo.email, name: studentName, role: "STUDENT" };
-      } else if (studentInfo?.parent_emails && studentInfo.parent_emails.length > 0) {
-        const realParent = studentInfo.parent_emails.find((pe: string) => !isPlaceholderEmail(pe));
-        if (realParent) {
-          targetRecipient = { email: realParent, name: `Parent of ${studentName}`, role: "PARENT" };
-        }
+      // Build recipients list: BOTH student email AND all valid parent emails
+      const recipientsList: Array<{ email: string; name: string; role: "STUDENT" | "PARENT" }> = [];
+      const seenEmails = new Set<string>();
+      const addRec = (email: unknown, role: "STUDENT" | "PARENT", name: string) => {
+        const clean = String(email || "").trim();
+        if (!clean || isPlaceholderEmail(clean)) return;
+        const key = clean.toLowerCase();
+        if (seenEmails.has(key)) return;
+        seenEmails.add(key);
+        recipientsList.push({ email: clean, name, role });
+      };
+
+      addRec(studentInfo?.email || entry.studentEmail, "STUDENT", studentName);
+      for (const pe of studentInfo?.parent_emails || []) {
+        addRec(pe, "PARENT", `Parent of ${studentName}`);
       }
 
-      // If valid real email exists, dispatch automatic attendance email idempotently via email_log
-      if (targetRecipient) {
-        const hoursLeft = saved.token.remaining ?? 0;
+      // If valid real email(s) exist, dispatch automatic attendance email idempotently via email_log
+      if (recipientsList.length > 0) {
         const claimKey = `${entry.studentId}:${slot.id}:${rollDate}:${status}${isCorrection ? ':corr' : ''}`;
         const emailSubject = isCorrection
           ? `[Corrected] Attendance Notice: ${slot.course_name}`
           : `Attendance Notice: ${slot.course_name} (${status === "PRESENT" ? "Present" : "Absent"})`;
 
         const statusCopy = status === "PRESENT"
-          ? `Present (${classHours} ${classHours > 1 ? "hours" : "hour"} deducted)`
-          : `Absent (nothing deducted)`;
+          ? `Present (Attended class • ${hoursLeft} course token(s) left)`
+          : `Absent (Marked absent • ${hoursLeft} course token(s) left)`;
 
         const emailMessage = isCorrection
           ? `CORRECTION NOTICE: Attendance for ${studentName} in '${slot.course_name}' on ${rollDate} has been updated.\n\n` +
             `• Class: ${slot.course_name}\n` +
             `• Date & Time: ${rollDate} (${slot.time_slot})\n` +
             `• Updated Status: ${statusCopy}\n` +
-            `• Hours Remaining: ${hoursLeft} hr(s) ${status === "ABSENT" ? "(nothing deducted)" : ""}\n` +
+            `• Course Tokens Remaining: ${hoursLeft} token(s)\n` +
             (input.auditNote ? `• Audit Note: ${input.auditNote}\n` : "") +
             `\nPlease contact the institute if you have any questions.`
-          : `Dear ${studentName},\n\nYour attendance for '${slot.course_name}' on ${rollDate} has been recorded.\n\n` +
+          : `Dear ${studentName} & Family,\n\nYour attendance for '${slot.course_name}' on ${rollDate} has been recorded.\n\n` +
             `• Class: ${slot.course_name}\n` +
             `• Date & Time: ${rollDate} (${slot.time_slot})\n` +
             `• Status: ${statusCopy}\n` +
-            `• Hours Remaining: ${hoursLeft} hr(s) ${status === "ABSENT" ? "(nothing deducted)" : ""}\n` +
+            `• Course Tokens Remaining: ${hoursLeft} token(s)\n` +
             `\nPlease contact the institute if you have any questions.`;
 
         // Claim in email_log to guarantee one email per student per class per date per status
@@ -479,7 +502,7 @@ export class SessionAttendanceService {
             "ATTENDANCE_DAILY",
             claimKey,
             rollDate,
-            [targetRecipient.email],
+            recipientsList.map(r => r.email),
             emailSubject,
             emailMessage.slice(0, 300),
             {
@@ -498,12 +521,12 @@ export class SessionAttendanceService {
                 subject: emailSubject,
                 message: emailMessage,
                 escapeMessage: true,
-                recipients: [targetRecipient]
+                recipients: recipientsList
               });
               await finishEmail(claimId, process.env.SIMULATE_EMAILS === "true" ? "simulated" : "sent");
             } catch (sendErr: any) {
               await finishEmail(claimId, "failed", sendErr.message);
-              console.warn(`Attendance email delivery error for ${targetRecipient.email}:`, sendErr.message);
+              console.warn(`Attendance email delivery error:`, sendErr.message);
             }
           }
         } catch (claimErr) {
@@ -512,9 +535,38 @@ export class SessionAttendanceService {
       }
     }
 
+    // Dispatch completed class roster summary email to BOTH Teacher and Admin
+    if (savedCount > 0 && reportRows.length > 0) {
+      let teacherEmail = slot.teacher_email || "";
+      if (!isRealEmail(teacherEmail) && actor?.role === "TEACHER" && isRealEmail(actor.email)) {
+        teacherEmail = actor.email!;
+      }
+      if (!isRealEmail(teacherEmail) && slot.teacher_id) {
+        try {
+          const { data: tRow } = await supabaseAdmin.from("teachers").select("email").eq("id", slot.teacher_id).maybeSingle();
+          if (tRow?.email && isRealEmail(tRow.email)) teacherEmail = tRow.email;
+        } catch {}
+      }
+
+      try {
+        await sendCompletedClassAttendanceReportEmail({
+          courseName: slot.course_name,
+          date: rollDate,
+          timeSlot: slot.time_slot,
+          room: slot.room,
+          teacherName: slot.teacher_name || actor?.name || "Course Faculty",
+          teacherEmail: teacherEmail || null,
+          scheduleId: slot.id,
+          entries: reportRows,
+        });
+      } catch (repErr: any) {
+        console.warn("Completed class report email notice:", repErr?.message);
+      }
+    }
+
     return {
       success: true,
-      message: `Attendance saved for ${savedCount} of ${entries.length} students.`,
+      message: `Attendance saved for ${savedCount} of ${entries.length} students. Individual notices sent to Students & Parents, and full class report sent to Teacher & Admin.`,
       processedCount: savedCount,
       presentCount,
       absentCount,
