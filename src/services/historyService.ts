@@ -1036,4 +1036,185 @@ export class HistoryService {
       filename: `TopGrade_Retention_List_${nowStr}.xlsx`
     };
   }
+
+  /**
+   * 11. Unified Activity & Audit Log across Student, Teacher, Parent, Course, Schedule & Attendance
+   */
+  public static async getUnifiedActivityLogs(entityFilter?: string): Promise<Array<{
+    id: string;
+    entityType: "STUDENT" | "TEACHER" | "PARENT" | "COURSE" | "SCHEDULE" | "ATTENDANCE" | "SYSTEM";
+    entityId: string;
+    entityName: string;
+    action: string;
+    eventType: string;
+    summary: string;
+    actor: string;
+    timestamp: string;
+    date: string;
+  }>> {
+    const items: Array<{
+      id: string;
+      entityType: "STUDENT" | "TEACHER" | "PARENT" | "COURSE" | "SCHEDULE" | "ATTENDANCE" | "SYSTEM";
+      entityId: string;
+      entityName: string;
+      action: string;
+      eventType: string;
+      summary: string;
+      actor: string;
+      timestamp: string;
+      date: string;
+    }> = [];
+
+    const classifyEntity = (typeStr: string, entityStr: string): "STUDENT" | "TEACHER" | "PARENT" | "COURSE" | "SCHEDULE" | "ATTENDANCE" | "SYSTEM" => {
+      const t = (typeStr || "").toLowerCase();
+      const e = (entityStr || "").toLowerCase();
+      if (t.startsWith("parent.") || e.includes("parent")) return "PARENT";
+      if (t.startsWith("teacher.") || e.includes("teacher")) return "TEACHER";
+      if (t.startsWith("course.") || e.includes("course")) return "COURSE";
+      if (t.startsWith("slot.") || t.startsWith("schedule.") || t.startsWith("enrollment.") || e.includes("schedule") || e.includes("slot")) return "SCHEDULE";
+      if (t.startsWith("attendance.") || e.includes("attendance")) return "ATTENDANCE";
+      if (t.startsWith("student.") || t.startsWith("hours.") || t.startsWith("exam_wish.") || e.includes("student")) return "STUDENT";
+      return "SYSTEM";
+    };
+
+    const formatAction = (typeStr: string): string => {
+      const parts = (typeStr || "").split(".");
+      const verb = parts[1] || parts[0] || "updated";
+      return verb.replace(/_/g, " ").toUpperCase();
+    };
+
+    // 1. Pull domain_events
+    try {
+      const { data: events, error } = await supabaseAdmin
+        .from("domain_events")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(250);
+
+      if (!error && Array.isArray(events)) {
+        for (const ev of events as any[]) {
+          const p = ev.payload || {};
+          const entityType = classifyEntity(ev.type, ev.entity);
+          const entityName =
+            p.student_name ||
+            p.name ||
+            p.course_name ||
+            p.teacher_name ||
+            p.parent_name ||
+            p.student_code ||
+            p.course_code ||
+            p.teacher_id_code ||
+            ev.entity_id ||
+            "Record";
+
+          const actor = p.actor || p.changed_by || p.marked_by || "System / Admin";
+          const ts = ev.created_at || new Date().toISOString();
+          const date = ts.slice(0, 10);
+
+          let summary = p.summary || p.description || "";
+          if (!summary) {
+            if (entityType === "PARENT") {
+              summary = `Parent details updated for ${p.student_name || entityName}${p.parent_email ? ` (${p.parent_email})` : ""}`;
+            } else if (entityType === "TEACHER") {
+              summary = `Teacher ${entityName}${p.teacher_id_code ? ` (${p.teacher_id_code})` : ""} ${formatAction(ev.type).toLowerCase()}`;
+            } else if (entityType === "COURSE") {
+              summary = `Course ${entityName}${p.course_code ? ` (${p.course_code})` : ""} ${formatAction(ev.type).toLowerCase()}`;
+            } else if (entityType === "SCHEDULE") {
+              summary = `Schedule ${p.course_name || entityName}${p.day_of_week ? ` (${p.day_of_week} ${p.start_time || ""})` : ""} ${formatAction(ev.type).toLowerCase()}`;
+            } else if (entityType === "ATTENDANCE") {
+              summary = `Attendance marked ${p.status ? String(p.status).toUpperCase() : ""} for ${entityName}`;
+            } else {
+              summary = `${entityType.charAt(0) + entityType.slice(1).toLowerCase()} ${entityName} ${formatAction(ev.type).toLowerCase()}`;
+            }
+          }
+
+          items.push({
+            id: `de-${ev.id}`,
+            entityType,
+            entityId: String(ev.entity_id || ""),
+            entityName: String(entityName),
+            action: formatAction(ev.type),
+            eventType: String(ev.type || ""),
+            summary,
+            actor: String(actor),
+            timestamp: ts,
+            date
+          });
+        }
+      }
+    } catch (err) {
+      console.warn("Notice reading domain_events for activity log:", err);
+    }
+
+    // 2. Pull student_history
+    try {
+      const { data: stuHist, error } = await supabaseAdmin
+        .from("student_history")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(150);
+
+      if (!error && Array.isArray(stuHist)) {
+        for (const h of stuHist as any[]) {
+          const ts = h.created_at || new Date().toISOString();
+          const et = String(h.event_type || "UPDATE").toUpperCase();
+          const entityType: "STUDENT" | "ATTENDANCE" | "SCHEDULE" =
+            et.includes("ATTENDANCE") ? "ATTENDANCE" : et.includes("ENROLL") || et.includes("SCHEDULE") ? "SCHEDULE" : "STUDENT";
+
+          items.push({
+            id: `sh-${h.id}`,
+            entityType,
+            entityId: String(h.student_id || ""),
+            entityName: String(h.student_name || h.student_id || "Student"),
+            action: et.replace(/_/g, " "),
+            eventType: et,
+            summary: String(h.description || h.title || "Profile updated"),
+            actor: String(h.actor || "System"),
+            timestamp: ts,
+            date: ts.slice(0, 10)
+          });
+        }
+      }
+    } catch (err) {
+      console.warn("Notice reading student_history for activity log:", err);
+    }
+
+    // 3. Pull attendance records
+    try {
+      const { data: attRows, error } = await supabaseAdmin
+        .from("attendance")
+        .select("id, student_id, student_name, course_name, status, date, marked_by, created_at")
+        .order("created_at", { ascending: false })
+        .limit(150);
+
+      if (!error && Array.isArray(attRows)) {
+        for (const a of attRows as any[]) {
+          const ts = a.created_at || (a.date ? `${a.date}T12:00:00.000Z` : new Date().toISOString());
+          items.push({
+            id: `att-${a.id}`,
+            entityType: "ATTENDANCE",
+            entityId: String(a.student_id || a.id),
+            entityName: String(a.student_name || "Student"),
+            action: String(a.status || "MARKED").toUpperCase(),
+            eventType: "attendance.marked",
+            summary: `${a.student_name || "Student"} marked ${String(a.status || "present").toUpperCase()}${a.course_name ? ` in ${a.course_name}` : ""}`,
+            actor: String(a.marked_by || "Teacher / Admin"),
+            timestamp: ts,
+            date: String(a.date || ts.slice(0, 10))
+          });
+        }
+      }
+    } catch (err) {
+      console.warn("Notice reading attendance for activity log:", err);
+    }
+
+    // Sort newest first
+    items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+    const normalizedFilter = (entityFilter || "ALL").toUpperCase();
+    if (normalizedFilter && normalizedFilter !== "ALL") {
+      return items.filter((item) => item.entityType === normalizedFilter);
+    }
+    return items;
+  }
 }

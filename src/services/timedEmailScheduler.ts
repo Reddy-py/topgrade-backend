@@ -7,8 +7,6 @@ import { getCachedInstituteSettings, instituteAddress } from "./instituteSetting
 import { resolveStudentElseParent, getAllParentEmails } from "./eventEmailService.js";
 import { normEmail } from "./studentAccounts.js";
 import { getInMemoryMonthlyNote } from "../routes/monthlyNotes.js";
-import { processWelcomeSeries, processWeMissYouNotices } from "./parentEngagementService.js";
-import { processDueScheduledCampaigns } from "./campaignService.js";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -73,11 +71,9 @@ export class TimedEmailScheduler {
       // 3. Event 4b: Teacher morning agenda
       const teacherAgendas = await this.processTeacherDailyAgendas(today, now.hour);
 
-      // 4. Event 6: Low hours (<=2) and hours owed (<0)
-      const lowHoursAlerts = await this.processLowHoursAndOwedAlerts(today);
-
-      // 5. Event 7: Packages ending in 7 days & package expired
-      const packageNotices = await this.processPackageExpirations(today);
+      // 4 & 5. Unsolicited low-hours / package-expiration auto-blasts disabled per admin preference
+      const lowHoursAlerts = 0;
+      const packageNotices = 0;
 
       // 6. Event 8: Birthday wishes
       const birthdays = await this.processBirthdayWishes(today, now);
@@ -85,12 +81,7 @@ export class TimedEmailScheduler {
       // 7. Event 5b & 10: Monthly progress update & attendance on 1st of month
       const monthlyReports = await this.processMonthlyProgressOnFirst(today, now.day);
 
-      // 7b. Parent Engagement: Welcome series (first 3 weeks) and We Miss You notices (14 days inactive)
-      await processWelcomeSeries(today).catch(e => console.warn("Welcome series scan notice:", e?.message));
-      await processWeMissYouNotices(today).catch(e => console.warn("We Miss You scan notice:", e?.message));
-
-      // 7c. Marketing Campaigns: Process due scheduled campaigns
-      await processDueScheduledCampaigns().catch(e => console.warn("Scheduled campaigns scan notice:", e?.message));
+      // 7b. Unsolicited Welcome series & We Miss You auto-blasts disabled per admin preference
 
       // 8. Event 12: Admin daily digest at 8:00 AM institute time
       const adminDigest = await this.processAdminDailyDigest(today, now.hour, force);

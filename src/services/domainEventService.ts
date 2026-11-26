@@ -26,8 +26,14 @@ export type DomainEventType =
   | "fee_due.reconciled"
   | "payment_request.paid"
   | "payment_request.reversed"
+  | "teacher.created"
   | "teacher.updated"
+  | "teacher.archived"
+  | "course.created"
   | "course.updated"
+  | "course.deleted"
+  | "course.archived"
+  | "parent.updated"
   | "announcement.created";
 
 export interface DomainEventPayload<T = any> {

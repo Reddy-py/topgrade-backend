@@ -226,4 +226,19 @@ router.post("/restore-student", requireAdmin, async (req: Request, res: Response
   }
 });
 
+// 12. UNIFIED ACTIVITY & AUDIT LOG (GET /api/history/activity) - ADMIN ONLY
+router.get("/activity", requireAdmin, async (req: Request, res: Response): Promise<any> => {
+  try {
+    const entityFilter = typeof req.query.entity === "string" ? req.query.entity : "ALL";
+    const data = await HistoryService.getUnifiedActivityLogs(entityFilter);
+    return res.status(200).json({
+      success: true,
+      count: data.length,
+      data
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 export default router;

@@ -2,6 +2,7 @@ import { supabaseAdmin } from "../supabase.js";
 import { instituteTimezone } from "./instituteTime.js";
 import { recordDomainEvent } from "./domainEventService.js";
 import { applyTokens, getBalances } from "./tokenService.js";
+import { generateSequentialCode } from "../utils/idGenerator.js";
 
 export const inMemoryScheduleStore: any[] = [];
 
@@ -389,7 +390,13 @@ export class ScheduleSlotService {
     const startParts = utcToCstParts(startUtc);
     const endParts = utcToCstParts(endUtc);
     const maxStudents = Math.max(1, payload.max_capacity || payload.max_students || 15);
-    const slotId = 'sch-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+    const slotId = await generateSequentialCode(
+      "schedules",
+      "id",
+      "TGSC",
+      3,
+      inMemoryScheduleStore.map((s) => s.id || "")
+    );
 
     // Insert slot into canonical public.schedules
     const insertPayload: Record<string, any> = {

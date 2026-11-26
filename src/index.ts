@@ -13,7 +13,6 @@ import feesRouter from "./routes/fees.js";
 import attendanceRouter from "./routes/attendance.js";
 import admissionsRouter from "./routes/admissions.js";
 import leadsRouter from "./routes/leads.js";
-import campaignsRouter from "./routes/campaigns.js";
 import enrollmentsRouter from "./routes/enrollments.js";
 import paymentsRouter from "./routes/payments.js";
 import sessionQrRouter from "./routes/sessionQr.js";
@@ -33,7 +32,6 @@ import upsellRouter from "./routes/upsell.js";
 import performanceRouter from "./routes/performance.js";
 import coursePackagesRouter from "./routes/coursePackages.js";
 import tokensRouter from "./routes/tokens.js";
-import duplicatesRouter from "./routes/duplicates.js";
 import paymentRequestsRouter from "./routes/paymentRequests.js";
 import feeDuesRouter from "./routes/feeDues.js";
 import { TimedEmailScheduler } from "./services/timedEmailScheduler.js";
@@ -199,7 +197,6 @@ app.use("/api/history", routeGuard("history.view", [
 ]));
 app.use("/api/alerts", routeGuard("alerts.manage"));
 app.use("/api/notifications", routeGuard("alerts.manage"));
-app.use("/api/campaigns", routeGuard("students.edit"));
 app.use("/api/leads", routeGuard("students.create", [
   { method: "POST", path: /^\/(webhook|public)\/?$/, permission: "PUBLIC" },
 ]));
@@ -374,7 +371,6 @@ app.use("/api/fees", feesRouter);
 app.use("/api/attendance", attendanceRouter);
 app.use("/api/admissions", admissionsRouter);
 app.use("/api/leads", leadsRouter);
-app.use("/api/campaigns", campaignsRouter);
 app.use("/api/enrollments", enrollmentsRouter);
 app.use("/api/payments", paymentsRouter);
 app.use("/api/session-qr", sessionQrRouter);
@@ -389,7 +385,6 @@ app.use("/api/monthly-notes", routeGuard("attendance.create"), monthlyNotesRoute
 app.use("/api/engagement", engagementRouter);
 app.use("/api/upsell", upsellRouter);
 app.use("/api/performance", performanceRouter);
-app.use("/api/duplicates", routeGuard("students.edit"), duplicatesRouter);
 app.use("/api/fee-dues", feeDuesRouter);
 app.use("/api/payment-requests", paymentRequestsRouter);
 app.get("/api/crm-info", routeGuard("dashboard.view"), async (_req, res) => {

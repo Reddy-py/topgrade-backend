@@ -9,6 +9,7 @@ import { getAccessScope, allowsCourse } from "../services/accessScope.js";
 import { getInstituteSettings, updateInstituteSettings } from "../services/instituteSettingsService.js";
 import { recordDomainEvent } from "../services/domainEventService.js";
 import { inMemoryStudentStore } from "../services/studentService.js";
+import { generateSequentialCode } from "../utils/idGenerator.js";
 
 const router = express.Router();
 
@@ -678,11 +679,15 @@ export const createCourseHandler = async (req: express.Request, res: express.Res
       return res.status(400).json({ success: false, message: "Course Name and Category are required." });
     }
 
-    const prefix = c.category.includes("STEM") ? "TG-CRS-STEM" :
-                   c.category.includes("Math") ? "TG-CRS-MTH" :
-                   c.category.includes("Science") ? "TG-CRS-SCI" :
-                   c.category.includes("Language") ? "TG-CRS-LANG" : "TG-CRS-FND";
-    const uniqueCode = c.course_code || `${prefix}-${Math.floor(100 + Math.random() * 899)}`;
+    const uniqueCode =
+      c.course_code ||
+      (await generateSequentialCode(
+        "courses",
+        "course_code",
+        "TGC",
+        3,
+        inMemoryCourses.map((x) => x.course_code || "")
+      ));
 
     let durationMonths: number | null = null;
     if (c.duration_months !== undefined && c.duration_months !== null && c.duration_months !== "") {
@@ -794,6 +799,19 @@ export const createCourseHandler = async (req: express.Request, res: express.Res
     }
 
     const savedData = mapSupabaseCourseToCourseData(data);
+    void recordDomainEvent({
+      type: "course.created",
+      entity: "courses",
+      entity_id: savedData.id || uniqueCode,
+      payload: {
+        course_id: savedData.id,
+        course_code: savedData.course_code || uniqueCode,
+        name: savedData.name,
+        category: savedData.category,
+        actor: (req as any).user?.email || "Admin"
+      }
+    });
+
     return res.status(201).json({
       success: true,
       message: `Course '${savedData.name}' created successfully.`,
@@ -1264,6 +1282,18 @@ export const deleteCourseHandler = async (req: express.Request, res: express.Res
   // Archive endpoint or status set
   await supabaseAdmin.from("courses").delete().eq("id", courseRow.id);
 
+  void recordDomainEvent({
+    type: "course.deleted",
+    entity: "courses",
+    entity_id: courseRow.id,
+    payload: {
+      course_id: courseRow.id,
+      course_code: courseRow.course_code,
+      name: courseRow.name,
+      actor: (req as any).user?.email || "Admin"
+    }
+  });
+
   return res.status(200).json({
     success: true,
     message: `Course '${courseRow.name}' deleted successfully.`,
@@ -1287,6 +1317,18 @@ export const archiveCourseHandler = async (req: express.Request, res: express.Re
   if (error || !updated) {
     return res.status(500).json({ success: false, message: error?.message || "Failed to archive course." });
   }
+
+  void recordDomainEvent({
+    type: "course.archived",
+    entity: "courses",
+    entity_id: updated.id,
+    payload: {
+      course_id: updated.id,
+      course_code: updated.course_code,
+      name: updated.name,
+      actor: (req as any).user?.email || "Admin"
+    }
+  });
 
   return res.status(200).json({
     success: true,

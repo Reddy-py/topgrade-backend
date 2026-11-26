@@ -5,6 +5,7 @@ import { sendStudentAddedEmail, sendStudentUpdatedEmail } from "./studentNotices
 import { sendExamGoodLuckWishes, sendBirthdayGreetings } from "./automatedEmailService.js";
 import { supabaseAdmin } from "../supabase.js";
 import { recordDomainEvent } from "./domainEventService.js";
+import { generateSequentialCode } from "../utils/idGenerator.js";
 
 export interface CourseAllocation {
   courseName: string;
@@ -786,8 +787,15 @@ export async function createStudentService(payload: Partial<StudentDossier>) {
   const calculatedAge = dobStr ? calculateAgeFromDOB(dobStr) : (payload.age || 0);
 
   const studentId = `std-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
-  const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-  const studentCode = payload.studentCode || `TG-STU-2026-${randomSuffix}`;
+  const studentCode =
+    payload.studentCode ||
+    (await generateSequentialCode(
+      "students",
+      "student_id_code",
+      "TGST",
+      3,
+      inMemoryStudentStore.map((s) => s.studentCode || "")
+    ));
 
   const formatPhone = (p: string) => {
     if (!p || !p.trim()) return "";
@@ -1529,6 +1537,28 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
       name: updated.fullName
     }
   });
+
+  const existingParentName = [existing.parentFirstName, existing.parentLastName].filter(Boolean).join(" ") || existing.fatherName || existing.motherName || existing.guardianName || "";
+  const updatedParentName = [updated.parentFirstName, updated.parentLastName].filter(Boolean).join(" ") || updated.fatherName || updated.motherName || updated.guardianName || "";
+  const parentChanged =
+    existingParentName !== updatedParentName ||
+    JSON.stringify(existing.parentEmails || []) !== JSON.stringify(updated.parentEmails || []) ||
+    JSON.stringify(existing.parentPhones || []) !== JSON.stringify(updated.parentPhones || []);
+
+  if (parentChanged) {
+    void recordDomainEvent({
+      type: "parent.updated",
+      entity: "parent",
+      entity_id: updated.id || id,
+      payload: {
+        student_id: updated.id || id,
+        student_name: updated.fullName,
+        parent_name: updatedParentName,
+        parent_email: (updated.parentEmails || [])[0] || "",
+        parent_phone: (updated.parentPhones || [])[0] || ""
+      }
+    });
+  }
 
   return { ...updated, loginSyncFailed, loginSyncError };
 }

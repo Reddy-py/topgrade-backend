@@ -12,6 +12,7 @@ import { isRealEmail } from "../constants/domains.js";
 import { recordDomainEvent } from "../services/domainEventService.js";
 import { logEmail, statusFromDispatch } from "../services/emailLog.js";
 import { instituteToday } from "../services/instituteTime.js";
+import { generateSequentialCode } from "../utils/idGenerator.js";
 
 const router = express.Router();
 
@@ -86,7 +87,9 @@ router.get("/", getTeachersHandler);
 // POST: Add new faculty teacher profile in Supabase
 export const createTeacherHandler = async (req: express.Request, res: express.Response) => {
   const t = req.body;
-  const uniqueId = t.teacher_id_code || `TG-FAC-${Math.floor(100 + Math.random() * 900)}`;
+  const uniqueId =
+    t.teacher_id_code ||
+    (await generateSequentialCode("teachers", "teacher_id_code", "TGT", 3));
 
   if (!t.name || !t.name.trim()) {
     return res.status(400).json({ success: false, message: "Teacher name is required." });
@@ -188,6 +191,20 @@ export const createTeacherHandler = async (req: express.Request, res: express.Re
   } catch (notifyErr) {
     console.warn("Notice: Failed to dispatch automated teacher email:", notifyErr);
   }
+
+  void recordDomainEvent({
+    type: "teacher.created",
+    entity: "teachers",
+    entity_id: savedTeacher?.id || uniqueId,
+    payload: {
+      teacher_id: savedTeacher?.id,
+      teacher_id_code: uniqueId,
+      name: newTeacher.name,
+      email: cleanEmail,
+      specialization: newTeacher.specialization,
+      actor: (req as any).user?.email || "Admin"
+    }
+  });
 
   res.status(201).json({
     success: true,
@@ -510,6 +527,18 @@ export const deleteTeacherHandler = async (req: express.Request, res: express.Re
   } catch (err: any) {
     console.warn("Supabase teacher archive notice:", err?.message);
   }
+
+  void recordDomainEvent({
+    type: "teacher.archived",
+    entity: "teachers",
+    entity_id: targetTeacher?.id || teacherId,
+    payload: {
+      teacher_id: targetTeacher?.id || teacherId,
+      teacher_id_code: targetTeacher?.teacher_id_code,
+      name: targetTeacher?.name || teacherId,
+      actor: (req as any).user?.email || "Admin"
+    }
+  });
 
   res.status(200).json({
     success: true,
