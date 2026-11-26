@@ -250,4 +250,42 @@ router.post("/", async (req: Request, res: Response): Promise<any> => {
   }
 });
 
+router.get("/diagnose", async (_req: Request, res: Response) => {
+  try {
+    const [{ data: students }, { data: teachers }, { data: parents }, { data: recentLogs }] = await Promise.all([
+      supabaseAdmin.from("students").select("id, student_id_code, name, email, parent_emails, status"),
+      supabaseAdmin.from("teachers").select("id, teacher_id_code, name, email, status"),
+      supabaseAdmin.from("parents").select("id, parent_id_code, name, email"),
+      supabaseAdmin.from("email_log").select("created_at, event_type, recipients, subject, status, error").order("created_at", { ascending: false }).limit(15)
+    ]);
+
+    const sRows = (students || []) as any[];
+    const tRows = (teachers || []) as any[];
+    const pRows = (parents || []) as any[];
+
+    return res.json({
+      success: true,
+      smtpConfigured: {
+        simulateEmails: process.env.SIMULATE_EMAILS === "true",
+        gmailUser: process.env.GMAIL_USER || "",
+        gmailSender: process.env.GMAIL_SENDER_EMAIL || "",
+        adminEmail: process.env.ADMIN_EMAIL || "",
+        hasAppPassword: Boolean((process.env.GMAIL_APP_PASSWORD || "").trim())
+      },
+      databaseEmailStats: {
+        totalStudents: sRows.length,
+        studentsWithRealEmail: sRows.filter(s => isRealEmail(String(s.email || ""))).length,
+        studentsWithRealParentEmail: sRows.filter(s => Array.isArray(s.parent_emails) && s.parent_emails.some((pe: string) => isRealEmail(pe))).length,
+        totalTeachers: tRows.length,
+        teachersWithRealEmail: tRows.filter(t => isRealEmail(String(t.email || ""))).length,
+        totalParents: pRows.length,
+        parentsWithRealEmail: pRows.filter(p => isRealEmail(String(p.email || ""))).length
+      },
+      recentEmailLogs: recentLogs || []
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err?.message || "Diagnostics failed" });
+  }
+});
+
 export default router;

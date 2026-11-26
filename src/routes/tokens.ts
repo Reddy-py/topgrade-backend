@@ -174,12 +174,17 @@ router.post("/grant", async (req: Request, res: Response) => {
         recipients.push({ role: "PARENT", email: pEmail, name: `Parent of ${student.name}` });
       }
     }
-    void dispatchMultiChannelNotification({
-      eventType: "PAYMENT_COMPLETED",
-      subject: `🎟️ Course Tokens Credited — +${numHours} Token(s) for ${course.name}`,
-      message: `Hello ${student.name},\n\nAn administrator has manually credited +${numHours} course token(s) to your wallet for '${course.name}'.\n\nUpdated Course Balance: ${applied.balance} token(s)\nNote: ${grantNote}\n\nYou can now register for matching class schedules on the TopGrade Schedule page.\n\nBest Regards,\nTopGrade Administration`,
-      recipients,
-    }).catch(e => console.warn("Manual token grant email notice:", e?.message));
+    // Notify student, parents & admin via email (awaited cleanly with resilient error guard)
+    try {
+      await dispatchMultiChannelNotification({
+        eventType: "PAYMENT_COMPLETED",
+        subject: `🎟️ Course Tokens Credited — +${numHours} Token(s) for ${course.name}`,
+        message: `Hello ${student.name},\n\nAn administrator has manually credited +${numHours} course token(s) to your wallet for '${course.name}'.\n\nUpdated Course Balance: ${applied.balance} token(s)\nNote: ${grantNote}\n\nYou can now register for matching class schedules on the TopGrade Schedule page.\n\nBest Regards,\nTopGrade Administration`,
+        recipients,
+      });
+    } catch (e: any) {
+      console.warn("Manual token grant email notice:", e?.message);
+    }
 
     return res.status(201).json({
       success: true,

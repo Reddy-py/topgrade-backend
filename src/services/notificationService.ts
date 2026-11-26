@@ -88,13 +88,18 @@ function getTransporter(): { transporter: any; gmailUser: string } {
         host: "smtp.gmail.com",
         port: 465,
         secure: true,
+        pool: true,
+        maxConnections: 1,
+        maxMessages: 100,
+        rateDelta: 1000,
+        rateLimit: 5,
         auth: {
           user: gmailUser,
           pass: cleanPass,
         },
-        connectionTimeout: 6000,
-        greetingTimeout: 6000,
-        socketTimeout: 8000,
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000,
       });
       lastTransporterCreds = credKey;
       return { transporter: cachedTransporter, gmailUser };
@@ -252,7 +257,7 @@ export async function dispatchMultiChannelNotification(payload: NotificationPayl
         });
 
         const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("SMTP socket timeout after 7 seconds")), 7000)
+          setTimeout(() => reject(new Error("SMTP socket timeout after 15 seconds")), 15000)
         );
 
         await Promise.race([sendPromise, timeoutPromise]);

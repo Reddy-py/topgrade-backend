@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { supabaseAdmin } from "../supabase.js";
 import { dispatchMultiChannelNotification } from "./notificationService.js";
 import { ScheduleDataService } from "./scheduleDataService.js";
@@ -61,7 +62,7 @@ export interface DomainEventRecord {
  */
 export async function recordDomainEvent<T = any>(event: DomainEventPayload<T>): Promise<string> {
   const nowIso = new Date().toISOString();
-  const eventId = `evt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const eventId = crypto.randomUUID();
 
   try {
     const { error } = await supabaseAdmin.from("domain_events").insert({

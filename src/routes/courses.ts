@@ -674,6 +674,63 @@ class AsyncMutex {
 }
 const courseCreationMutex = new AsyncMutex();
 
+async function broadcastCourseLifecycleEmail(
+  action: "ADDED" | "REMOVED",
+  courseName: string,
+  courseCode: string,
+  category?: string
+): Promise<void> {
+  try {
+    const adminEmail = parseEnv("ADMIN_EMAIL", "tglbiz101@gmail.com")!;
+    const recipients: Array<{ role: "ADMIN" | "STUDENT" | "PARENT"; email: string; name: string }> = [
+      { role: "ADMIN", email: adminEmail, name: "TopGrade Administrator" }
+    ];
+    const seen = new Set<string>([adminEmail.toLowerCase()]);
+
+    const { data: students } = await supabaseAdmin
+      .from("students")
+      .select("name, email, parent_emails, status");
+
+    for (const stu of (students || []) as any[]) {
+      const st = String(stu.status || "ACTIVE").toUpperCase();
+      if (st === "INACTIVE" || st === "ARCHIVED" || st === "DELETED") continue;
+
+      const own = String(stu.email || "").trim().toLowerCase();
+      if (own && isRealEmail(own) && !seen.has(own)) {
+        seen.add(own);
+        recipients.push({ role: "STUDENT", email: own, name: stu.name || "Student" });
+      }
+      if (Array.isArray(stu.parent_emails)) {
+        for (const pe of stu.parent_emails) {
+          const p = String(pe || "").trim().toLowerCase();
+          if (p && isRealEmail(p) && !seen.has(p)) {
+            seen.add(p);
+            recipients.push({ role: "PARENT", email: p, name: `Parent of ${stu.name || "Student"}` });
+          }
+        }
+      }
+    }
+
+    const isAdded = action === "ADDED";
+    const subject = isAdded
+      ? `📚 New Course Added: ${courseName} (${courseCode})`
+      : `Course Discontinued: ${courseName} (${courseCode})`;
+    const message = isAdded
+      ? `Hello,\n\nTopGrade Learning has added a new course to the curriculum:\n\n• Course Name: ${courseName}\n• Course Code: ${courseCode}\n• Category: ${category || "General"}\n• Pricing: $1.00 / hour token (Continuous — No End Date)\n\nSign in to TopGrade CRM to purchase tokens on Fees and register for upcoming class schedules on Schedule.`
+      : `Hello,\n\nPlease note that the course '${courseName}' (${courseCode}) has been removed from TopGrade Learning and is no longer available.\n\nIf you have any questions regarding active schedules or course tokens, please contact TopGrade Administration.`;
+
+    await dispatchMultiChannelNotification({
+      eventType: "ADMISSION_APPROVED",
+      subject,
+      message,
+      escapeMessage: true,
+      recipients: recipients as any
+    });
+  } catch (err: any) {
+    console.warn(`[COURSES] Broadcast email (${action}) notice:`, err?.message);
+  }
+}
+
 // POST: Add new course (Admin only)
 export const createCourseHandler = async (req: express.Request, res: express.Response): Promise<any> => {
   return courseCreationMutex.runExclusive(async () => {
@@ -816,52 +873,12 @@ export const createCourseHandler = async (req: express.Request, res: express.Res
     });
 
     // Notify Admin and all active Students that a new course has been added
-    void (async () => {
-      try {
-        const adminEmail = parseEnv("ADMIN_EMAIL", "tglbiz101@gmail.com")!;
-        const recipients: Array<{ role: "ADMIN" | "STUDENT" | "PARENT"; email: string; name: string; phone?: string }> = [
-          { role: "ADMIN", email: adminEmail, name: "TopGrade Administrator" }
-        ];
-        const seen = new Set<string>([adminEmail.toLowerCase()]);
-
-        const { data: students } = await supabaseAdmin
-          .from("students")
-          .select("name, email, parent_emails, status")
-          .in("status", ["ACTIVE", "Active", "active", "enrolled", "Enrolled"]);
-
-        for (const stu of (students || []) as any[]) {
-          const own = String(stu.email || "").trim().toLowerCase();
-          if (own && isRealEmail(own) && !seen.has(own)) {
-            seen.add(own);
-            recipients.push({ role: "STUDENT", email: own, name: stu.name || "Student" });
-          } else if (Array.isArray(stu.parent_emails)) {
-            for (const pe of stu.parent_emails) {
-              const p = String(pe || "").trim().toLowerCase();
-              if (p && isRealEmail(p) && !seen.has(p)) {
-                seen.add(p);
-                recipients.push({ role: "PARENT", email: p, name: `Parent of ${stu.name || "Student"}` });
-              }
-            }
-          }
-        }
-
-        await dispatchMultiChannelNotification({
-          eventType: "ADMISSION_APPROVED",
-          subject: `📚 New Course Added: ${savedData.name} (${savedData.course_code || uniqueCode})`,
-          message:
-            `Hello,\n\nTopGrade Learning has added a new course to the curriculum:\n\n` +
-            `• Course Name: ${savedData.name}\n` +
-            `• Course Code: ${savedData.course_code || uniqueCode}\n` +
-            `• Category: ${savedData.category || "General"}\n` +
-            `• Pricing: $1.00 / hour token (Continuous — No End Date)\n\n` +
-            `Sign in to TopGrade CRM to purchase tokens and register for upcoming class schedules.`,
-          escapeMessage: true,
-          recipients: recipients as any
-        });
-      } catch (broadcastErr: any) {
-        console.warn("Notice broadcasting new course email:", broadcastErr?.message);
-      }
-    })();
+    await broadcastCourseLifecycleEmail(
+      "ADDED",
+      savedData.name,
+      savedData.course_code || uniqueCode,
+      savedData.category
+    );
 
     return res.status(201).json({
       success: true,
@@ -1358,48 +1375,11 @@ export const deleteCourseHandler = async (req: express.Request, res: express.Res
   });
 
   // Notify all active students (and parents when student email missing) + Admin that course is removed
-  void (async () => {
-    try {
-      const adminEmail = parseEnv("ADMIN_EMAIL", "tglbiz101@gmail.com")!;
-      const recipients: Array<{ role: "ADMIN" | "STUDENT" | "PARENT"; email: string; name: string }> = [
-        { role: "ADMIN", email: adminEmail, name: "TopGrade Administrator" }
-      ];
-      const seen = new Set<string>([adminEmail.toLowerCase()]);
-
-      const { data: students } = await supabaseAdmin
-        .from("students")
-        .select("name, email, parent_emails, status")
-        .in("status", ["ACTIVE", "Active", "active", "enrolled", "Enrolled"]);
-
-      for (const stu of (students || []) as any[]) {
-        const own = String(stu.email || "").trim().toLowerCase();
-        if (own && isRealEmail(own) && !seen.has(own)) {
-          seen.add(own);
-          recipients.push({ role: "STUDENT", email: own, name: stu.name || "Student" });
-        } else if (Array.isArray(stu.parent_emails)) {
-          for (const pe of stu.parent_emails) {
-            const p = String(pe || "").trim().toLowerCase();
-            if (p && isRealEmail(p) && !seen.has(p)) {
-              seen.add(p);
-              recipients.push({ role: "PARENT", email: p, name: `Parent of ${stu.name || "Student"}` });
-            }
-          }
-        }
-      }
-
-      await dispatchMultiChannelNotification({
-        eventType: "ADMISSION_APPROVED",
-        subject: `Course Discontinued: ${courseRow.name} (${courseRow.course_code || ""})`,
-        message:
-          `Hello,\n\nPlease note that the course '${courseRow.name}' (${courseRow.course_code || ""}) has been removed from TopGrade Learning and is no longer available.\n\n` +
-          `If you have any questions regarding active schedules or course tokens, please contact TopGrade Administration.`,
-        escapeMessage: true,
-        recipients: recipients as any
-      });
-    } catch (broadcastErr: any) {
-      console.warn("Notice broadcasting course deletion email:", broadcastErr?.message);
-    }
-  })();
+  await broadcastCourseLifecycleEmail(
+    "REMOVED",
+    courseRow.name,
+    courseRow.course_code || ""
+  );
 
   return res.status(200).json({
     success: true,

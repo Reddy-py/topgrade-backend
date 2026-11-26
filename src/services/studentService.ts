@@ -1329,7 +1329,14 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
     index = inMemoryStudentStore.length - 1;
   }
 
-  // 2. Concurrency check disabled: edits apply directly and reliably without locking modals
+  const beforeSnapshot: StudentDossier = {
+    ...existing,
+    studentEmails: [...(existing.studentEmails || [])],
+    parentEmails: [...(existing.parentEmails || [])],
+    studentPhones: [...(existing.studentPhones || [])],
+    parentPhones: [...(existing.parentPhones || [])],
+    allocatedCourses: Array.isArray(existing.allocatedCourses) ? existing.allocatedCourses.map(c => ({ ...c })) : []
+  };
   const clientVersion = payload.expectedUpdatedAt || (payload as any).expected_updated_at;
 
   // 3. Name & demographic resolution (missing fields must not block saving edits)
@@ -1544,7 +1551,7 @@ export async function updateStudentService(id: string, payload: Partial<StudentD
   lastSupabaseStudentFetch = Date.now();
 
   // Requirement 2: Always dispatch automatic update email to BOTH student and parent from admin email
-  await sendStudentUpdatedEmail(existing, updated).catch(err => console.warn("Notice sending update email:", err?.message));
+  await sendStudentUpdatedEmail(beforeSnapshot, updated).catch(err => console.warn("Notice sending update email:", err?.message));
 
   void recordDomainEvent({
     type: "student.updated",

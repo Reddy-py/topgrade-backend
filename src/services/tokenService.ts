@@ -597,7 +597,9 @@ export async function fulfillOrder(order: OrderRow, by?: string | null): Promise
     confirmed_by: by ?? null,
   }).eq("id", order.id).neq("status", "PAID");
 
-  if (r.applied) void sendOrderReceipt(order).catch(err => console.warn("Receipt email notice:", err?.message));
+  if (r.applied) {
+    await sendOrderReceipt(order).catch(err => console.warn("Receipt email notice:", err?.message));
+  }
   return { credited: r.applied, balance: r.balance };
 }
 
